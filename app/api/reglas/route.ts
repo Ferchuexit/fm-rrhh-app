@@ -13,6 +13,12 @@ import { validarReglaAntesDeGuardar } from "@/lib/motor/validador-reglas.mjs";
 // rompía el cálculo real de embargos.
 const CODIGOS_SIN_FORMULA = ["SAC", "SAC_PROPORCIONAL", "RETENCION_GANANCIAS", "EMBARGO_JUDICIAL", "EMBARGO_COMERCIAL"];
 
+// Sin esto, Next.js puede intentar generar esta ruta como página ESTÁTICA en
+// el momento del build (congelada con lo que hubiera en la base ese día) en
+// vez de ejecutarla fresca en cada visita — encontrado el 09/09/2026 al
+// preparar el primer deploy a Vercel.
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const reglas = await prisma.reglaConcepto.findMany({
     where: { vigenciaHasta: null },

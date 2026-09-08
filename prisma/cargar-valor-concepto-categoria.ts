@@ -45,7 +45,7 @@ async function main() {
     });
 
     if (existente) {
-      if (existente.valor === v.valor) continue;
+      if (existente.valor.toNumber() === v.valor) continue;
       await prisma.valorConceptoCategoria.update({ where: { id: existente.id }, data: { valor: v.valor } });
       actualizados++;
       console.log(`✔ "${v.categoria}": actualizado a $${v.valor}`);

@@ -342,7 +342,7 @@ export default function NovedadesPage() {
           <select value={manual.conceptoCodigo} onChange={(e) => setManual({ ...manual, conceptoCodigo: e.target.value })}>
             <option value="">Concepto...</option>
             {Object.entries(
-              conceptos.reduce((grupos: Record<string, any[]>, c) => {
+              conceptos.reduce<Record<string, any[]>>((grupos, c) => {
                 const cat = c.categoriaNovedad ?? "Otros";
                 (grupos[cat] ??= []).push(c);
                 return grupos;
@@ -440,7 +440,7 @@ export default function NovedadesPage() {
           ) : (
             <p style={{ color: "#2F6F5E", fontWeight: "bold" }}>
               ✔ {confirmado.insertadas} novedades guardadas. Andá a{" "}
-              <a href={`/liquidacion-masiva?periodoId=${periodoId}`}>/liquidacion-masiva</a> y liquidá de nuevo.
+              <a href={`/liquidar?periodoId=${periodoId}`}>/liquidar</a> y liquidá de nuevo.
             </p>
           )}
         </div>
@@ -450,7 +450,7 @@ export default function NovedadesPage() {
       <div style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginTop: "1.5rem", maxWidth: "700px" }}>
         <h3 style={{ marginTop: 0, color: "#B23A3A" }}>Eliminar novedades</h3>
         <p style={{ fontSize: "0.85rem", opacity: 0.7 }}>
-          Para volver a cargar desde cero, o corregir un error masivo — mismo filtro que ya conocés de /liquidacion-masiva.
+          Para volver a cargar desde cero, o corregir un error masivo — mismo filtro que ya conocés de /liquidar.
         </p>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginBottom: "0.75rem" }}>
           <label>

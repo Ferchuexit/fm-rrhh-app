@@ -123,7 +123,10 @@ export async function POST(req: Request) {
       adjuntos: [{ nombreArchivo: `asistencia_diaria_${fecha}.pdf`, contenido: Buffer.from(pdfBytes) }],
     });
 
-    if (!resultado.ok) return NextResponse.json({ error: resultado.error }, { status: 502 });
+    if (!resultado.ok) {
+      const mensaje = "error" in resultado ? resultado.error : "No se pudo enviar el reporte.";
+      return NextResponse.json({ error: mensaje }, { status: 502 });
+    }
     return NextResponse.json({ enviado: true, id: resultado.id });
   } catch (e: any) {
     console.error("Error en POST /api/reportes/asistencia-diaria:", e);

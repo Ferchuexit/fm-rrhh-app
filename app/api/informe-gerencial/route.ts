@@ -159,7 +159,7 @@ export async function GET(req: Request) {
     const buffer = await Packer.toBuffer(doc);
     const nombreArchivo = `informe-gerencial-${datos.periodoActual.nombre.replace(/[^a-zA-Z0-9]/g, "_")}.docx`;
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${nombreArchivo}"`,

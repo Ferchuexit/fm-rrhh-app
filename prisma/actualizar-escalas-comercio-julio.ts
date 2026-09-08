@@ -49,16 +49,16 @@ async function main() {
     const escala = await prisma.escala.findFirst({ where: { categoriaId: categoria.id, vigenciaDesde: VIGENCIA_DESDE } });
     if (!escala) { console.log(`⚠ "${b.categoria}" no tiene escala vigente al 1° de julio todavía — se salta.`); sinEscalaJulio++; continue; }
 
-    if (escala.basico === b.basico) { console.log(`"${b.categoria}": ya estaba en $${b.basico} — sin cambios.`); continue; }
+    if (escala.basico.toNumber() === b.basico) { console.log(`"${b.categoria}": ya estaba en $${b.basico} — sin cambios.`); continue; }
 
-    console.log(`✔ "${b.categoria}": $${escala.basico.toLocaleString("es-AR")} → $${b.basico.toLocaleString("es-AR")}`);
+    console.log(`✔ "${b.categoria}": $${escala.basico.toNumber().toLocaleString("es-AR")} → $${b.basico.toLocaleString("es-AR")}`);
     await prisma.escala.update({ where: { id: escala.id }, data: { basico: b.basico } });
     actualizadas++;
   }
 
   console.log(`\n${actualizadas} actualizadas, ${sinCategoria} sin categoría, ${sinEscalaJulio} sin escala de julio.`);
   console.log("\n⚠️ Esto cambia el neto de todos los legajos de Comercio ya liquidados en julio.");
-  console.log("Volvé a liquidar desde /liquidar (filtrando por convenio Comercio) para que quede actualizado.");
+  console.log("Volvé a liquidar desde /liquidacion-masiva (filtrando por convenio Comercio) para que quede actualizado.");
 }
 
 main()
