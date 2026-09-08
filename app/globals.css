@@ -1,0 +1,84 @@
+/* FM RRHH — app/globals.css
+   Paleta definitiva: celeste apagado, celeste oscuro, blanco, gris claro, gris oscuro.
+*/
+:root {
+  --azul-oscuro: #163A5C;
+  --azul-claro: #7FA8C6;
+  --blanco: #FFFFFF;
+  --gris-claro: #EEF1F4;
+  --gris-oscuro: #4A4F58;
+  --rojo: #B23A3A;
+  --verde: #2F6F5E;
+  --ambar: #B8752B;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  margin: 0;
+  background: var(--gris-claro);
+  color: var(--gris-oscuro);
+}
+
+h1, h2, h3, h4 {
+  color: var(--azul-oscuro);
+}
+
+a {
+  color: var(--azul-claro);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 900px;
+  background: var(--blanco);
+}
+th, td {
+  text-align: left;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--gris-claro);
+  font-size: 0.9rem;
+}
+th {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  font-weight: 600;
+}
+tr:nth-child(even) td {
+  background: var(--gris-claro);
+}
+
+input, select, textarea {
+  border: 1px solid #cfd6dc;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--gris-oscuro);
+}
+
+button {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  border: none;
+  border-radius: 3px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+button:hover:not(:disabled) {
+  background: #0f2941;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+code {
+  background: var(--gris-claro);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}

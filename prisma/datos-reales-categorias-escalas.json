@@ -1,0 +1,462 @@
+{
+  "categorias": [
+    {
+      "convenio": "0130/75",
+      "nombre": "ADMINISTRATIVO A"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "ADMINISTRATIVO B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "ADMINISTRATIVO C"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "ADMINISTRATIVO D"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "ADMINISTRATIVO E"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "ADMINISTRATIVO F"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "AUXILIAR ESPECIALIZADO A"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "AUXILIAR ESPECIALIZADO B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "CAJERO A"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "CAJERO B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "CAJERO C"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "MAESTRANZA A"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "MAESTRANZA A 1/2 Jor."
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "MAESTRANZA B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "MAESTRANZA C"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "PERSONAL AUXILIAR A"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "PERSONAL AUXILIAR B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "PERSONAL AUXILIAR C"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "VENDEDOR B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "VENDEDORES A"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "VENDEDORES B"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "VENDEDORES C"
+    },
+    {
+      "convenio": "0130/75",
+      "nombre": "VENDEDORES D"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "AYUDANTE"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "MANT. MEDIO OFICIAL"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "MANT. OF. ESP. 1"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "MANT. OF. ESP. 2"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "MANT. OFICIAL 1"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "MANT. OFICIAL 2"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "MEDIO OFICIAL"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "OFICIAL ESPECIALIZADO"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "OFICIAL GENERAL"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "OFICIAL MULTIPLE"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "OPERARIO ACT. INDUSTRIAL"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "PEON"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "PRODUCCION 1"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "PRODUCCION 2"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "PRODUCCION 3"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "PRODUCCION 4"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "PRODUCCION 5"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "SERVICIOS A"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "SERVICIOS B"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "SERVICIOS C"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "SERVICIOS D"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "VEHICULO 2"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "VEHICULO 3"
+    },
+    {
+      "convenio": "0335/75",
+      "nombre": "VEHICULO 4"
+    },
+    {
+      "convenio": "9999/99",
+      "nombre": "SIN CATEGORIA"
+    }
+  ],
+  "escalas": [
+    {
+      "convenio": "0130/75",
+      "categoria": "ADMINISTRATIVO A",
+      "valor": 1149298,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "ADMINISTRATIVO B",
+      "valor": 1154212,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "ADMINISTRATIVO C",
+      "valor": 1159120,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "ADMINISTRATIVO D",
+      "valor": 1173854,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "ADMINISTRATIVO E",
+      "valor": 1186128,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "ADMINISTRATIVO F",
+      "valor": 1204135,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "AUXILIAR ESPECIALIZADO A",
+      "valor": 1163214,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "AUXILIAR ESPECIALIZADO B",
+      "valor": 1177944,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "CAJERO A",
+      "valor": 1153389,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "CAJERO B",
+      "valor": 1159120,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "CAJERO C",
+      "valor": 1166487,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "MAESTRANZA A",
+      "valor": 1137023,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "MAESTRANZA B",
+      "valor": 1140294,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "MAESTRANZA C",
+      "valor": 1151751,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "PERSONAL AUXILIAR A",
+      "valor": 1153389,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "PERSONAL AUXILIAR B",
+      "valor": 1161573,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "PERSONAL AUXILIAR C",
+      "valor": 1188584,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "VENDEDORES A",
+      "valor": 1153389,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "VENDEDORES B",
+      "valor": 1177947,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "VENDEDORES C",
+      "valor": 1186128,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0130/75",
+      "categoria": "VENDEDORES D",
+      "valor": 1204135,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "OFICIAL MULTIPLE",
+      "valor": 7959.06,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "OFICIAL ESPECIALIZADO",
+      "valor": 7191.02,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "OFICIAL GENERAL",
+      "valor": 6686.4,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "MEDIO OFICIAL",
+      "valor": 6111.2,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "AYUDANTE",
+      "valor": 5877.33,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "OPERARIO ACT. INDUSTRIAL",
+      "valor": 5796.32,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "VEHICULO 2",
+      "valor": 6536.35,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "VEHICULO 3",
+      "valor": 6311.14,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "VEHICULO 4",
+      "valor": 5905.52,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "PRODUCCION 1",
+      "valor": 6732.77,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "PRODUCCION 2",
+      "valor": 6532.25,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "PRODUCCION 3",
+      "valor": 6336.57,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "PRODUCCION 4",
+      "valor": 5905.52,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "PRODUCCION 5",
+      "valor": 5745.55,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "MANT. OF. ESP. 1",
+      "valor": 7265.13,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "MANT. OF. ESP. 2",
+      "valor": 7000.03,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "MANT. OFICIAL 1",
+      "valor": 6481.48,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "MANT. OFICIAL 2",
+      "valor": 6311.14,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "MANT. MEDIO OFICIAL",
+      "valor": 5905.52,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "SERVICIOS A",
+      "valor": 6991.5,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "SERVICIOS B",
+      "valor": 6536.35,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "SERVICIOS C",
+      "valor": 6311.14,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    },
+    {
+      "convenio": "0335/75",
+      "categoria": "SERVICIOS D",
+      "valor": 5905.52,
+      "vigenciaDesde": "2026-07-01T00:00:00"
+    }
+  ]
+}

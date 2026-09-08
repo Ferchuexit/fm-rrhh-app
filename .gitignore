@@ -1,0 +1,12 @@
+node_modules/
+.next/
+prisma/dev.db
+prisma/dev.db-journal
+.env
+.env*.local
+.DS_Store
+
+# Backups locales (pg_dump) — datos reales de sueldos, nunca al repositorio
+/backups/
+.vercel
+.env*
