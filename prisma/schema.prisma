@@ -67,6 +67,12 @@ model Usuario {
   rol          String   @default("operador") // 'admin' | 'operador' | 'lectura'
   createdAt    DateTime @default(now())
 
+  // ── Bloqueo por intentos fallidos (09/09/2026 — revisión de seguridad
+  // antes de hacer pública la URL). Sin esto, alguien podía probar
+  // contraseñas sin ningún límite contra /api/login.
+  intentosFallidos Int       @default(0)
+  bloqueadoHasta   DateTime?
+
   empresas UsuarioEmpresa[]
   edicionesLiquidacionDetalle LiquidacionDetalleEdicion[]
 }
