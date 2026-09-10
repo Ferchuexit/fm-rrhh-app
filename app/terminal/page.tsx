@@ -17,6 +17,23 @@ import { useState, useEffect, useRef } from "react";
 // la fichada se guarda en localStorage y se reintenta sola cada 15
 // segundos y apenas el navegador detecta que volvió el internet. Nunca se
 // pierde una fichada por falta de señal.
+//
+// FASE 3 — reconocimiento facial: corre ENTERAMENTE en este navegador
+// (face-api.js desde CDN + los modelos en /public/models) contra los
+// descriptores de la empresa, bajados una sola vez al vincular. Si
+// reconoce una cara con buena confianza, selecciona el legajo solo — el
+// empleado igual tiene que tocar "Registrar Ingreso/Salida" a mano, para
+// no fichar a nadie sin que se dé cuenta. La búsqueda manual sigue andando
+// igual, como respaldo si la cámara falla o alguien todavía no está
+// registrado biométricamente.
+declare global {
+  interface Window {
+    faceapi: any;
+  }
+}
+const CDN_FACEAPI = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js";
+const UMBRAL_DISTANCIA = 0.5; // más bajo = más estricto. 0.5-0.6 es lo habitual para face-api.js
+
 const CLAVE_DISPOSITIVO = "terminal.dispositivoId";
 const CLAVE_NOMBRE = "terminal.nombreDispositivo";
 const CLAVE_COLA = "terminal.colaPendiente";
@@ -26,6 +43,13 @@ interface Legajo {
   numeroLegajo: number;
   apellido: string;
   nombre: string;
+}
+interface DescriptorBiometrico {
+  legajoId: string;
+  numeroLegajo: number;
+  apellido: string;
+  nombre: string;
+  descriptor: number[];
 }
 interface FichadaPendiente {
   tempId: string;
@@ -59,6 +83,14 @@ export default function TerminalPage() {
   const [confirmacion, setConfirmacion] = useState<{ texto: string; ok: boolean } | null>(null);
   const [cola, setCola] = useState<FichadaPendiente[]>([]);
 
+  // ── Fase 3: reconocimiento facial ──
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [descriptores, setDescriptores] = useState<DescriptorBiometrico[]>([]);
+  const [modelosListos, setModelosListos] = useState(false);
+  const [camaraLista, setCamaraLista] = useState(false);
+  const [reconocido, setReconocido] = useState<string | null>(null); // nombre, solo para el toast breve
+  const reconociendoRef = useRef(false); // evita superponer detecciones mientras una todavía está corriendo
+
   // ── Cargar dispositivo ya vinculado, si lo hay ──
   useEffect(() => {
     const id = localStorage.getItem(CLAVE_DISPOSITIVO);
@@ -70,10 +102,11 @@ export default function TerminalPage() {
     setCola(leerCola());
   }, []);
 
-  // ── Una vez vinculado: cargar legajos, heartbeat, y sincronizar la cola ──
+  // ── Una vez vinculado: cargar legajos, heartbeat, sincronizar la cola, y arrancar reconocimiento facial ──
   useEffect(() => {
     if (!dispositivoId) return;
     cargarLegajos();
+    cargarDescriptoresYModelos();
     const heartbeatInterval = setInterval(() => {
       fetch("/api/dispositivos/heartbeat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dispositivoId }) }).catch(() => {});
     }, 2 * 60000);
@@ -83,9 +116,79 @@ export default function TerminalPage() {
       clearInterval(heartbeatInterval);
       clearInterval(syncInterval);
       window.removeEventListener("online", sincronizarCola);
+      const stream = videoRef.current?.srcObject as MediaStream | undefined;
+      stream?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispositivoId]);
+
+  // ── Loop de reconocimiento — solo corre en la pantalla principal (nadie seleccionado, sin confirmación en pantalla) ──
+  useEffect(() => {
+    if (!modelosListos || !camaraLista || seleccionado || confirmacion) return;
+    const intervalo = setInterval(reconocerCara, 1200);
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelosListos, camaraLista, seleccionado, confirmacion, descriptores]);
+
+  function cargarDescriptoresYModelos() {
+    const seguir = () => {
+      cargarModelos();
+      fetch("/api/dispositivos/biometria", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dispositivoId }) })
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setDescriptores)
+        .catch(() => {}); // sin conexión — sigue funcionando con búsqueda manual, se reintenta al recargar
+    };
+    if (window.faceapi) {
+      seguir();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = CDN_FACEAPI;
+    script.onload = seguir;
+    document.head.appendChild(script);
+  }
+
+  async function cargarModelos() {
+    try {
+      await window.faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+      await window.faceapi.nets.faceLandmark68Net.loadFromUri("/models");
+      await window.faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+      setModelosListos(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCamaraLista(true);
+      }
+    } catch {
+      // sin cámara o sin modelos — la pantalla sigue andando con búsqueda manual nada más
+    }
+  }
+
+  async function reconocerCara() {
+    if (reconociendoRef.current || !videoRef.current || descriptores.length === 0) return;
+    reconociendoRef.current = true;
+    try {
+      const deteccion = await window.faceapi
+        .detectSingleFace(videoRef.current, new window.faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+      if (deteccion) {
+        let mejor: { d: DescriptorBiometrico; distancia: number } | null = null;
+        for (const d of descriptores) {
+          const distancia = window.faceapi.euclideanDistance(deteccion.descriptor, d.descriptor);
+          if (!mejor || distancia < mejor.distancia) mejor = { d, distancia };
+        }
+        if (mejor && mejor.distancia < UMBRAL_DISTANCIA) {
+          setReconocido(`${mejor.d.apellido}, ${mejor.d.nombre}`);
+          setSeleccionado({ id: mejor.d.legajoId, numeroLegajo: mejor.d.numeroLegajo, apellido: mejor.d.apellido, nombre: mejor.d.nombre });
+          setTimeout(() => setReconocido(null), 2000);
+        }
+      }
+    } catch {
+      // un frame fallido no importa, se reintenta en el próximo ciclo
+    }
+    reconociendoRef.current = false;
+  }
 
   async function cargarLegajos() {
     try {
@@ -228,17 +331,36 @@ export default function TerminalPage() {
     );
   }
 
-  // ── Pantalla principal: buscar empleado ──
+  // ── Pantalla principal: cámara (si está disponible) + buscar empleado ──
   return (
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "#163A5C", padding: "3rem 1.5rem" }}>
       <h1 style={{ color: "white", marginBottom: "0.3rem" }}>FM Software</h1>
-      <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: "2rem" }}>{nombreDispositivo} — Buenos días</p>
+      <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: "1.5rem" }}>{nombreDispositivo} — Buenos días</p>
+
+      <div style={{ position: "relative", width: "100%", maxWidth: "420px", marginBottom: "1.5rem" }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          style={{ width: "100%", borderRadius: "12px", background: "#000", transform: "scaleX(-1)", display: camaraLista ? "block" : "none" }}
+        />
+        {!camaraLista && (
+          <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontSize: "0.85rem" }}>
+            {modelosListos ? "Sin cámara — usá la búsqueda de abajo." : "Cargando reconocimiento facial..."}
+          </p>
+        )}
+        {reconocido && (
+          <div style={{ position: "absolute", bottom: "0.75rem", left: "0.75rem", right: "0.75rem", background: "rgba(47,111,94,0.9)", color: "white", padding: "0.5rem", borderRadius: "6px", textAlign: "center", fontSize: "0.9rem" }}>
+            ✔ Reconocido: {reconocido}
+          </div>
+        )}
+      </div>
 
       <input
-        autoFocus
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
-        placeholder="Escribí tu legajo o apellido..."
+        placeholder="O escribí tu legajo o apellido..."
         style={{ width: "100%", maxWidth: "420px", padding: "1rem", fontSize: "1.2rem", borderRadius: "8px", border: "none", marginBottom: "1rem" }}
       />
 
