@@ -465,6 +465,34 @@ model DispositivoAsistencia {
 
   empresa  Empresa   @relation(fields: [empresaId], references: [id])
   fichadas Fichada[]
+  altasBiometricas BiometriaEmpleado[]
+}
+
+// Fase 3 — identificación facial. Guarda un DESCRIPTOR (un vector de ~128
+// números que face-api.js calcula a partir de la cara — la "huella
+// matemática" de los rasgos), NUNCA la foto en sí. El reconocimiento pasa
+// enteramente en el navegador de la terminal (face-api.js corriendo
+// client-side) — el descriptor nunca sale de tu propia base de datos, no
+// hay ningún servicio de nube de terceros de por medio.
+//
+// Un legajo tiene UN registro biométrico activo por vez — "Actualizar
+// registro" reemplaza el descriptor existente en vez de crear uno
+// paralelo, para que nunca haya dos plantillas activas confundiéndose.
+// "Revocar identificación" no borra la fila — marca estado='revocado' y
+// fechaRevocacion, para que quede el historial de cuándo se dio de baja
+// (igual filosofía que toda la auditoría de hoy).
+model BiometriaEmpleado {
+  id                String    @id @default(uuid())
+  legajoId          String    @unique
+  descriptor        String // JSON.stringify(number[128])
+  estado            String    @default("activo") // 'activo' | 'revocado'
+  dispositivoAltaId String? // qué terminal (o null si se dio de alta desde /legajos) generó el registro
+  fechaAlta         DateTime  @default(now())
+  fechaRevocacion   DateTime?
+  ultimaValidacion  DateTime?
+
+  legajo          Legajo                 @relation(fields: [legajoId], references: [id])
+  dispositivoAlta DispositivoAsistencia? @relation(fields: [dispositivoAltaId], references: [id])
 }
 
 // Resultado YA CLASIFICADO por día — se recalcula corriendo el motor sobre
@@ -805,6 +833,7 @@ model Legajo {
   turnos        Turno[]
   turnoExcepciones TurnoExcepcion[]
   fichadas      Fichada[]
+  biometria     BiometriaEmpleado?
   asistencias   AsistenciaDia[]
   documentos    DocumentoLegajo[]
   cargasFamiliaGanancias CargaFamiliarGanancias[]

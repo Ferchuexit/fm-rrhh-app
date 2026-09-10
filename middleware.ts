@@ -27,6 +27,7 @@ const RUTAS_PUBLICAS = [
   "/api/dispositivos/heartbeat",
   "/api/fichadas/terminal",
   "/api/dispositivos/legajos",
+  "/api/dispositivos/biometria",
   "/terminal", // la pantalla de kiosco en sí — Fase 2
 ];
 
