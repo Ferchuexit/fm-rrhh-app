@@ -75,6 +75,7 @@ model Usuario {
 
   empresas UsuarioEmpresa[]
   edicionesLiquidacionDetalle LiquidacionDetalleEdicion[]
+  fichadasCorregidas Fichada[]
 }
 
 // Qué empresas puede ver cada usuario — el hueco de seguridad real que
@@ -109,6 +110,7 @@ model Empresa {
   sucursales   Sucursal[]
   periodosAsistencia PeriodoAsistencia[]
   usuarios UsuarioEmpresa[]
+  dispositivosAsistencia DispositivoAsistencia[]
 
   @@map("empresas")
 }
@@ -394,17 +396,75 @@ model TurnoExcepcion {
 // Fichada individual (una marca de reloj = una fila, igual que la hoja
 // "Fichadas" del Excel real de Moras) — NO distingue ingreso/egreso en el
 // dato crudo, eso lo infiere el motor de clasificación por orden y cantidad.
+//
+// Extendido el 10/09/2026 para el Control de Asistencia con terminal en
+// vivo (cámara/huella en el cliente) — ver docs del módulo. Los campos
+// nuevos son todos opcionales/con default, a propósito: las fichadas
+// importadas del reloj físico o cargadas a mano siguen funcionando
+// exactamente igual, sin tocar motor-asistencia.mjs — ese motor sigue
+// clasificando SOLO por orden y cantidad de fichadas del día, nunca lee
+// "tipo" (que es apenas metadata de qué decía el botón al capturar, no
+// una fuente de verdad distinta a la que ya existía).
 model Fichada {
   id        String   @id @default(uuid())
   legajoId  String
   fecha     DateTime // solo fecha, sin hora (medianoche)
   hora      String // "HH:mm:ss"
-  origen    String   @default("reloj") // 'reloj' | 'manual'
+  origen    String   @default("reloj") // 'reloj' | 'manual' | 'terminal'
   createdAt DateTime @default(now())
 
-  legajo Legajo @relation(fields: [legajoId], references: [id])
+  // ── Control de Asistencia — Fase 1 (dispositivos + fichadas en vivo) ──
+  dispositivoId  String? // null para 'reloj'/'manual' — solo se completa cuando origen='terminal'
+  tipo           String? // 'entrada' | 'salida' — metadata de captura, el motor sigue sin leerlo
+  nivelConfianza Float? // 0 a 1, score del reconocimiento (facial/huella) — null si no aplica
+  sincronizada   Boolean @default(true) // false mientras vive solo en el dispositivo, sin llegar al servidor (modo offline)
+
+  // Corrección manual — el dato original (fecha/hora de arriba) NUNCA se
+  // pisa; la corrección se guarda aparte, con quién y cuándo. clasificar-
+  // asistencia.ts todavía no lee estos campos — eso es un paso posterior
+  // (decidir si la corrección reemplaza la hora usada para clasificar).
+  horaCorregida    String?
+  motivoCorreccion String?
+  corregidoPorId   String?
+  fechaCorreccion  DateTime?
+
+  legajo       Legajo                 @relation(fields: [legajoId], references: [id])
+  dispositivo  DispositivoAsistencia? @relation(fields: [dispositivoId], references: [id])
+  corregidoPor Usuario?               @relation(fields: [corregidoPorId], references: [id])
 
   @@index([legajoId, fecha])
+}
+
+// Terminal de fichada instalada en la ubicación de un cliente (tablet o
+// celular con cámara, o más adelante un lector de huella dedicado) — capta
+// e identifica, nunca liquida ni calcula nada. Se vincula una vez con
+// codigoVinculacion (código/QR de un solo uso) y de ahí en más se
+// identifica con su propio id.
+//
+// SIMPLIFICACIÓN A PROPÓSITO (Fase 1): el id del dispositivo actúa como
+// credencial de facto para /api/dispositivos/heartbeat y
+// /api/fichadas/terminal (rutas públicas en middleware.ts, sin sesión de
+// usuario — la terminal no tiene login). Es razonable para esta etapa
+// porque el id es un UUID no adivinable, pero un token rotable por
+// dispositivo (en vez del id fijo) es la mejora de seguridad natural
+// cuando se pase a Fase 2/3, antes de instalar terminales reales en
+// clientes.
+model DispositivoAsistencia {
+  id                   String    @id @default(uuid())
+  empresaId            String
+  nombre               String // "Terminal Recepción", "Planta Garín"...
+  ubicacion            String?
+  codigoVinculacion    String    @unique
+  vinculado            Boolean   @default(false)
+  activo               Boolean   @default(true)
+  ultimaConexion       DateTime?
+  ultimaSincronizacion DateTime?
+  version              String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  empresa  Empresa   @relation(fields: [empresaId], references: [id])
+  fichadas Fichada[]
 }
 
 // Resultado YA CLASIFICADO por día — se recalcula corriendo el motor sobre

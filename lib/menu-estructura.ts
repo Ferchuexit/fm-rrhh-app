@@ -64,6 +64,8 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     items: [
       { href: "/novedades", label: "Novedades", icono: "📥", desc: "Excel, carga manual y validación" },
       { href: "/asistencia", label: "Asistencia", icono: "🗓️", desc: "Calendario de presentes/ausentes, desde fichadas" },
+      { href: "/fichadas", label: "Fichadas", icono: "🕒", desc: "Dato crudo de reloj/terminal — auditoría y corrección" },
+      { href: "/dispositivos", label: "Dispositivos", icono: "📱", desc: "Terminales de fichada en clientes (admin)" },
     ],
   },
   {

@@ -216,8 +216,7 @@ export async function recalcularLiquidacionCompleta(p: ParametrosRecalculo) {
   }
 
   // ── Embargos ──
-  let esAplicacionNuevaDeCuota = false;
-  let cuotaAAplicar: { id: string } | null = null;
+  let cuotasAAplicar: { id: string }[] = [];
 
   const tieneJudicialBajoControl = p.codigosBajoControlManual.has("EMBARGO_JUDICIAL");
   const tieneComercialBajoControl = p.codigosBajoControlManual.has("EMBARGO_COMERCIAL");
@@ -234,28 +233,35 @@ export async function recalcularLiquidacionCompleta(p: ParametrosRecalculo) {
 
       const embargosJudiciales = tieneJudicialBajoControl ? [] : embargosActivos.filter((e) => e.tipo === "judicial" && e.porcentaje != null);
 
-      let embargoComercialActivo: (typeof embargosActivos)[number] | null = null;
-      let cuotaComercial: { id: string; importe: number; aplicado: boolean } | null = null;
+      // Puede haber MÁS DE UN embargo comercial activo a la vez (deudas
+      // distintas) — se suman todas las cuotas de este mes en una sola
+      // bolsa, y procesarEmbargosDelLegajo() aplica el tope/prioridad sobre
+      // el total. Si el neto no alcanza para todas, se recorta
+      // proporcionalmente en vez de "el primero que encontró se lleva todo
+      // y el resto queda en cero" (que era el bug de antes).
+      let totalComercialSolicitado = 0;
+      const cuotasComercialesEsteMes: { id: string; importe: number; embargoId: string }[] = [];
       if (!tieneComercialBajoControl) {
         for (const embargo of embargosActivos.filter((e) => e.tipo === "comercial")) {
-          if (p.hadEmbargoComercialAntes) {
-            // Ya se aplicó antes en ESTA liquidación — buscar la cuota tal
-            // cual esté (aplicado=true la mayoría de las veces) para
-            // reusar su importe, no una "pendiente" que ya no existe.
-            const cuota = await prisma.cuotaEmbargo.findUnique({ where: { embargoId_anio_mes: { embargoId: embargo.id, anio: anioActualEmbargo, mes: mesActualEmbargo } } });
-            if (cuota) { embargoComercialActivo = embargo; cuotaComercial = cuota; break; }
-          } else {
-            const cuota = await prisma.cuotaEmbargo.findUnique({ where: { embargoId_anio_mes: { embargoId: embargo.id, anio: anioActualEmbargo, mes: mesActualEmbargo } } });
-            if (cuota && !cuota.aplicado) { embargoComercialActivo = embargo; cuotaComercial = cuota; esAplicacionNuevaDeCuota = true; break; }
+          const cuota = await prisma.cuotaEmbargo.findUnique({ where: { embargoId_anio_mes: { embargoId: embargo.id, anio: anioActualEmbargo, mes: mesActualEmbargo } } });
+          if (!cuota) continue;
+          // Si esta liquidación YA tenía embargo comercial antes, reusamos
+          // cualquier cuota que exista (aplicada o no) para recalcular el
+          // importe con el neto nuevo. Si es la primera vez, solo tomamos
+          // las que todavía no se aplicaron — no "revivir" una cuota que
+          // ya se cobró en otra liquidación.
+          if (p.hadEmbargoComercialAntes || !cuota.aplicado) {
+            cuotasComercialesEsteMes.push({ id: cuota.id, importe: cuota.importe, embargoId: embargo.id });
+            totalComercialSolicitado += cuota.importe;
           }
         }
       }
 
-      if (embargosJudiciales.length > 0 || cuotaComercial) {
+      if (embargosJudiciales.length > 0 || cuotasComercialesEsteMes.length > 0) {
         const resultadoEmbargos = procesarEmbargosDelLegajo({
           netoPreEmbargos,
           embargosJudiciales: embargosJudiciales.map((e) => ({ porcentaje: e.porcentaje! })),
-          embargoComercialSolicitado: cuotaComercial?.importe ?? 0,
+          embargoComercialSolicitado: totalComercialSolicitado,
         });
 
         if (resultadoEmbargos.totalJudicial > 0) {
@@ -267,14 +273,14 @@ export async function recalcularLiquidacionCompleta(p: ParametrosRecalculo) {
           }
         }
 
-        if (resultadoEmbargos.comercialAplicado > 0 && embargoComercialActivo && cuotaComercial) {
+        if (resultadoEmbargos.comercialAplicado > 0 && cuotasComercialesEsteMes.length > 0) {
           if (!existeConcepto("EMBARGO_COMERCIAL")) {
             advertencias.push(`Corresponde Embargo Comercial ($${resultadoEmbargos.comercialAplicado.toFixed(2)}) pero falta crear el concepto "EMBARGO_COMERCIAL" en el catálogo de esta empresa — no se aplicó.`);
           } else {
             if (topes.SMVM) {
               const tope = calcularTopeEmbargoComercial(resultado.bruto, topes.SMVM);
-              if (cuotaComercial.importe > tope) {
-                advertencias.push(`Embargo comercial "${embargoComercialActivo.descripcion}": la cuota de este mes ($${cuotaComercial.importe.toFixed(2)}) supera el tope legal del Decreto 484/87 para este sueldo ($${tope.toFixed(2)}).`);
+              if (totalComercialSolicitado > tope) {
+                advertencias.push(`Embargo comercial: la cuota total de este mes ($${totalComercialSolicitado.toFixed(2)}, entre ${cuotasComercialesEsteMes.length} deuda${cuotasComercialesEsteMes.length > 1 ? "s" : ""}) supera el tope legal del Decreto 484/87 para este sueldo ($${tope.toFixed(2)}).`);
               }
             }
             resultado.detalle.push({ conceptoCodigo: "EMBARGO_COMERCIAL", nombre: "Embargo Comercial", tipo: "descuento", importe: resultadoEmbargos.comercialAplicado, aporta: false, contribuye: false, formula: null });
@@ -282,7 +288,10 @@ export async function recalcularLiquidacionCompleta(p: ParametrosRecalculo) {
             // La cuota solo se marca aplicado=true si realmente se pudo
             // persistir la fila — si faltaba el concepto, no se toca el
             // flag, para no "quemar" una cuota real sin haberla aplicado.
-            if (esAplicacionNuevaDeCuota) cuotaAAplicar = { id: cuotaComercial.id };
+            // Si esta liquidación ya tenía embargo comercial antes, las
+            // cuotas ya estaban aplicadas (o no corresponde re-marcarlas) —
+            // solo se marcan las que eran nuevas.
+            if (!p.hadEmbargoComercialAntes) cuotasAAplicar = cuotasComercialesEsteMes.map((c) => ({ id: c.id }));
           }
         }
 
@@ -293,5 +302,5 @@ export async function recalcularLiquidacionCompleta(p: ParametrosRecalculo) {
     }
   }
 
-  return { resultado, advertenciasEmbargo: advertencias, cuotaAAplicar };
+  return { resultado, advertenciasEmbargo: advertencias, cuotasAAplicar };
 }

@@ -130,9 +130,9 @@ export async function POST(req: Request) {
       }
     }
 
-    let resultado: any, advertenciasEmbargo: string[], cuotaAAplicar: { id: string } | null;
+    let resultado: any, advertenciasEmbargo: string[], cuotasAAplicar: { id: string }[];
     try {
-      ({ resultado, advertenciasEmbargo, cuotaAAplicar } = await recalcularLiquidacionCompleta({
+      ({ resultado, advertenciasEmbargo, cuotasAAplicar } = await recalcularLiquidacionCompleta({
         legajo, periodo, varsBase, reglas, conceptos, cantidadesPorConcepto, valoresCategoria, topes,
         overrides, insumosDirectos, codigosBajoControlManual, hadEmbargoComercialAntes,
       }));
@@ -177,8 +177,8 @@ export async function POST(req: Request) {
         }
       }
 
-      if (cuotaAAplicar) {
-        await tx.cuotaEmbargo.update({ where: { id: cuotaAAplicar.id }, data: { aplicado: true } });
+      for (const cuota of cuotasAAplicar) {
+        await tx.cuotaEmbargo.update({ where: { id: cuota.id }, data: { aplicado: true } });
       }
 
       await tx.liquidacion.update({ where: { id: liquidacion.id }, data: { bruto: resultado.bruto, neto: resultado.neto } });

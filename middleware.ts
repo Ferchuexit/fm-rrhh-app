@@ -16,13 +16,23 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { NOMBRE_COOKIE, verificarSesion } from "@/lib/auth-edge";
 
-const RUTAS_PUBLICAS = ["/login", "/api/login"];
+const RUTAS_PUBLICAS = [
+  "/login",
+  "/api/login",
+  // Control de Asistencia — la terminal instalada en el cliente no tiene
+  // sesión de usuario, se identifica con su dispositivoId (código de
+  // vinculación de un solo uso, después el id del dispositivo). Ver la
+  // nota de diseño en prisma/schema.prisma, modelo DispositivoAsistencia.
+  "/api/dispositivos/vincular",
+  "/api/dispositivos/heartbeat",
+  "/api/fichadas/terminal",
+];
 
 // Configuración del sistema — solo admin. Si un rol no-admin entra a
 // legajos, novedades, vacaciones, etc. (el trabajo del día a día), pasa
 // normal — esto es solo para lo que puede romper el cálculo de todos si se
 // toca mal (reglas, conceptos, parámetros, usuarios).
-const RUTAS_ADMIN = ["/usuarios", "/api/usuarios", "/empresas", "/api/empresas", "/conceptos", "/api/conceptos", "/reglas", "/api/reglas", "/parametros", "/api/parametros", "/api/rangos", "/convenios", "/categorias", "/escalas", "/estado-implementacion", "/api/estado-implementacion", "/actualizaciones-normativas", "/api/actualizaciones-normativas"];
+const RUTAS_ADMIN = ["/usuarios", "/api/usuarios", "/empresas", "/api/empresas", "/conceptos", "/api/conceptos", "/reglas", "/api/reglas", "/parametros", "/api/parametros", "/api/rangos", "/convenios", "/categorias", "/escalas", "/estado-implementacion", "/api/estado-implementacion", "/actualizaciones-normativas", "/api/actualizaciones-normativas", "/dispositivos", "/api/dispositivos"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
