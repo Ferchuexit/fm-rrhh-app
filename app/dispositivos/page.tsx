@@ -45,6 +45,17 @@ export default function DispositivosPage() {
     cargar();
   }
 
+  async function eliminar(id: string, nombre: string) {
+    if (!confirm(`¿Eliminar "${nombre}"? Se borran también las fichadas que haya generado. No se puede deshacer.`)) return;
+    const res = await fetch("/api/dispositivos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error);
+      return;
+    }
+    cargar();
+  }
+
   return (
     <main>
       <h1>Dispositivos — Control de Asistencia</h1>
@@ -83,6 +94,7 @@ export default function DispositivosPage() {
             <th>Vinculado</th>
             <th>Última conexión</th>
             <th>Código (si no vinculó todavía)</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -94,11 +106,16 @@ export default function DispositivosPage() {
               <td>{d.vinculado ? "✔ Sí" : "— No"}</td>
               <td>{d.ultimaConexion ? new Date(d.ultimaConexion).toLocaleString("es-AR") : "Nunca"}</td>
               <td>{!d.vinculado ? <code>{d.codigoVinculacion}</code> : <span style={{ opacity: 0.4 }}>—</span>}</td>
+              <td>
+                <button onClick={() => eliminar(d.id, d.nombre)} style={{ background: "white", color: "#B23A3A", border: "1px solid #B23A3A", fontSize: "0.8rem" }}>
+                  Eliminar
+                </button>
+              </td>
             </tr>
           ))}
           {dispositivos.length === 0 && (
             <tr>
-              <td colSpan={6} style={{ opacity: 0.5, textAlign: "center" }}>Todavía no hay ninguna terminal creada.</td>
+              <td colSpan={7} style={{ opacity: 0.5, textAlign: "center" }}>Todavía no hay ninguna terminal creada.</td>
             </tr>
           )}
         </tbody>

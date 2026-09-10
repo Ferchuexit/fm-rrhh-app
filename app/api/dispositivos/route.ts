@@ -54,3 +54,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e.message ?? "Error inesperado al crear el dispositivo." }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: "Falta el id." }, { status: 400 });
+
+    // Transacción: primero las fichadas que este dispositivo generó (para
+    // no dejar filas huérfanas apuntando a un dispositivo que ya no
+    // existe), después el dispositivo. Pensado para limpiar dispositivos
+    // de PRUEBA — si un cliente real ya tiene fichadas de verdad
+    // registradas con esta terminal, mejor desactivarla (activo=false vía
+    // PATCH, todavía no armado) que borrarla y perder ese historial.
+    await prisma.$transaction([
+      prisma.fichada.deleteMany({ where: { dispositivoId: id } }),
+      prisma.dispositivoAsistencia.delete({ where: { id } }),
+    ]);
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("Error en DELETE /api/dispositivos:", e);
+    return NextResponse.json({ error: e.message ?? "Error inesperado al eliminar el dispositivo." }, { status: 500 });
+  }
+}
