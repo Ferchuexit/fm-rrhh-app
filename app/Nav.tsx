@@ -13,8 +13,17 @@ import LogoFM from "./LogoFM";
 import EmpresaSelector from "./EmpresaSelector";
 import { obtenerSesionActual } from "@/lib/auth";
 import { menuFiltradoPorRol } from "@/lib/menu-estructura";
+import { headers } from "next/headers";
 
 export default async function Nav() {
+  // /terminal es la pantalla de kiosco (Control de Asistencia, Fase 2) —
+  // corre sin sesión de usuario en una tablet del cliente, no tiene que
+  // mostrar el menú del sistema. El pathname llega vía header porque un
+  // Server Component no lo sabe directo en Next 14 — lo pone el
+  // middleware, ver siguienteConPathname() en middleware.ts.
+  const pathname = headers().get("x-pathname") ?? "";
+  if (pathname.startsWith("/terminal")) return null;
+
   const sesion = await obtenerSesionActual();
   const categorias = sesion ? menuFiltradoPorRol(sesion.rol) : [];
 
@@ -116,3 +125,4 @@ function LogoFmNav() {
     </svg>
   );
 }
+

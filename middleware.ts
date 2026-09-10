@@ -26,6 +26,8 @@ const RUTAS_PUBLICAS = [
   "/api/dispositivos/vincular",
   "/api/dispositivos/heartbeat",
   "/api/fichadas/terminal",
+  "/api/dispositivos/legajos",
+  "/terminal", // la pantalla de kiosco en sí — Fase 2
 ];
 
 // Configuración del sistema — solo admin. Si un rol no-admin entra a
@@ -34,11 +36,21 @@ const RUTAS_PUBLICAS = [
 // toca mal (reglas, conceptos, parámetros, usuarios).
 const RUTAS_ADMIN = ["/usuarios", "/api/usuarios", "/empresas", "/api/empresas", "/conceptos", "/api/conceptos", "/reglas", "/api/reglas", "/parametros", "/api/parametros", "/api/rangos", "/convenios", "/categorias", "/escalas", "/estado-implementacion", "/api/estado-implementacion", "/actualizaciones-normativas", "/api/actualizaciones-normativas", "/dispositivos", "/api/dispositivos"];
 
+// Le pasamos el pathname a los Server Components vía header — Nav.tsx lo
+// lee para no renderizarse en /terminal (pantalla de kiosco, sin el menú
+// del sistema). No hay forma más directa de que un layout/Server Component
+// sepa la ruta actual en Next 14 sin esto.
+function siguienteConPathname(req: NextRequest) {
+  const headers = new Headers(req.headers);
+  headers.set("x-pathname", req.nextUrl.pathname);
+  return NextResponse.next({ request: { headers } });
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (RUTAS_PUBLICAS.includes(pathname)) {
-    return NextResponse.next();
+    return siguienteConPathname(req);
   }
 
   const token = req.cookies.get(NOMBRE_COOKIE)?.value;
@@ -69,7 +81,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ error: "Tu usuario tiene permiso de solo lectura — esta acción está bloqueada." }, { status: 403 });
   }
 
-  return NextResponse.next();
+  return siguienteConPathname(req);
 }
 
 export const config = {

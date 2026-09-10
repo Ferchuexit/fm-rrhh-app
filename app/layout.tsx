@@ -1,5 +1,6 @@
 import "./globals.css";
 import Nav from "./Nav";
+import { headers } from "next/headers";
 
 // noindex/nofollow — este sistema maneja datos reales de sueldos, no tiene
 // que aparecer en Google ni en ningún buscador. Ver también app/robots.ts,
@@ -11,11 +12,12 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const esTerminal = (headers().get("x-pathname") ?? "").startsWith("/terminal");
   return (
     <html lang="es">
       <body>
         <Nav />
-        <div style={{ padding: "1.5rem 2rem 2rem" }}>{children}</div>
+        <div style={esTerminal ? undefined : { padding: "1.5rem 2rem 2rem" }}>{children}</div>
       </body>
     </html>
   );
