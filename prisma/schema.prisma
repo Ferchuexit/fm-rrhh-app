@@ -102,6 +102,7 @@ model Empresa {
   razonSocial    String
   nombreFantasia String?
   domicilio      String? // para el encabezado del recibo (Ley 27.802) y "lugar de pago"
+  logoUrl        String? // logo para la terminal de fichadas (y a futuro, recibos) — sube a Vercel Blob público
   createdAt      DateTime @default(now())
 
   legajos      Legajo[]
@@ -460,6 +461,7 @@ model DispositivoAsistencia {
   ultimaConexion       DateTime?
   ultimaSincronizacion DateTime?
   version              String?
+  pinHash              String? // hash del PIN de 4-6 dígitos que destraba "modo administración" en la terminal (nuevo empleado, listado, configuración) — null hasta que se configure uno
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

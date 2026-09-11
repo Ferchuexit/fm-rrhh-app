@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const { codigo } = await req.json();
     if (!codigo) return NextResponse.json({ error: "Falta el código." }, { status: 400 });
 
-    const dispositivo = await prisma.dispositivoAsistencia.findUnique({ where: { codigoVinculacion: String(codigo).trim() } });
+    const dispositivo = await prisma.dispositivoAsistencia.findUnique({ where: { codigoVinculacion: String(codigo).trim() }, include: { empresa: { select: { logoUrl: true } } } });
     if (!dispositivo) return NextResponse.json({ error: "Código inválido." }, { status: 404 });
     if (dispositivo.vinculado) return NextResponse.json({ error: "Ese código ya se usó — pedí uno nuevo desde el panel." }, { status: 409 });
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     // El id del dispositivo es lo que la terminal guarda localmente (ver
     // nota de diseño en el schema sobre por qué esto es suficiente para
     // esta etapa) y usa desde acá en más para heartbeat y fichadas.
-    return NextResponse.json({ ok: true, dispositivoId: actualizado.id, nombre: actualizado.nombre });
+    return NextResponse.json({ ok: true, dispositivoId: actualizado.id, nombre: actualizado.nombre, logoUrl: dispositivo.empresa.logoUrl });
   } catch (e: any) {
     console.error("Error en POST /api/dispositivos/vincular:", e);
     return NextResponse.json({ error: e.message ?? "Error inesperado al vincular." }, { status: 500 });

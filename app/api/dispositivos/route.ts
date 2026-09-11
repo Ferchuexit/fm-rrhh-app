@@ -20,10 +20,10 @@ export async function GET() {
   });
 
   const limiteOnline = new Date(Date.now() - MINUTOS_ONLINE * 60000);
-  const conEstado = dispositivos.map((d) => ({
-    ...d,
-    online: !!d.ultimaConexion && d.ultimaConexion >= limiteOnline,
-  }));
+  const conEstado = dispositivos.map((d) => {
+    const { pinHash, ...resto } = d; // nunca mandar el hash al navegador
+    return { ...resto, tienePin: !!pinHash, online: !!d.ultimaConexion && d.ultimaConexion >= limiteOnline };
+  });
 
   return NextResponse.json(conEstado);
 }

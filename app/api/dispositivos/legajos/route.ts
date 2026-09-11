@@ -15,10 +15,18 @@ export async function POST(req: Request) {
 
     const legajos = await prisma.legajo.findMany({
       where: { empresaId: dispositivo.empresaId, condicion: { notIn: ["inactivo", "baja"] } },
-      select: { id: true, numeroLegajo: true, apellido: true, nombre: true },
+      select: { id: true, numeroLegajo: true, apellido: true, nombre: true, biometria: { select: { estado: true } } },
       orderBy: { numeroLegajo: "asc" },
     });
-    return NextResponse.json(legajos);
+    return NextResponse.json(
+      legajos.map((l) => ({
+        id: l.id,
+        numeroLegajo: l.numeroLegajo,
+        apellido: l.apellido,
+        nombre: l.nombre,
+        biometriaActiva: l.biometria?.estado === "activo",
+      }))
+    );
   } catch (e: any) {
     console.error("Error en POST /api/dispositivos/legajos:", e);
     return NextResponse.json({ error: e.message ?? "Error inesperado." }, { status: 500 });

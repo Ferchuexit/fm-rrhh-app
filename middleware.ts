@@ -28,6 +28,8 @@ const RUTAS_PUBLICAS = [
   "/api/fichadas/terminal",
   "/api/dispositivos/legajos",
   "/api/dispositivos/biometria",
+  "/api/dispositivos/biometria/enrolar",
+  "/api/dispositivos/verificar-pin",
   "/terminal", // la pantalla de kiosco en sí — Fase 2
 ];
 
