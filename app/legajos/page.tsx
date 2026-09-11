@@ -101,7 +101,8 @@ export default async function LegajosPage({ searchParams }: { searchParams: { q?
                 <td>{l.convenio.codigo}</td>
                 <td>{l.categoria.nombre}</td>
                 <td>
-                  <a href={`/legajos/${l.id}/editar`}>Editar</a>
+                  <a href={`/legajos/${l.id}/editar`}>Editar</a>{" "}
+                  <a href={`/legajos/${l.id}/biometria`} title="Ir directo al registro biométrico, sin pasar por el formulario grande">📷</a>
                 </td>
               </tr>
             ))}
