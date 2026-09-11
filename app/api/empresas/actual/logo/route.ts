@@ -1,8 +1,3 @@
-bash
-
-cat /home/claude/work/app/api/empresas/actual/logo/route.ts
-Salida
-
 // FM RRHH — app/api/empresas/actual/logo/route.ts
 // Admin-only (RUTAS_ADMIN en middleware.ts matchea el prefijo /api/empresas).
 // A diferencia de los documentos de legajo (privados), este blob es

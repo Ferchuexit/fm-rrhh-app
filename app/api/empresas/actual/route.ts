@@ -1,8 +1,3 @@
-bash
-
-cat /home/claude/work/app/api/empresas/actual/route.ts
-Salida
-
 // FM RRHH — app/api/empresas/actual/route.ts
 import { NextResponse } from "next/server";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
