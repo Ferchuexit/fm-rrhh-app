@@ -13,6 +13,11 @@ export default function DispositivosPage() {
   const [codigoRecienCreado, setCodigoRecienCreado] = useState<{ nombre: string; codigo: string } | null>(null);
   const [mostrandoQrPara, setMostrandoQrPara] = useState<string | null>(null);
 
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [subiendoLogo, setSubiendoLogo] = useState(false);
+  const [configurandoPinPara, setConfigurandoPinPara] = useState<string | null>(null);
+  const [pinNuevo, setPinNuevo] = useState("");
+
   function urlTerminal(codigo: string) {
     const origen = typeof window !== "undefined" ? window.location.origin : "";
     return `${origen}/terminal?codigo=${codigo}`;
@@ -23,11 +28,55 @@ export default function DispositivosPage() {
 
   useEffect(() => {
     cargar();
+    fetch("/api/empresas/actual").then((r) => r.json()).then((d) => setLogoUrl(d.logoUrl));
   }, []);
 
   async function cargar() {
     const res = await fetch("/api/dispositivos");
     setDispositivos(await res.json());
+  }
+
+  async function subirLogo(e: any) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setSubiendoLogo(true);
+    setError("");
+    const lector = new FileReader();
+    lector.onload = async () => {
+      const res = await fetch("/api/empresas/actual/logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contenidoBase64: lector.result, tipoMime: archivo.type }),
+      });
+      const data = await res.json();
+      setSubiendoLogo(false);
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
+      setLogoUrl(data.logoUrl);
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  async function guardarPin(dispositivoId: string) {
+    if (!/^\d{4,6}$/.test(pinNuevo)) {
+      alert("El PIN tiene que tener entre 4 y 6 números.");
+      return;
+    }
+    const res = await fetch("/api/dispositivos/pin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dispositivoId, pin: pinNuevo }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error);
+      return;
+    }
+    setConfigurandoPinPara(null);
+    setPinNuevo("");
+    cargar();
   }
 
   async function crear() {
@@ -65,6 +114,18 @@ export default function DispositivosPage() {
     cargar();
   }
 
+  async function regenerarCodigo(id: string) {
+    if (!confirm("¿Generar un código nuevo para esta terminal? La que esté usándola ahora va a tener que volver a vincularse.")) return;
+    const res = await fetch("/api/dispositivos/regenerar-codigo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dispositivoId: id }) });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error);
+      return;
+    }
+    setCodigoRecienCreado({ nombre: data.nombre, codigo: data.codigo });
+    cargar();
+  }
+
   return (
     <main>
       <h1>Dispositivos — Control de Asistencia</h1>
@@ -72,6 +133,21 @@ export default function DispositivosPage() {
         Terminales instaladas en la ubicación de cada cliente (tablet, celular) que registran fichadas. Todavía sin
         reconocimiento facial/huella — esta es la base (Fase 1): alta, estado online/offline, vinculación.
       </p>
+
+      <div style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1.5rem", maxWidth: "500px" }}>
+        <h3 style={{ marginTop: 0 }}>Logo para la terminal</h3>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo actual" style={{ height: "48px", maxWidth: "160px", objectFit: "contain" }} />
+          ) : (
+            <span style={{ opacity: 0.5, fontSize: "0.85rem" }}>Sin logo todavía</span>
+          )}
+          <label style={{ fontSize: "0.85rem", cursor: "pointer", background: "#EEF1F4", padding: "0.4rem 0.8rem", borderRadius: "6px" }}>
+            {subiendoLogo ? "Subiendo..." : logoUrl ? "Cambiar logo" : "Subir logo"}
+            <input type="file" accept="image/*" onChange={subirLogo} disabled={subiendoLogo} style={{ display: "none" }} />
+          </label>
+        </div>
+      </div>
 
       <div style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1.5rem", maxWidth: "500px" }}>
         <h3 style={{ marginTop: 0 }}>Nueva terminal</h3>
@@ -104,6 +180,7 @@ export default function DispositivosPage() {
             <th>Vinculado</th>
             <th>Última conexión</th>
             <th>Código (si no vinculó todavía)</th>
+            <th>PIN (modo admin en la terminal)</th>
             <th></th>
           </tr>
         </thead>
@@ -117,15 +194,30 @@ export default function DispositivosPage() {
                 <td>{d.vinculado ? "✔ Sí" : "— No"}</td>
                 <td>{d.ultimaConexion ? new Date(d.ultimaConexion).toLocaleString("es-AR") : "Nunca"}</td>
                 <td>
-                  {!d.vinculado ? (
+                  {!d.vinculado && (
                     <>
                       <code>{d.codigoVinculacion}</code>{" "}
                       <button onClick={() => setMostrandoQrPara(mostrandoQrPara === d.id ? null : d.id)} style={{ fontSize: "0.75rem" }}>
                         {mostrandoQrPara === d.id ? "Ocultar QR" : "Ver QR"}
                       </button>
+                      {" "}
                     </>
+                  )}
+                  <button onClick={() => regenerarCodigo(d.id)} style={{ fontSize: "0.75rem" }} title="Para cuando la terminal pierde la vinculación sola (pasa en Safari/iOS)">
+                    {d.vinculado ? "Re-vincular (código nuevo)" : "Nuevo código"}
+                  </button>
+                </td>
+                <td>
+                  {configurandoPinPara === d.id ? (
+                    <span style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
+                      <input value={pinNuevo} onChange={(e) => setPinNuevo(e.target.value)} placeholder="4-6 dígitos" inputMode="numeric" style={{ width: "80px" }} />
+                      <button onClick={() => guardarPin(d.id)} style={{ fontSize: "0.75rem" }}>OK</button>
+                      <button onClick={() => setConfigurandoPinPara(null)} style={{ fontSize: "0.75rem" }}>×</button>
+                    </span>
                   ) : (
-                    <span style={{ opacity: 0.4 }}>—</span>
+                    <button onClick={() => { setConfigurandoPinPara(d.id); setPinNuevo(""); }} style={{ fontSize: "0.75rem" }}>
+                      {d.tienePin ? "Cambiar PIN" : "Configurar PIN"}
+                    </button>
                   )}
                 </td>
                 <td>
@@ -136,7 +228,7 @@ export default function DispositivosPage() {
               </tr>
               {mostrandoQrPara === d.id && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "1rem", background: "#f8f9fc" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "1rem", background: "#f8f9fc" }}>
                     <img src={imagenQr(urlTerminal(d.codigoVinculacion))} alt="QR para vincular la terminal" />
                   </td>
                 </tr>
@@ -145,7 +237,7 @@ export default function DispositivosPage() {
           ))}
           {dispositivos.length === 0 && (
             <tr>
-              <td colSpan={7} style={{ opacity: 0.5, textAlign: "center" }}>Todavía no hay ninguna terminal creada.</td>
+              <td colSpan={8} style={{ opacity: 0.5, textAlign: "center" }}>Todavía no hay ninguna terminal creada.</td>
             </tr>
           )}
         </tbody>

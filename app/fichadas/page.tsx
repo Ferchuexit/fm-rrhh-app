@@ -54,6 +54,11 @@ export default function FichadasPage() {
   }
 
   const ORIGEN_LABEL: Record<string, string> = { reloj: "Reloj (import)", manual: "Manual", terminal: "Terminal" };
+  function origenTexto(f: any) {
+    if (f.origen !== "terminal") return ORIGEN_LABEL[f.origen] ?? f.origen;
+    if (f.nivelConfianza == null) return "Terminal";
+    return f.nivelConfianza > 0 ? `Terminal (facial, ${Math.round(f.nivelConfianza * 100)}%)` : "Terminal (manual — excepción)";
+  }
 
   return (
     <main>
@@ -102,7 +107,7 @@ export default function FichadasPage() {
                 <td>{new Date(f.fecha).toLocaleDateString("es-AR", { timeZone: "UTC" })}</td>
                 <td>{f.hora}</td>
                 <td>{f.legajo.numeroLegajo} — {f.legajo.apellido}, {f.legajo.nombre}</td>
-                <td>{ORIGEN_LABEL[f.origen] ?? f.origen}</td>
+                <td>{origenTexto(f)}</td>
                 <td>{f.dispositivo ? `${f.dispositivo.nombre} (${f.dispositivo.ubicacion ?? "s/ubicación"})` : "—"}</td>
                 <td>
                   {f.horaCorregida ? (
