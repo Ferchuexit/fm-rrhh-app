@@ -138,6 +138,7 @@ export default function TerminalPage() {
   const [rechazado, setRechazado] = useState(false);
   const reconociendoRef = useRef(false);
   const ultimoRechazoRef = useRef(0);
+  const ultimoFichadoRef = useRef<{ legajoId: string; ts: number } | null>(null);
 
   // ── Modo administración (PIN) ──
   const [pantallaAdmin, setPantallaAdmin] = useState<PantallaAdmin>(null);
@@ -267,6 +268,12 @@ export default function TerminalPage() {
           if (!mejor || distancia < mejor.distancia) mejor = { d, distancia };
         }
         if (mejor && mejor.distancia < UMBRAL_DISTANCIA) {
+          const yaFichadoHacePoco = ultimoFichadoRef.current?.legajoId === mejor.d.legajoId && Date.now() - ultimoFichadoRef.current.ts < 30000;
+          if (yaFichadoHacePoco) {
+            reconociendoRef.current = false;
+            return;
+          }
+          ultimoFichadoRef.current = { legajoId: mejor.d.legajoId, ts: Date.now() };
           sonidoOk();
           setReconocido(`${mejor.d.apellido}, ${mejor.d.nombre}`);
           setConfianzaSeleccion(Math.max(0.01, 1 - mejor.distancia));
@@ -345,7 +352,7 @@ export default function TerminalPage() {
     setVinculando(false);
   }
 
-  async function fichar(tipo: "entrada" | "salida") {
+  async function ficharAhora() {
     if (!seleccionado) return;
     const legajoLabel = `${seleccionado.apellido}, ${seleccionado.nombre}`;
     const horaLocal = new Date().toLocaleTimeString("es-AR");
@@ -354,14 +361,18 @@ export default function TerminalPage() {
       const res = await fetch("/api/fichadas/terminal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dispositivoId, legajoId: seleccionado.id, tipo, nivelConfianza: confianzaSeleccion }),
+        body: JSON.stringify({ dispositivoId, legajoId: seleccionado.id, nivelConfianza: confianzaSeleccion }),
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      const saludo = tipo === "entrada" ? `¡Bienvenido/a, ${seleccionado.nombre}!` : `¡Buen descanso, ${seleccionado.nombre}!`;
-      setConfirmacion({ texto: saludo, subtexto: `${tipo === "entrada" ? "Ingreso" : "Egreso"} registrado — ${data.hora}`, ok: true });
+      const saludo = data.tipo === "entrada" ? `¡Bienvenido/a, ${seleccionado.nombre}!` : `¡Buen descanso, ${seleccionado.nombre}!`;
+      setConfirmacion({ texto: saludo, subtexto: `${data.tipo === "entrada" ? "Ingreso" : "Egreso"} registrado — ${data.hora}`, ok: true });
     } catch {
-      const nueva: FichadaPendiente = { tempId: crypto.randomUUID(), legajoId: seleccionado.id, legajoLabel, tipo, horaLocal };
+      // Sin conexión no sabemos cuántas fichadas tiene hoy — se guarda como
+      // "entrada" provisorio; si en realidad correspondía salida, se
+      // corrige a mano en /fichadas cuando vuelva la señal. Es la única
+      // excepción donde el server no puede decidir por vos.
+      const nueva: FichadaPendiente = { tempId: crypto.randomUUID(), legajoId: seleccionado.id, legajoLabel, tipo: "entrada", horaLocal };
       const nuevaCola = [...leerCola(), nueva];
       guardarCola(nuevaCola);
       setCola(nuevaCola);
@@ -373,6 +384,14 @@ export default function TerminalPage() {
     setBusqueda("");
     setTimeout(() => setConfirmacion(null), 3500);
   }
+
+  // ── Auto-confirmar a los 1.5s de reconocer a alguien, salvo que se cancele ──
+  useEffect(() => {
+    if (!seleccionado) return;
+    const t = setTimeout(ficharAhora, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seleccionado]);
 
   // ── Modo administración ──
   function pedirPinPara(destino: Destino) {
@@ -679,24 +698,18 @@ export default function TerminalPage() {
     );
   }
 
-  // ── Confirmar entrada/salida para el legajo elegido ──
+  // ── Confirmando (1.5s, cancelable) — el tipo (entrada/salida) lo decide el servidor solo ──
   if (seleccionado) {
     return (
       <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2rem" }}>
         <div style={{ ...cajaBlanca, textAlign: "center" }}>
           <p style={{ opacity: 0.6, marginBottom: "0.3rem" }}>Legajo {seleccionado.numeroLegajo}</p>
-          <h2 style={{ marginTop: 0, marginBottom: "2rem" }}>{seleccionado.apellido}, {seleccionado.nombre}</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <button onClick={() => fichar("entrada")} style={{ padding: "1.2rem", fontSize: "1.1rem", background: "#2F6F5E", color: "white", border: "none", borderRadius: "8px" }}>
-              Registrar Ingreso
-            </button>
-            <button onClick={() => fichar("salida")} style={{ padding: "1.2rem", fontSize: "1.1rem", background: "#163A5C", color: "white", border: "none", borderRadius: "8px" }}>
-              Registrar Salida
-            </button>
-            <button onClick={() => setSeleccionado(null)} style={{ padding: "0.6rem", marginTop: "0.5rem", background: "white", border: "1px solid #ccc" }}>
-              No soy yo — volver
-            </button>
-          </div>
+          <h2 style={{ marginTop: 0, marginBottom: "1.5rem" }}>{seleccionado.apellido}, {seleccionado.nombre}</h2>
+          <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>⏳</div>
+          <p style={{ opacity: 0.6, marginBottom: "1.5rem", fontSize: "0.9rem" }}>Fichando...</p>
+          <button onClick={() => { setSeleccionado(null); setConfianzaSeleccion(null); }} style={{ padding: "0.7rem 1.5rem", background: "white", border: "1px solid #ccc" }}>
+            No soy yo — cancelar
+          </button>
         </div>
       </main>
     );

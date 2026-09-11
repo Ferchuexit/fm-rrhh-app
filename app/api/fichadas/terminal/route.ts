@@ -2,18 +2,24 @@
 //
 // Ruta PÚBLICA (ver middleware.ts) — la terminal no tiene sesión de
 // usuario, se identifica con su dispositivoId (ver nota de diseño en el
-// schema). Fase 1: todavía no hay reconocimiento facial/huella (eso es
-// Fase 3) — este endpoint recibe legajoId directo, como si el empleado
-// hubiera tocado su nombre en una lista en la pantalla de la terminal.
-// Cuando llegue la biometría, lo único que cambia es CÓMO la terminal
-// consigue el legajoId antes de llamar acá — este endpoint no cambia.
+// schema). Recibe legajoId directo — cómo la terminal consigue ese
+// legajoId (cámara, huella, o una excepción manual con PIN) no le importa
+// a este endpoint.
+//
+// CAMBIO 11/09/2026 (pedido de Fernando, para que sea más rápido en un
+// ingreso masivo): el tipo (entrada/salida) YA NO lo elige el empleado —
+// se determina solo, alternando según cuántas fichadas ya tiene ese
+// legajo hoy. Par (0, 2, 4...) → entrada. Impar (1, 3...) → salida. Simple
+// y suficiente para el caso normal; no depende de la hora del turno
+// (eso es una mejora futura, cuando haya turnos cargados y se pueda
+// comparar contra el horario esperado).
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ahoraArgentina } from "@/lib/fecha-argentina";
 
 export async function POST(req: Request) {
   try {
-    const { dispositivoId, legajoId, tipo, nivelConfianza } = await req.json();
+    const { dispositivoId, legajoId, nivelConfianza } = await req.json();
     if (!dispositivoId || !legajoId) {
       return NextResponse.json({ error: "Faltan dispositivoId y legajoId." }, { status: 400 });
     }
@@ -28,6 +34,9 @@ export async function POST(req: Request) {
 
     const { fecha, hora } = ahoraArgentina();
 
+    const fichadasDeHoy = await prisma.fichada.count({ where: { legajoId, fecha } });
+    const tipo: "entrada" | "salida" = fichadasDeHoy % 2 === 0 ? "entrada" : "salida";
+
     const fichada = await prisma.fichada.create({
       data: {
         legajoId,
@@ -35,7 +44,7 @@ export async function POST(req: Request) {
         hora,
         origen: "terminal",
         dispositivoId,
-        tipo: tipo === "entrada" || tipo === "salida" ? tipo : null,
+        tipo,
         nivelConfianza: typeof nivelConfianza === "number" ? nivelConfianza : null,
         sincronizada: true, // llegó ahora mismo al servidor — si en Fase 2 la terminal manda fichadas guardadas offline, ese flujo va a mandar sincronizada:false primero y confirmar después
       },
@@ -46,6 +55,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       fichadaId: fichada.id,
+      tipo,
       legajo: { numero: legajo.numeroLegajo, apellido: legajo.apellido, nombre: legajo.nombre },
       hora,
     });

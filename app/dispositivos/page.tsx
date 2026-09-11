@@ -15,6 +15,7 @@ export default function DispositivosPage() {
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [subiendoLogo, setSubiendoLogo] = useState(false);
+  const [errorLogo, setErrorLogo] = useState("");
   const [configurandoPinPara, setConfigurandoPinPara] = useState<string | null>(null);
   const [pinNuevo, setPinNuevo] = useState("");
 
@@ -40,21 +41,37 @@ export default function DispositivosPage() {
     const archivo = e.target.files?.[0];
     if (!archivo) return;
     setSubiendoLogo(true);
-    setError("");
+    setErrorLogo("");
     const lector = new FileReader();
     lector.onload = async () => {
-      const res = await fetch("/api/empresas/actual/logo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contenidoBase64: lector.result, tipoMime: archivo.type }),
-      });
-      const data = await res.json();
-      setSubiendoLogo(false);
-      if (!res.ok) {
-        setError(data.error);
-        return;
+      try {
+        const res = await fetch("/api/empresas/actual/logo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contenidoBase64: lector.result, tipoMime: archivo.type }),
+        });
+        let data: any;
+        try {
+          data = await res.json();
+        } catch {
+          setSubiendoLogo(false);
+          setErrorLogo(`El servidor no devolvió una respuesta válida (código ${res.status}) — probablemente la imagen sea muy grande o el formato no sea compatible.`);
+          return;
+        }
+        setSubiendoLogo(false);
+        if (!res.ok) {
+          setErrorLogo(`${data.error} (código ${res.status})`);
+          return;
+        }
+        setLogoUrl(data.logoUrl);
+      } catch (err: any) {
+        setSubiendoLogo(false);
+        setErrorLogo("No se pudo conectar con el servidor: " + err.message);
       }
-      setLogoUrl(data.logoUrl);
+    };
+    lector.onerror = () => {
+      setSubiendoLogo(false);
+      setErrorLogo("No se pudo leer el archivo elegido.");
     };
     lector.readAsDataURL(archivo);
   }
@@ -147,6 +164,7 @@ export default function DispositivosPage() {
             <input type="file" accept="image/*" onChange={subirLogo} disabled={subiendoLogo} style={{ display: "none" }} />
           </label>
         </div>
+        {errorLogo && <p style={{ color: "#B23A3A", fontSize: "0.8rem", marginTop: "0.5rem" }}>{errorLogo}</p>}
       </div>
 
       <div style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1.5rem", maxWidth: "500px" }}>
