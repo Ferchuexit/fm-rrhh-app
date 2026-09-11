@@ -13,13 +13,24 @@ export default function FichadasPage() {
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState("");
 
+  const [buscar, setBuscar] = useState("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [orden, setOrden] = useState<"fecha" | "legajo" | "apellido">("fecha");
+
   useEffect(() => {
     cargar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buscar, desde, hasta, orden]);
 
   async function cargar() {
     setCargando(true);
-    const res = await fetch("/api/fichadas");
+    const params = new URLSearchParams();
+    if (buscar.trim()) params.set("buscar", buscar.trim());
+    if (desde) params.set("desde", desde);
+    if (hasta) params.set("hasta", hasta);
+    params.set("orden", orden);
+    const res = await fetch(`/api/fichadas?${params}`);
     setFichadas(await res.json());
     setCargando(false);
   }
@@ -51,6 +62,24 @@ export default function FichadasPage() {
         El dato crudo — una marca por vez. Para ver el resultado ya interpretado (presente/ausente/tarde), andá a{" "}
         <a href="/asistencia">/asistencia</a>. Acá se audita y, si hace falta, se corrige a mano sin perder el dato original.
       </p>
+
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center", marginBottom: "1rem" }}>
+        <input placeholder="Buscar legajo o apellido..." value={buscar} onChange={(e) => setBuscar(e.target.value)} style={{ padding: "0.4rem", width: "220px" }} />
+        <label style={{ fontSize: "0.85rem" }}>
+          Desde: <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
+        </label>
+        <label style={{ fontSize: "0.85rem" }}>
+          Hasta: <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+        </label>
+        <label style={{ fontSize: "0.85rem" }}>
+          Ordenar por:{" "}
+          <select value={orden} onChange={(e) => setOrden(e.target.value as any)}>
+            <option value="fecha">Fecha</option>
+            <option value="legajo">N° de legajo</option>
+            <option value="apellido">Apellido</option>
+          </select>
+        </label>
+      </div>
 
       {cargando ? (
         <p style={{ opacity: 0.6 }}>Cargando...</p>

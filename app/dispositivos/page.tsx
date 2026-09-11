@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 
 // FM RRHH — app/dispositivos/page.tsx
 // Fase 1 del Control de Asistencia — administrar terminales, sin
@@ -11,6 +11,15 @@ export default function DispositivosPage() {
   const [error, setError] = useState("");
   const [creando, setCreando] = useState(false);
   const [codigoRecienCreado, setCodigoRecienCreado] = useState<{ nombre: string; codigo: string } | null>(null);
+  const [mostrandoQrPara, setMostrandoQrPara] = useState<string | null>(null);
+
+  function urlTerminal(codigo: string) {
+    const origen = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origen}/terminal?codigo=${codigo}`;
+  }
+  function imagenQr(url: string) {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
+  }
 
   useEffect(() => {
     cargar();
@@ -78,8 +87,9 @@ export default function DispositivosPage() {
         {codigoRecienCreado && (
           <div style={{ marginTop: "1rem", background: "#eaf5ef", border: "1px solid #2F6F5E", padding: "0.75rem", textAlign: "center" }}>
             <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem" }}>
-              "{codigoRecienCreado.nombre}" — ingresá este código en la terminal para vincularla (se puede usar una sola vez):
+              "{codigoRecienCreado.nombre}" — escaneá este QR desde el celular de la terminal (o ingresá el código a mano, se puede usar una sola vez):
             </p>
+            <img src={imagenQr(urlTerminal(codigoRecienCreado.codigo))} alt="QR para vincular la terminal" style={{ margin: "0 auto 0.5rem" }} />
             <div style={{ fontSize: "2rem", fontWeight: "bold", letterSpacing: "0.3em", fontFamily: "monospace" }}>{codigoRecienCreado.codigo}</div>
           </div>
         )}
@@ -99,19 +109,39 @@ export default function DispositivosPage() {
         </thead>
         <tbody>
           {dispositivos.map((d) => (
-            <tr key={d.id}>
-              <td>{d.online ? <span style={{ color: "#2F6F5E" }}>🟢 Online</span> : <span style={{ opacity: 0.5 }}>🔴 Offline</span>}</td>
-              <td>{d.nombre}</td>
-              <td>{d.ubicacion ?? "—"}</td>
-              <td>{d.vinculado ? "✔ Sí" : "— No"}</td>
-              <td>{d.ultimaConexion ? new Date(d.ultimaConexion).toLocaleString("es-AR") : "Nunca"}</td>
-              <td>{!d.vinculado ? <code>{d.codigoVinculacion}</code> : <span style={{ opacity: 0.4 }}>—</span>}</td>
-              <td>
-                <button onClick={() => eliminar(d.id, d.nombre)} style={{ background: "white", color: "#B23A3A", border: "1px solid #B23A3A", fontSize: "0.8rem" }}>
-                  Eliminar
-                </button>
-              </td>
-            </tr>
+            <Fragment key={d.id}>
+              <tr>
+                <td>{d.online ? <span style={{ color: "#2F6F5E" }}>🟢 Online</span> : <span style={{ opacity: 0.5 }}>🔴 Offline</span>}</td>
+                <td>{d.nombre}</td>
+                <td>{d.ubicacion ?? "—"}</td>
+                <td>{d.vinculado ? "✔ Sí" : "— No"}</td>
+                <td>{d.ultimaConexion ? new Date(d.ultimaConexion).toLocaleString("es-AR") : "Nunca"}</td>
+                <td>
+                  {!d.vinculado ? (
+                    <>
+                      <code>{d.codigoVinculacion}</code>{" "}
+                      <button onClick={() => setMostrandoQrPara(mostrandoQrPara === d.id ? null : d.id)} style={{ fontSize: "0.75rem" }}>
+                        {mostrandoQrPara === d.id ? "Ocultar QR" : "Ver QR"}
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{ opacity: 0.4 }}>—</span>
+                  )}
+                </td>
+                <td>
+                  <button onClick={() => eliminar(d.id, d.nombre)} style={{ background: "white", color: "#B23A3A", border: "1px solid #B23A3A", fontSize: "0.8rem" }}>
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+              {mostrandoQrPara === d.id && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "1rem", background: "#f8f9fc" }}>
+                    <img src={imagenQr(urlTerminal(d.codigoVinculacion))} alt="QR para vincular la terminal" />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
           {dispositivos.length === 0 && (
             <tr>

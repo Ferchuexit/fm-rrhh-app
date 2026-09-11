@@ -80,7 +80,7 @@ export default function TerminalPage() {
   const [legajos, setLegajos] = useState<Legajo[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [seleccionado, setSeleccionado] = useState<Legajo | null>(null);
-  const [confirmacion, setConfirmacion] = useState<{ texto: string; ok: boolean } | null>(null);
+  const [confirmacion, setConfirmacion] = useState<{ texto: string; subtexto?: string; ok: boolean } | null>(null);
   const [cola, setCola] = useState<FichadaPendiente[]>([]);
 
   // ── Fase 3: reconocimiento facial ──
@@ -91,15 +91,23 @@ export default function TerminalPage() {
   const [reconocido, setReconocido] = useState<string | null>(null); // nombre, solo para el toast breve
   const reconociendoRef = useRef(false); // evita superponer detecciones mientras una todavía está corriendo
 
-  // ── Cargar dispositivo ya vinculado, si lo hay ──
+  // ── Cargar dispositivo ya vinculado, si lo hay — o vincular solo si
+  // llegamos acá con ?codigo=XXXXXX en la URL (desde un QR) ──
   useEffect(() => {
     const id = localStorage.getItem(CLAVE_DISPOSITIVO);
     const nombre = localStorage.getItem(CLAVE_NOMBRE);
     if (id) {
       setDispositivoId(id);
       setNombreDispositivo(nombre ?? "");
+    } else {
+      const codigoUrl = new URLSearchParams(window.location.search).get("codigo");
+      if (codigoUrl) {
+        setCodigo(codigoUrl);
+        vincularConCodigo(codigoUrl);
+      }
     }
     setCola(leerCola());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Una vez vinculado: cargar legajos, heartbeat, sincronizar la cola, y arrancar reconocimiento facial ──
@@ -221,10 +229,14 @@ export default function TerminalPage() {
 
   async function vincular() {
     if (!codigo.trim()) return;
+    await vincularConCodigo(codigo.trim());
+  }
+
+  async function vincularConCodigo(codigoAUsar: string) {
     setVinculando(true);
     setErrorVinculacion("");
     try {
-      const res = await fetch("/api/dispositivos/vincular", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo: codigo.trim() }) });
+      const res = await fetch("/api/dispositivos/vincular", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo: codigoAUsar }) });
       const data = await res.json();
       if (!res.ok) {
         setErrorVinculacion(data.error);
@@ -254,13 +266,14 @@ export default function TerminalPage() {
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setConfirmacion({ texto: `${tipo === "entrada" ? "Ingreso" : "Egreso"} registrado — ${legajoLabel} — ${data.hora}`, ok: true });
+      const saludo = tipo === "entrada" ? `¡Bienvenido/a, ${seleccionado.nombre}!` : `¡Hasta luego, ${seleccionado.nombre}!`;
+      setConfirmacion({ texto: saludo, subtexto: `${tipo === "entrada" ? "Ingreso" : "Egreso"} registrado — ${data.hora}`, ok: true });
     } catch {
       const nueva: FichadaPendiente = { tempId: crypto.randomUUID(), legajoId: seleccionado.id, legajoLabel, tipo, horaLocal };
       const nuevaCola = [...leerCola(), nueva];
       guardarCola(nuevaCola);
       setCola(nuevaCola);
-      setConfirmacion({ texto: `Guardado sin conexión — ${legajoLabel} — se sincroniza solo apenas vuelva el internet`, ok: false });
+      setConfirmacion({ texto: `Guardado sin conexión — ${legajoLabel}`, subtexto: "Se sincroniza solo apenas vuelva el internet", ok: false });
     }
 
     setSeleccionado(null);
@@ -275,10 +288,11 @@ export default function TerminalPage() {
   // ── Pantalla de vinculación (primera vez) ──
   if (!dispositivoId) {
     return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#163A5C" }}>
-        <div style={{ background: "white", borderRadius: "12px", padding: "2.5rem", maxWidth: "380px", width: "90%", textAlign: "center" }}>
-          <h1 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>FM Software</h1>
-          <p style={{ opacity: 0.6, marginBottom: "1.5rem" }}>Control de Asistencia</p>
+      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)" }}>
+        <div style={{ background: "white", borderRadius: "16px", padding: "2.5rem", maxWidth: "380px", width: "90%", textAlign: "center", boxShadow: "0 10px 40px rgba(0,0,0,0.25)" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#EEF1F4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", margin: "0 auto 0.75rem" }}>🕒</div>
+          <h1 style={{ fontSize: "1.2rem", marginBottom: "0.2rem" }}>Control de Asistencia</h1>
+          <p style={{ opacity: 0.6, marginBottom: "1.5rem", fontSize: "0.85rem" }}>FM Software</p>
           <p style={{ fontSize: "0.9rem", marginBottom: "1rem" }}>Ingresá el código que te dieron para vincular esta terminal:</p>
           <input
             value={codigo}
@@ -302,7 +316,8 @@ export default function TerminalPage() {
       <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: confirmacion.ok ? "#2F6F5E" : "#B8752B" }}>
         <div style={{ textAlign: "center", color: "white", padding: "2rem" }}>
           <div style={{ fontSize: "4rem" }}>{confirmacion.ok ? "✔" : "🟠"}</div>
-          <p style={{ fontSize: "1.4rem", marginTop: "1rem", maxWidth: "500px" }}>{confirmacion.texto}</p>
+          <p style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "1rem", maxWidth: "500px" }}>{confirmacion.texto}</p>
+          {confirmacion.subtexto && <p style={{ fontSize: "1rem", opacity: 0.85, marginTop: "0.4rem" }}>{confirmacion.subtexto}</p>}
         </div>
       </main>
     );
@@ -333,9 +348,12 @@ export default function TerminalPage() {
 
   // ── Pantalla principal: cámara (si está disponible) + buscar empleado ──
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "#163A5C", padding: "3rem 1.5rem" }}>
-      <h1 style={{ color: "white", marginBottom: "0.3rem" }}>FM Software</h1>
-      <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: "1.5rem" }}>{nombreDispositivo} — Buenos días</p>
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2.5rem 1.5rem" }}>
+      <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem", marginBottom: "0.75rem" }}>
+        🕒
+      </div>
+      <h1 style={{ color: "white", marginBottom: "0.2rem", fontSize: "1.4rem" }}>Control de Asistencia</h1>
+      <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "1.5rem", fontSize: "0.85rem" }}>{nombreDispositivo}</p>
 
       <div style={{ position: "relative", width: "100%", maxWidth: "420px", marginBottom: "1.5rem" }}>
         <video
@@ -343,7 +361,7 @@ export default function TerminalPage() {
           autoPlay
           muted
           playsInline
-          style={{ width: "100%", borderRadius: "12px", background: "#000", transform: "scaleX(-1)", display: camaraLista ? "block" : "none" }}
+          style={{ width: "100%", borderRadius: "16px", background: "#000", transform: "scaleX(-1)", display: camaraLista ? "block" : "none", boxShadow: "0 8px 30px rgba(0,0,0,0.3)" }}
         />
         {!camaraLista && (
           <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontSize: "0.85rem" }}>
@@ -351,7 +369,7 @@ export default function TerminalPage() {
           </p>
         )}
         {reconocido && (
-          <div style={{ position: "absolute", bottom: "0.75rem", left: "0.75rem", right: "0.75rem", background: "rgba(47,111,94,0.9)", color: "white", padding: "0.5rem", borderRadius: "6px", textAlign: "center", fontSize: "0.9rem" }}>
+          <div style={{ position: "absolute", bottom: "0.75rem", left: "0.75rem", right: "0.75rem", background: "rgba(47,111,94,0.92)", color: "white", padding: "0.6rem", borderRadius: "8px", textAlign: "center", fontSize: "0.9rem", fontWeight: 600 }}>
             ✔ Reconocido: {reconocido}
           </div>
         )}
@@ -361,7 +379,7 @@ export default function TerminalPage() {
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
         placeholder="O escribí tu legajo o apellido..."
-        style={{ width: "100%", maxWidth: "420px", padding: "1rem", fontSize: "1.2rem", borderRadius: "8px", border: "none", marginBottom: "1rem" }}
+        style={{ width: "100%", maxWidth: "420px", padding: "1rem", fontSize: "1.1rem", borderRadius: "10px", border: "none", marginBottom: "1rem" }}
       />
 
       <div style={{ width: "100%", maxWidth: "420px" }}>
