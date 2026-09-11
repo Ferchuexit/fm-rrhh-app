@@ -132,7 +132,7 @@ export default function DispositivosPage() {
   }
 
   async function regenerarCodigo(id: string) {
-    if (!confirm("¿Generar un código nuevo para esta terminal? La que esté usándola ahora va a tener que volver a vincularse.")) return;
+    if (!confirm("¿Generar un código nuevo para esta terminal? Corta la conexión AHORA MISMO — la que esté usándola va a dejar de fichar hasta que ingrese el código nuevo.")) return;
     const res = await fetch("/api/dispositivos/regenerar-codigo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dispositivoId: id }) });
     const data = await res.json();
     if (!res.ok) {

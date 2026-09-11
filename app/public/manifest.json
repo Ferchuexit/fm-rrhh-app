@@ -1,0 +1,15 @@
+{
+  "name": "FM Software — Control de Asistencia",
+  "short_name": "FM Asistencia",
+  "description": "Terminal de fichadas con reconocimiento facial",
+  "start_url": "/terminal",
+  "scope": "/terminal",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0d2540",
+  "theme_color": "#163A5C",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -44,6 +44,7 @@ declare global {
 }
 const CDN_FACEAPI = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js";
 const UMBRAL_DISTANCIA = 0.5;
+const UMBRAL_REPOSO_MS = 45000; // 45s sin ninguna cara detectada → pantalla de reposo
 
 // Tonos generados con Web Audio — no son archivos de audio (nada que
 // licenciar ni que bajar), un osciloscopio simple alcanza para un "ok" y
@@ -136,9 +137,11 @@ export default function TerminalPage() {
   const [camaraLista, setCamaraLista] = useState(false);
   const [reconocido, setReconocido] = useState<string | null>(null);
   const [rechazado, setRechazado] = useState(false);
+  const [reposo, setReposo] = useState(false);
   const reconociendoRef = useRef(false);
   const ultimoRechazoRef = useRef(0);
   const ultimoFichadoRef = useRef<{ legajoId: string; ts: number } | null>(null);
+  const ultimaActividadRef = useRef(Date.now());
 
   // ── Modo administración (PIN) ──
   const [pantallaAdmin, setPantallaAdmin] = useState<PantallaAdmin>(null);
@@ -158,6 +161,42 @@ export default function TerminalPage() {
     const t = setInterval(() => setAhora(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // ── PWA: Service Worker (cachea assets para que cargue rápido) y Wake
+  // Lock (pantalla siempre prendida — pensado para el tablet fijo a la
+  // pared que describiste). El Wake Lock se libera solo cuando la pestaña
+  // pierde foco/visibilidad, por eso se vuelve a pedir cada vez que
+  // vuelve a estar visible.
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+    let wakeLock: any = null;
+    async function pedirWakeLock() {
+      try {
+        if ("wakeLock" in navigator) wakeLock = await (navigator as any).wakeLock.request("screen");
+      } catch {
+        // algunos navegadores lo bloquean sin interacción previa del usuario — no es crítico
+      }
+    }
+    pedirWakeLock();
+    function alVolverVisible() {
+      if (document.visibilityState === "visible") pedirWakeLock();
+    }
+    document.addEventListener("visibilitychange", alVolverVisible);
+    return () => document.removeEventListener("visibilitychange", alVolverVisible);
+  }, []);
+
+  // ── Reposo: si pasan 45s sin detectar ninguna cara (y no hay nada más
+  // pasando en pantalla), se atenúa la pantalla. Cualquier cara detectada
+  // la despierta — ver reconocerCara().
+  useEffect(() => {
+    if (seleccionado || confirmacion || pantallaAdmin) return;
+    const t = setInterval(() => {
+      if (Date.now() - ultimaActividadRef.current > UMBRAL_REPOSO_MS) setReposo(true);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [seleccionado, confirmacion, pantallaAdmin]);
 
   // ── Cargar dispositivo ya vinculado, si lo hay — o vincular solo si
   // llegamos acá con ?codigo=XXXXXX en la URL (desde un QR) ──
@@ -188,7 +227,18 @@ export default function TerminalPage() {
     cargarDescriptoresYModelos();
     const heartbeat = () => {
       fetch("/api/dispositivos/heartbeat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dispositivoId }) })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          // El servidor deja de reconocer este dispositivo si alguien le
+          // generó un código nuevo desde /dispositivos (eso desvincula al
+          // toque, sin que la terminal se entere hasta el próximo
+          // heartbeat) — antes esto fallaba en silencio para siempre; ahora
+          // la terminal misma se da cuenta y vuelve a pedir el código.
+          if (r.status === 404) {
+            manejarDesvinculacion();
+            return null;
+          }
+          return r.ok ? r.json() : null;
+        })
         .then((data) => {
           if (data?.logoUrl) {
             setLogoUrl(data.logoUrl);
@@ -262,6 +312,8 @@ export default function TerminalPage() {
         .withFaceLandmarks()
         .withFaceDescriptor();
       if (deteccion) {
+        ultimaActividadRef.current = Date.now();
+        setReposo(false);
         let mejor: { d: DescriptorBiometrico; distancia: number } | null = null;
         for (const d of descriptores) {
           const distancia = window.faceapi.euclideanDistance(deteccion.descriptor, d.descriptor);
@@ -477,6 +529,14 @@ export default function TerminalPage() {
     setConfigPinNuevo("");
   }
 
+  function manejarDesvinculacion() {
+    localStorage.removeItem(CLAVE_DISPOSITIVO);
+    localStorage.removeItem(CLAVE_NOMBRE);
+    localStorage.removeItem(CLAVE_LOGO);
+    setDispositivoId(null);
+    setErrorVinculacion("Esta terminal se desvinculó (alguien generó un código nuevo desde /dispositivos) — ingresá el código actual para reconectarla.");
+  }
+
   function desvincularDispositivo() {
     if (!confirm("¿Desvincular esta terminal? Vas a tener que volver a ingresar un código para usarla de nuevo.")) return;
     localStorage.removeItem(CLAVE_DISPOSITIVO);
@@ -547,179 +607,32 @@ export default function TerminalPage() {
     );
   }
 
-  // ── Pantalla de confirmación (después de fichar) ──
-  if (confirmacion) {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: confirmacion.ok ? "#2F6F5E" : "#B8752B" }}>
-        <div style={{ textAlign: "center", color: "white", padding: "2rem" }}>
-          <div style={{ fontSize: "4rem" }}>{confirmacion.ok ? "✔" : "🟠"}</div>
-          <p style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "1rem", maxWidth: "500px" }}>{confirmacion.texto}</p>
-          {confirmacion.subtexto && <p style={{ fontSize: "1rem", opacity: 0.85, marginTop: "0.4rem" }}>{confirmacion.subtexto}</p>}
-        </div>
-      </main>
-    );
-  }
+  // ── A PARTIR DE ACÁ: una sola estructura persistente ──
+  //
+  // FIX 11/09/2026 (bug real que Fernando encontró probando con la
+  // familia): antes, cada "pantalla" (confirmación, fichando, PIN,
+  // listado...) era un return por separado — la cámara se reiniciaba de
+  // cero cada vez que React saltaba de un return a otro, porque el
+  // <video> literalmente se destruía y se volvía a crear. Después de
+  // fichar una vez, la cámara quedaba negra hasta refrescar el
+  // navegador — inaceptable para una fila de gente esperando fichar.
+  //
+  // Ahora el <video> vive en un solo lugar del árbol, SIEMPRE montado
+  // mientras haya dispositivoId — nunca se destruye. Las demás pantallas
+  // se dibujan como capas superpuestas (position: fixed) encima, con
+  // z-index más alto. Cuando desaparecen, la cámara de abajo sigue viva,
+  // con la misma conexión de siempre, sin cortes.
+  const capaCompleta: CSSProperties = { position: "fixed", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem" };
+  const capaCompletaScroll: CSSProperties = { position: "fixed", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", padding: "2rem 1.5rem", overflowY: "auto" };
 
-  // ── PIN ──
-  if (pantallaAdmin === "pin") {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)" }}>
-        <div style={{ ...cajaBlanca, maxWidth: "340px", textAlign: "center" }}>
-          <p style={{ fontSize: "0.9rem", marginBottom: "1rem" }}>PIN de administración</p>
-          <input
-            autoFocus
-            type="password"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && verificarPin()}
-            placeholder="••••"
-            inputMode="numeric"
-            style={{ fontSize: "1.5rem", textAlign: "center", letterSpacing: "0.3em", width: "100%", padding: "0.6rem", marginBottom: "1rem" }}
-          />
-          <button onClick={verificarPin} style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", marginBottom: "0.5rem" }}>Ingresar</button>
-          <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", background: "white", border: "1px solid #ccc" }}>Cancelar</button>
-          {errorPin && <p style={{ color: "#B23A3A", fontSize: "0.85rem", marginTop: "1rem" }}>{errorPin}</p>}
-        </div>
-      </main>
-    );
-  }
-
-  // ── Registrar nuevo empleado (alta biométrica) ──
-  if (pantallaAdmin === "enrolar") {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2rem 1.5rem" }}>
-        <Encabezado />
-        <div style={{ ...cajaBlanca }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Registrar nuevo empleado</h2>
-          {!enrolarLegajo ? (
-            <>
-              <p style={{ fontSize: "0.85rem", opacity: 0.7 }}>Buscá al empleado (el legajo tiene que existir ya, cargado desde la oficina):</p>
-              <input value={enrolarBusqueda} onChange={(e) => setEnrolarBusqueda(e.target.value)} placeholder="Legajo o apellido..." style={{ width: "100%", padding: "0.6rem", marginBottom: "0.75rem" }} />
-              {resultadosEnrolar.map((l) => (
-                <button key={l.id} onClick={() => setEnrolarLegajo(l)} style={{ display: "block", width: "100%", textAlign: "left", padding: "0.7rem", marginBottom: "0.4rem", background: "#f8f9fc", border: "1px solid #eee" }}>
-                  <strong>{l.numeroLegajo}</strong> — {l.apellido}, {l.nombre} {l.biometriaActiva && <span style={{ color: "#2F6F5E", fontSize: "0.8rem" }}>(ya registrado — esto lo reemplaza)</span>}
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              <p style={{ fontSize: "0.9rem" }}><strong>{enrolarLegajo.numeroLegajo}</strong> — {enrolarLegajo.apellido}, {enrolarLegajo.nombre}</p>
-              <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", borderRadius: "10px", background: "#000", transform: "scaleX(-1)", marginBottom: "0.75rem" }} />
-              <button onClick={capturarYEnrolar} style={{ width: "100%", padding: "0.75rem", marginBottom: "0.5rem" }}>Capturar y registrar</button>
-              <button onClick={() => { setEnrolarLegajo(null); setEnrolarMensaje(null); }} style={{ width: "100%", padding: "0.5rem", background: "white", border: "1px solid #ccc" }}>Elegir otro</button>
-              {enrolarMensaje && <p style={{ color: enrolarMensaje.ok ? "#2F6F5E" : "#B23A3A", fontSize: "0.85rem", marginTop: "0.75rem" }}>{enrolarMensaje.texto}</p>}
-            </>
-          )}
-          <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Listado de empleados ──
-  if (pantallaAdmin === "listado") {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2rem 1.5rem" }}>
-        <Encabezado />
-        <div style={{ ...cajaBlanca, maxHeight: "70vh", overflowY: "auto" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Listado de empleados</h2>
-          <input value={listadoBusqueda} onChange={(e) => setListadoBusqueda(e.target.value)} placeholder="Buscar..." style={{ width: "100%", padding: "0.6rem", marginBottom: "0.75rem" }} />
-          {resultadosListado.map((l) => (
-            <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: "1px solid #eee" }}>
-              <div style={{ fontSize: "0.9rem" }}><strong>{l.numeroLegajo}</strong> — {l.apellido}, {l.nombre}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                {l.biometriaActiva ? <span style={{ color: "#2F6F5E", fontSize: "0.75rem" }}>🟢 Registrado</span> : <span style={{ opacity: 0.4, fontSize: "0.75rem" }}>Sin registrar</span>}
-                <button onClick={() => { setEnrolarLegajo(l); setPantallaAdmin("enrolar"); }} style={{ fontSize: "0.75rem" }}>{l.biometriaActiva ? "Actualizar" : "Registrar"}</button>
-              </div>
-            </div>
-          ))}
-          <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Configuración ──
-  if (pantallaAdmin === "configuracion") {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2rem 1.5rem" }}>
-        <Encabezado />
-        <div style={{ ...cajaBlanca }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Configuración</h2>
-          <p style={{ fontSize: "0.85rem", opacity: 0.7 }}><strong>Terminal:</strong> {nombreDispositivo}</p>
-
-          <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-            <p style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Cambiar PIN de administración</p>
-            <input value={configPinNuevo} onChange={(e) => setConfigPinNuevo(e.target.value)} placeholder="PIN nuevo (4-6 dígitos)" inputMode="numeric" style={{ width: "100%", padding: "0.5rem", marginBottom: "0.5rem" }} />
-            <button onClick={cambiarPin} style={{ width: "100%", padding: "0.6rem" }}>Guardar PIN nuevo</button>
-            {configMensaje && <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>{configMensaje}</p>}
-          </div>
-
-          <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-            <p style={{ fontSize: "0.85rem", opacity: 0.6, marginBottom: "0.5rem" }}>
-              Para cambiar turnos o corregir una fichada puntual, entrá a FM Software desde una computadora con tu usuario — eso todavía no está en esta pantalla.
-            </p>
-            <button onClick={desvincularDispositivo} style={{ width: "100%", padding: "0.6rem", background: "white", color: "#B23A3A", border: "1px solid #B23A3A" }}>
-              Desvincular esta terminal
-            </button>
-          </div>
-
-          <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Fichar manualmente (excepción, requiere PIN) ──
-  if (pantallaAdmin === "manual") {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2rem 1.5rem" }}>
-        <Encabezado />
-        <div style={{ ...cajaBlanca }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Fichar manualmente</h2>
-          <p style={{ fontSize: "0.8rem", background: "#fdf2ea", border: "1px solid #B8752B", padding: "0.5rem", borderRadius: "6px" }}>
-            ⚠ Excepción — usar solo si la cámara falla o la persona todavía no está registrada. Queda igual en el
-            historial de fichadas con el origen marcado, para poder auditarlo después.
-          </p>
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Legajo o apellido..." style={{ width: "100%", padding: "0.6rem", margin: "0.75rem 0" }} autoFocus />
-          {resultados.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => { setSeleccionado(l); setConfianzaSeleccion(0); setPantallaAdmin(null); setPinVerificado(null); setDestinoPendiente(null); }}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "0.7rem", marginBottom: "0.4rem", background: "#f8f9fc", border: "1px solid #eee" }}
-            >
-              <strong>{l.numeroLegajo}</strong> — {l.apellido}, {l.nombre}
-            </button>
-          ))}
-          {busqueda.trim() && resultados.length === 0 && <p style={{ opacity: 0.5, fontSize: "0.85rem" }}>No encontramos a nadie con eso.</p>}
-          <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Confirmando (1.5s, cancelable) — el tipo (entrada/salida) lo decide el servidor solo ──
-  if (seleccionado) {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "2rem" }}>
-        <div style={{ ...cajaBlanca, textAlign: "center" }}>
-          <p style={{ opacity: 0.6, marginBottom: "0.3rem" }}>Legajo {seleccionado.numeroLegajo}</p>
-          <h2 style={{ marginTop: 0, marginBottom: "1.5rem" }}>{seleccionado.apellido}, {seleccionado.nombre}</h2>
-          <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>⏳</div>
-          <p style={{ opacity: 0.6, marginBottom: "1.5rem", fontSize: "0.9rem" }}>Fichando...</p>
-          <button onClick={() => { setSeleccionado(null); setConfianzaSeleccion(null); }} style={{ padding: "0.7rem 1.5rem", background: "white", border: "1px solid #ccc" }}>
-            No soy yo — cancelar
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Pantalla principal: header + cámara con marco + buscar + botones protegidos ──
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "1.5rem 1.5rem 2rem" }}>
+    <main
+      onClick={() => { ultimaActividadRef.current = Date.now(); setReposo(false); }}
+      style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", background: "linear-gradient(180deg, #0d2540, #163A5C)", padding: "1.5rem 1.5rem 2rem", position: "relative" }}
+    >
       <Encabezado />
 
+      {/* ── Capa base: cámara, SIEMPRE montada mientras haya dispositivoId ── */}
       <div style={{ position: "relative", width: "100%", maxWidth: "420px", marginBottom: "1.25rem" }}>
         <video
           ref={videoRef}
@@ -728,8 +641,8 @@ export default function TerminalPage() {
           playsInline
           style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: "16px", background: "#000", transform: "scaleX(-1)", display: camaraLista ? "block" : "none", boxShadow: "0 8px 30px rgba(0,0,0,0.3)" }}
         />
-        {camaraLista && (
-          // Esquinas guía — puramente visual, marcan dónde pararse
+        {camaraLista && !pantallaAdmin && !seleccionado && !confirmacion && (
+          // Esquinas guía — solo en la pantalla principal, puramente visual
           <div style={{ position: "absolute", inset: "12%", pointerEvents: "none" }}>
             {[
               { top: 0, left: 0, borderWidth: "3px 0 0 3px" },
@@ -743,47 +656,205 @@ export default function TerminalPage() {
         )}
         {!camaraLista && (
           <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontSize: "0.85rem" }}>
-            {modelosListos ? "Sin cámara — usá la búsqueda de abajo." : "Cargando reconocimiento facial..."}
+            {modelosListos ? "Sin cámara — usá \"Fichar manualmente\"." : "Cargando reconocimiento facial..."}
           </p>
         )}
-        {reconocido && (
+        {reconocido && !pantallaAdmin && (
           <div style={{ position: "absolute", bottom: "0.75rem", left: "0.75rem", right: "0.75rem", background: "rgba(47,111,94,0.92)", color: "white", padding: "0.6rem", borderRadius: "8px", textAlign: "center", fontSize: "0.9rem", fontWeight: 600 }}>
             ✔ Reconocido: {reconocido}
           </div>
         )}
-        {rechazado && !reconocido && (
+        {rechazado && !reconocido && !pantallaAdmin && (
           <div style={{ position: "absolute", bottom: "0.75rem", left: "0.75rem", right: "0.75rem", background: "rgba(184,58,58,0.92)", color: "white", padding: "0.6rem", borderRadius: "8px", textAlign: "center", fontSize: "0.9rem", fontWeight: 600 }}>
             ✕ No reconocido — pedile a un encargado que te registre
           </div>
         )}
-        {!reconocido && !rechazado && camaraLista && (
+        {!reconocido && !rechazado && camaraLista && !pantallaAdmin && !seleccionado && !confirmacion && (
           <p style={{ position: "absolute", bottom: "0.6rem", left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.75)", fontSize: "0.8rem" }}>Por favor, mire a la cámara</p>
         )}
       </div>
 
-      <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", justifyContent: "center", width: "100%", maxWidth: "700px" }}>
-        <button onClick={() => pedirPinPara("enrolar")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
-          👤➕ Registrar nuevo empleado
-          <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(solo personal autorizado)</div>
-        </button>
-        <button onClick={() => pedirPinPara("listado")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
-          👥 Listado de empleados
-          <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(solo personal autorizado)</div>
-        </button>
-        <button onClick={() => pedirPinPara("manual")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
-          🖊️ Fichar manualmente
-          <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(excepción — solo personal autorizado)</div>
-        </button>
-        <button onClick={() => pedirPinPara("configuracion")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
-          ⚙️ Configuración
-          <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(solo personal autorizado)</div>
-        </button>
-      </div>
+      {/* ── Debajo de la cámara: contenido que cambia según la pantalla, pero SIN tapar el video de arriba ── */}
+      {pantallaAdmin === "enrolar" ? (
+        <div style={{ ...cajaBlanca, marginBottom: "1.5rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Registrar nuevo empleado</h2>
+          {!enrolarLegajo ? (
+            <>
+              <p style={{ fontSize: "0.85rem", opacity: 0.7 }}>Buscá al empleado (el legajo tiene que existir ya, cargado desde la oficina):</p>
+              <input value={enrolarBusqueda} onChange={(e) => setEnrolarBusqueda(e.target.value)} placeholder="Legajo o apellido..." style={{ width: "100%", padding: "0.6rem", marginBottom: "0.75rem" }} autoFocus />
+              {resultadosEnrolar.map((l) => (
+                <button key={l.id} onClick={() => setEnrolarLegajo(l)} style={{ display: "block", width: "100%", textAlign: "left", padding: "0.7rem", marginBottom: "0.4rem", background: "#f8f9fc", border: "1px solid #eee" }}>
+                  <strong>{l.numeroLegajo}</strong> — {l.apellido}, {l.nombre} {l.biometriaActiva && <span style={{ color: "#2F6F5E", fontSize: "0.8rem" }}>(ya registrado — esto lo reemplaza)</span>}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: "0.9rem" }}>Usando la cámara de arriba — <strong>{enrolarLegajo.numeroLegajo}</strong> — {enrolarLegajo.apellido}, {enrolarLegajo.nombre}</p>
+              <button onClick={capturarYEnrolar} style={{ width: "100%", padding: "0.75rem", marginBottom: "0.5rem" }}>Capturar y registrar</button>
+              <button onClick={() => { setEnrolarLegajo(null); setEnrolarMensaje(null); }} style={{ width: "100%", padding: "0.5rem", background: "white", border: "1px solid #ccc" }}>Elegir otro</button>
+              {enrolarMensaje && <p style={{ color: enrolarMensaje.ok ? "#2F6F5E" : "#B23A3A", fontSize: "0.85rem", marginTop: "0.75rem" }}>{enrolarMensaje.texto}</p>}
+            </>
+          )}
+          <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
+        </div>
+      ) : !pantallaAdmin && !seleccionado && !confirmacion ? (
+        <>
+          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", justifyContent: "center", width: "100%", maxWidth: "700px" }}>
+            <button onClick={() => pedirPinPara("enrolar")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
+              👤➕ Registrar nuevo empleado
+              <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(solo personal autorizado)</div>
+            </button>
+            <button onClick={() => pedirPinPara("listado")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
+              👥 Listado de empleados
+              <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(solo personal autorizado)</div>
+            </button>
+            <button onClick={() => pedirPinPara("manual")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
+              🖊️ Fichar manualmente
+              <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(excepción — solo personal autorizado)</div>
+            </button>
+            <button onClick={() => pedirPinPara("configuracion")} style={{ flex: "1 1 180px", padding: "0.9rem", fontSize: "0.85rem", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "8px" }}>
+              ⚙️ Configuración
+              <div style={{ fontSize: "0.7rem", opacity: 0.6, marginTop: "2px" }}>(solo personal autorizado)</div>
+            </button>
+          </div>
+          <div style={{ marginTop: "1.25rem", textAlign: "center", fontSize: "0.75rem", color: "rgba(255,255,255,0.5)" }}>
+            {cola.length > 0 ? `🟠 ${cola.length} fichada${cola.length > 1 ? "s" : ""} pendiente${cola.length > 1 ? "s" : ""} de sincronización` : "🟢 Conectado"}
+            {" · FM Terminal v1.0"}
+          </div>
+        </>
+      ) : null}
 
-      <div style={{ marginTop: "1.25rem", textAlign: "center", fontSize: "0.75rem", color: "rgba(255,255,255,0.5)" }}>
-        {cola.length > 0 ? `🟠 ${cola.length} fichada${cola.length > 1 ? "s" : ""} pendiente${cola.length > 1 ? "s" : ""} de sincronización` : "🟢 Conectado"}
-        {" · FM Terminal v1.0"}
-      </div>
+      {/* ── Reposo: se superpone, pero la cámara de abajo sigue detectando ── */}
+      {reposo && !pantallaAdmin && !seleccionado && !confirmacion && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(13,37,64,0.92)", zIndex: 15, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "white" }}>
+          {logoUrl && <img src={logoUrl} alt="Logo" style={{ height: "56px", maxWidth: "160px", objectFit: "contain", marginBottom: "1.5rem", opacity: 0.9 }} />}
+          <div style={{ fontSize: "3rem", fontWeight: 700 }}>{horaFormateada}</div>
+          <div style={{ fontSize: "0.9rem", opacity: 0.6, textTransform: "capitalize", marginTop: "0.3rem" }}>{fechaFormateada}</div>
+          <p style={{ marginTop: "2rem", opacity: 0.5, fontSize: "0.85rem" }}>Acercate para fichar</p>
+        </div>
+      )}
+
+      {/* ── Confirmando (1.5s, cancelable) — capa completa, la cámara sigue viva debajo ── */}
+      {seleccionado && !confirmacion && (
+        <div style={capaCompleta}>
+          <div style={{ ...cajaBlanca, textAlign: "center" }}>
+            <p style={{ opacity: 0.6, marginBottom: "0.3rem" }}>Legajo {seleccionado.numeroLegajo}</p>
+            <h2 style={{ marginTop: 0, marginBottom: "1.5rem" }}>{seleccionado.apellido}, {seleccionado.nombre}</h2>
+            <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>⏳</div>
+            <p style={{ opacity: 0.6, marginBottom: "1.5rem", fontSize: "0.9rem" }}>Fichando...</p>
+            <button onClick={() => { setSeleccionado(null); setConfianzaSeleccion(null); }} style={{ padding: "0.7rem 1.5rem", background: "white", border: "1px solid #ccc" }}>
+              No soy yo — cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirmación (después de fichar) ── */}
+      {confirmacion && (
+        <div style={{ ...capaCompleta, background: confirmacion.ok ? "#2F6F5E" : "#B8752B" }}>
+          <div style={{ textAlign: "center", color: "white" }}>
+            <div style={{ fontSize: "4rem" }}>{confirmacion.ok ? "✔" : "🟠"}</div>
+            <p style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "1rem", maxWidth: "500px" }}>{confirmacion.texto}</p>
+            {confirmacion.subtexto && <p style={{ fontSize: "1rem", opacity: 0.85, marginTop: "0.4rem" }}>{confirmacion.subtexto}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── PIN ── */}
+      {pantallaAdmin === "pin" && (
+        <div style={{ ...capaCompleta, background: "linear-gradient(180deg, #0d2540, #163A5C)" }}>
+          <div style={{ ...cajaBlanca, maxWidth: "340px", textAlign: "center" }}>
+            <p style={{ fontSize: "0.9rem", marginBottom: "1rem" }}>PIN de administración</p>
+            <input
+              autoFocus
+              type="password"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && verificarPin()}
+              placeholder="••••"
+              inputMode="numeric"
+              style={{ fontSize: "1.5rem", textAlign: "center", letterSpacing: "0.3em", width: "100%", padding: "0.6rem", marginBottom: "1rem" }}
+            />
+            <button onClick={verificarPin} style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", marginBottom: "0.5rem" }}>Ingresar</button>
+            <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", background: "white", border: "1px solid #ccc" }}>Cancelar</button>
+            {errorPin && <p style={{ color: "#B23A3A", fontSize: "0.85rem", marginTop: "1rem" }}>{errorPin}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Listado de empleados ── */}
+      {pantallaAdmin === "listado" && (
+        <div style={{ ...capaCompletaScroll, background: "linear-gradient(180deg, #0d2540, #163A5C)" }}>
+          <div style={{ ...cajaBlanca, maxHeight: "70vh", overflowY: "auto" }}>
+            <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Listado de empleados</h2>
+            <input value={listadoBusqueda} onChange={(e) => setListadoBusqueda(e.target.value)} placeholder="Buscar..." style={{ width: "100%", padding: "0.6rem", marginBottom: "0.75rem" }} autoFocus />
+            {resultadosListado.map((l) => (
+              <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: "1px solid #eee" }}>
+                <div style={{ fontSize: "0.9rem" }}><strong>{l.numeroLegajo}</strong> — {l.apellido}, {l.nombre}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  {l.biometriaActiva ? <span style={{ color: "#2F6F5E", fontSize: "0.75rem" }}>🟢 Registrado</span> : <span style={{ opacity: 0.4, fontSize: "0.75rem" }}>Sin registrar</span>}
+                  <button onClick={() => { setEnrolarLegajo(l); setPantallaAdmin("enrolar"); }} style={{ fontSize: "0.75rem" }}>{l.biometriaActiva ? "Actualizar" : "Registrar"}</button>
+                </div>
+              </div>
+            ))}
+            <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Configuración ── */}
+      {pantallaAdmin === "configuracion" && (
+        <div style={{ ...capaCompletaScroll, background: "linear-gradient(180deg, #0d2540, #163A5C)" }}>
+          <div style={{ ...cajaBlanca }}>
+            <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Configuración</h2>
+            <p style={{ fontSize: "0.85rem", opacity: 0.7 }}><strong>Terminal:</strong> {nombreDispositivo}</p>
+
+            <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+              <p style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Cambiar PIN de administración</p>
+              <input value={configPinNuevo} onChange={(e) => setConfigPinNuevo(e.target.value)} placeholder="PIN nuevo (4-6 dígitos)" inputMode="numeric" style={{ width: "100%", padding: "0.5rem", marginBottom: "0.5rem" }} />
+              <button onClick={cambiarPin} style={{ width: "100%", padding: "0.6rem" }}>Guardar PIN nuevo</button>
+              {configMensaje && <p style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>{configMensaje}</p>}
+            </div>
+
+            <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+              <p style={{ fontSize: "0.85rem", opacity: 0.6, marginBottom: "0.5rem" }}>
+                Para cambiar turnos o corregir una fichada puntual, entrá a FM Software desde una computadora con tu usuario — eso todavía no está en esta pantalla.
+              </p>
+              <button onClick={desvincularDispositivo} style={{ width: "100%", padding: "0.6rem", background: "white", color: "#B23A3A", border: "1px solid #B23A3A" }}>
+                Desvincular esta terminal
+              </button>
+            </div>
+
+            <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fichar manualmente (excepción, requiere PIN) ── */}
+      {pantallaAdmin === "manual" && (
+        <div style={{ ...capaCompletaScroll, background: "linear-gradient(180deg, #0d2540, #163A5C)" }}>
+          <div style={{ ...cajaBlanca }}>
+            <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Fichar manualmente</h2>
+            <p style={{ fontSize: "0.8rem", background: "#fdf2ea", border: "1px solid #B8752B", padding: "0.5rem", borderRadius: "6px" }}>
+              ⚠ Excepción — usar solo si la cámara falla o la persona todavía no está registrada. Queda igual en el
+              historial de fichadas con el origen marcado, para poder auditarlo después.
+            </p>
+            <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Legajo o apellido..." style={{ width: "100%", padding: "0.6rem", margin: "0.75rem 0" }} autoFocus />
+            {resultados.map((l) => (
+              <button
+                key={l.id}
+                onClick={() => { setSeleccionado(l); setConfianzaSeleccion(0); setPantallaAdmin(null); setPinVerificado(null); setDestinoPendiente(null); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "0.7rem", marginBottom: "0.4rem", background: "#f8f9fc", border: "1px solid #eee" }}
+              >
+                <strong>{l.numeroLegajo}</strong> — {l.apellido}, {l.nombre}
+              </button>
+            ))}
+            {busqueda.trim() && resultados.length === 0 && <p style={{ opacity: 0.5, fontSize: "0.85rem" }}>No encontramos a nadie con eso.</p>}
+            <button onClick={volverAFichar} style={{ width: "100%", padding: "0.5rem", marginTop: "1rem", background: "none", border: "none", color: "#1b3468", textDecoration: "underline" }}>← Volver a fichar</button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
