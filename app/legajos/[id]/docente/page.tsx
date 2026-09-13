@@ -17,6 +17,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
   const [nuevoCargoId, setNuevoCargoId] = useState("");
   const [nuevoEstablecimiento, setNuevoEstablecimiento] = useState("");
   const [nuevaZonaRural, setNuevaZonaRural] = useState(false);
+  const [nuevaCantidadModulos, setNuevaCantidadModulos] = useState("4");
   const [nuevaFechaAlta, setNuevaFechaAlta] = useState(() => new Date().toISOString().slice(0, 10));
   const [agregando, setAgregando] = useState(false);
 
@@ -69,7 +70,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
     const res = await fetch(`/api/legajos/${params.id}/docente-designaciones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ docCargoId: nuevoCargoId, establecimiento: nuevoEstablecimiento, zonaRural: nuevaZonaRural, fechaAlta: nuevaFechaAlta }),
+      body: JSON.stringify({ docCargoId: nuevoCargoId, establecimiento: nuevoEstablecimiento, zonaRural: nuevaZonaRural, fechaAlta: nuevaFechaAlta, cantidadModulos: Number(nuevaCantidadModulos) }),
     });
     const data = await res.json();
     setAgregando(false);
@@ -141,13 +142,13 @@ export default function DocentePage({ params }: { params: { id: string } }) {
         <h3 style={{ marginTop: 0 }}>Designaciones activas</h3>
         <table style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
           <thead>
-            <tr><th>Cargo</th><th>Modalidad</th><th>Establecimiento</th><th>Rural</th><th>Desde</th><th></th></tr>
+            <tr><th>Cargo</th><th>Modalidad / Horas</th><th>Establecimiento</th><th>Rural</th><th>Desde</th><th></th></tr>
           </thead>
           <tbody>
             {(perfil?.designaciones ?? []).map((d: any) => (
               <tr key={d.id}>
                 <td>{d.docCargo.nombre}</td>
-                <td>{d.docCargo.modalidad}</td>
+                <td>{d.docCargo.tipo === "hora_catedra" ? `${d.cantidadModulos} horas cátedra` : d.docCargo.modalidad}</td>
                 <td>{d.establecimiento ?? "—"}</td>
                 <td>{d.zonaRural ? "Sí" : "—"}</td>
                 <td>{new Date(d.fechaAlta).toLocaleDateString("es-AR", { timeZone: "UTC" })}</td>
@@ -165,9 +166,14 @@ export default function DocentePage({ params }: { params: { id: string } }) {
           <select value={nuevoCargoId} onChange={(e) => setNuevoCargoId(e.target.value)}>
             <option value="">Elegí un cargo...</option>
             {cargos.map((c) => (
-              <option key={c.id} value={c.id}>{c.nombre} — {c.nivel} — {c.modalidad}</option>
+              <option key={c.id} value={c.id}>{c.nombre} — {c.nivel} — {c.modalidad ?? "por hora cátedra"}</option>
             ))}
           </select>
+          {cargos.find((c) => c.id === nuevoCargoId)?.tipo === "hora_catedra" && (
+            <label style={{ fontSize: "0.85rem" }}>
+              Cantidad de horas cátedra: <input type="number" min="1" value={nuevaCantidadModulos} onChange={(e) => setNuevaCantidadModulos(e.target.value)} style={{ width: "60px" }} />
+            </label>
+          )}
           <input placeholder="Establecimiento (opcional)" value={nuevoEstablecimiento} onChange={(e) => setNuevoEstablecimiento(e.target.value)} />
           <label style={{ fontSize: "0.85rem" }}>
             <input type="checkbox" checked={nuevaZonaRural} onChange={(e) => setNuevaZonaRural(e.target.checked)} /> Zona rural (+30%)

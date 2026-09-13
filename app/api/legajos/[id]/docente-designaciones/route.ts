@@ -15,11 +15,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const legajo = await prisma.legajo.findFirst({ where: { id: params.id, empresaId: empresa.id } });
     if (!legajo) return NextResponse.json({ error: "Legajo no encontrado en esta empresa." }, { status: 404 });
 
-    const { docCargoId, establecimiento, zonaRural, fechaAlta } = await req.json();
+    const { docCargoId, establecimiento, zonaRural, fechaAlta, cantidadModulos } = await req.json();
     if (!docCargoId || !fechaAlta) return NextResponse.json({ error: "Faltan docCargoId y fechaAlta." }, { status: 400 });
 
     const cargo = await prisma.docCargo.findUnique({ where: { id: docCargoId } });
     if (!cargo) return NextResponse.json({ error: "Cargo no encontrado en el nomenclador." }, { status: 404 });
+
+    if (cargo.tipo === "hora_catedra" && (!cantidadModulos || cantidadModulos < 1)) {
+      return NextResponse.json({ error: "Para un cargo por hora cátedra hace falta indicar la cantidad de horas." }, { status: 400 });
+    }
 
     // Si el legajo todavía no tiene perfil docente (antigüedad), se crea
     // con 0 años — se puede editar después desde la misma pantalla.
@@ -36,6 +40,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         establecimiento: establecimiento || null,
         zonaRural: !!zonaRural,
         fechaAlta: new Date(fechaAlta),
+        cantidadModulos: cargo.tipo === "hora_catedra" ? Number(cantidadModulos) : 1,
       },
       include: { docCargo: true },
     });

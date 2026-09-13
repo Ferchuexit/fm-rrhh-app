@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calcularBasico,
+  calcularBasicoHoraCatedra,
   buscarPorcentajeAntiguedad,
   calcularAntiguedad,
   calcularImporteConcepto,
@@ -27,10 +28,10 @@ const TRAMOS = [
 ];
 
 const CONCEPTOS = [
-  { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", aportaAportes: true, valor: 557500.0 },
-  { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 283762.0 },
+  { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", aportaAportes: true, valor: 278750.0 },
+  { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 141881.0 },
   { codigo: "641", nombre: "BONIF. 1ER Y 2DO CICLO", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: null, aportaAportes: true, valor: 234294.31 },
-  { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 61418.0 },
+  { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 30709.0 },
   { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 30.0 },
 ];
 
@@ -82,6 +83,48 @@ describe("calcularImporteConcepto — el caso especial de 641", () => {
     const paraPreceptor = calcularImporteConcepto({ concepto: concepto641, basico: 611962.75, cargoNombre: "Preceptor", unidadesCargo: 1.75 });
     expect(paraMaestro).toBeCloseTo(410015.04, 1);
     expect(paraPreceptor).toBeCloseTo(234294.31, 1); // idéntico a Jornada Completa — no escala nunca en Preceptor
+  });
+});
+
+describe("calcularBasicoHoraCatedra", () => {
+  it("Profesor, 4 horas cátedra", () => {
+    expect(calcularBasicoHoraCatedra({ valorPorIndice: VALOR_INDICE, divisorHoraCatedra: 15, cantidadModulos: 4 })).toBeCloseTo(93251.47, 1);
+  });
+  it("Profesor, 8 horas cátedra (exactamente el doble)", () => {
+    expect(calcularBasicoHoraCatedra({ valorPorIndice: VALOR_INDICE, divisorHoraCatedra: 15, cantidadModulos: 8 })).toBeCloseTo(186502.93, 1);
+  });
+});
+
+describe("liquidarDesignacion — Profesor, hora cátedra (regresión contra recibos reales)", () => {
+  const PROFESOR = { nombre: "Profesor", nivel: "Secundaria", modalidad: null, indice: 1, unidades: 1, tipo: "hora_catedra", divisorHoraCatedra: 15 };
+  const CONCEPTOS_CON_667 = [
+    ...CONCEPTOS,
+    { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: "Secundaria", aplicaACargoNombre: null, aportaAportes: true, valor: 43.5 },
+  ];
+
+  it("Profesor, 4 horas cátedra, 1 año de antigüedad", () => {
+    const r = liquidarDesignacion({
+      cargo: PROFESOR,
+      valorPorIndice: VALOR_INDICE,
+      aniosAntiguedad: 1,
+      tramosAntiguedad: TRAMOS,
+      conceptos: CONCEPTOS_CON_667,
+      zonaRural: false,
+      cantidadModulos: 4,
+    });
+    expect(r.basico).toBeCloseTo(93251.47, 1);
+    expect(r.antiguedad).toBeCloseTo(19582.81, 1);
+    expect(r.detalle.find((d) => d.codigo === "455").importe).toBeCloseTo(37834.93, 1); // escala con las horas, a diferencia de un 'cargo'
+    expect(r.detalle.find((d) => d.codigo === "667").importe).toBeCloseTo(40564.39, 1);
+    expect(r.detalle.find((d) => d.codigo === "641")).toBeUndefined(); // no aplica a Secundaria
+    expect(r.detalle.find((d) => d.codigo === "438")).toBeUndefined(); // no aplica a Secundaria
+  });
+
+  it("Profesor, 8 horas cátedra — los montos fijos dan exactamente el doble que a 4 horas", () => {
+    const r4 = liquidarDesignacion({ cargo: PROFESOR, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 1, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_667, zonaRural: false, cantidadModulos: 4 });
+    const r8 = liquidarDesignacion({ cargo: PROFESOR, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 1, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_667, zonaRural: false, cantidadModulos: 8 });
+    expect(r8.basico).toBeCloseTo(r4.basico * 2, 1);
+    expect(r8.detalle.find((d) => d.codigo === "455").importe).toBeCloseTo(r4.detalle.find((d) => d.codigo === "455").importe * 2, 1);
   });
 });
 

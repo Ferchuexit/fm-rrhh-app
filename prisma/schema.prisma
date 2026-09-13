@@ -1030,15 +1030,20 @@ model LiquidacionDetalleEdicion {
 // Extendida"). Simplificación consciente de Fase 1: no separamos cargo
 // y modalidad en dos ejes cruzados — se agrega si hace falta más adelante.
 model DocCargo {
-  id        String   @id @default(uuid())
-  nombre    String   // "Maestro de Grado", "Preceptor"...
-  nivel     String   // "Primaria"...
-  modalidad String?  // "Jornada Completa - 8 hs", "Jornada Extendida...", null = estándar
-  indice    Decimal  @db.Decimal(10, 4)
-  tipo      String   @default("cargo") // 'cargo' | 'hora_catedra'
-  unidades  Decimal  @db.Decimal(6, 4) @default(1)
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id                 String   @id @default(uuid())
+  nombre             String   // "Maestro de Grado", "Preceptor", "Profesor"...
+  nivel              String   // "Primaria", "Secundaria"...
+  modalidad          String?  // "Jornada Completa - 8 hs", "Jornada Extendida...", null = estándar
+  indice             Decimal  @db.Decimal(10, 4) // sin uso real para tipo='hora_catedra' (ver divisorHoraCatedra)
+  tipo               String   @default("cargo") // 'cargo' | 'hora_catedra'
+  unidades           Decimal  @db.Decimal(6, 4) @default(1) // solo aplica a tipo='cargo'
+  // Solo para tipo='hora_catedra' — BASICO = (valorPorIndice / divisorHoraCatedra) × cantidadModulos de la designación.
+  // Confirmado: Profesor usa 15 (índice "1/15 por hora cátedra" del nomenclador, pero
+  // guardado como divisor entero para no perder precisión — 1/15 redondeado a 4
+  // decimales daba un básico $35 más alto que el real).
+  divisorHoraCatedra Int?
+  activo             Boolean  @default(true)
+  createdAt          DateTime @default(now())
 
   designaciones DocDesignacion[]
 }

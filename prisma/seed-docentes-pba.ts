@@ -37,19 +37,29 @@ async function main() {
   // que cambia es "unidades" (el factor que multiplica al índice para dar
   // el BASICO). Confirmado: Jornada Completa = 2, Jornada Extendida = 1,75
   // (misma proporción 8hs→6hs = 0,875 que separa los dos básicos reales).
-  const cargos = [
-    { nombre: "Maestro de Grado", nivel: "Primaria", modalidad: "Jornada Completa - 8 hs", indice: 1.1, unidades: 2 },
-    { nombre: "Maestro de Grado", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.1, unidades: 1.75 },
-    { nombre: "Preceptor", nivel: "Primaria", modalidad: "Jornada Completa - 8 hs", indice: 1.0, unidades: 2 },
-    { nombre: "Preceptor", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.0, unidades: 1.75 },
+  const cargos: { nombre: string; nivel: string; modalidad: string | null; indice: number; unidades: number; tipo: string; divisorHoraCatedra: number | null }[] = [
+    { nombre: "Maestro de Grado", nivel: "Primaria", modalidad: "Jornada Completa - 8 hs", indice: 1.1, unidades: 2, tipo: "cargo", divisorHoraCatedra: null },
+    { nombre: "Maestro de Grado", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.1, unidades: 1.75, tipo: "cargo", divisorHoraCatedra: null },
+    { nombre: "Preceptor", nivel: "Primaria", modalidad: "Jornada Completa - 8 hs", indice: 1.0, unidades: 2, tipo: "cargo", divisorHoraCatedra: null },
+    { nombre: "Preceptor", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.0, unidades: 1.75, tipo: "cargo", divisorHoraCatedra: null },
+    // Profesor por hora cátedra — Secundaria. BASICO = (valorPorIndice / 15)
+    // × cantidad de horas. Confirmado con horas=4 ($93.251,47) y horas=8
+    // ($186.502,93), exacto en los dos. El campo "indice" no se usa para
+    // este tipo (queda en 1 solo para no dejarlo null en una columna que
+    // no admite null) — lo real es divisorHoraCatedra.
+    { nombre: "Profesor", nivel: "Secundaria", modalidad: null, indice: 1.0, unidades: 1, tipo: "hora_catedra", divisorHoraCatedra: 15 },
   ];
   for (const c of cargos) {
     const existente = await prisma.docCargo.findFirst({ where: { nombre: c.nombre, nivel: c.nivel, modalidad: c.modalidad } });
     if (!existente) {
       await prisma.docCargo.create({ data: c });
-      console.log(`✔ DocCargo: ${c.nombre} — ${c.nivel} — ${c.modalidad} (índice ${c.indice}, unidades ${c.unidades})`);
+      console.log(`✔ DocCargo: ${c.nombre} — ${c.nivel} — ${c.modalidad ?? c.tipo} (${c.tipo === "hora_catedra" ? `divisor ${c.divisorHoraCatedra}` : `índice ${c.indice}, unidades ${c.unidades}`})`);
     } else {
-      console.log(`… DocCargo ${c.nombre}/${c.modalidad} ya existía, no se tocó`);
+      // También actualiza — mismo motivo que con los conceptos: una
+      // corrección al script no debe quedarse sin propagar a una base ya
+      // sembrada.
+      await prisma.docCargo.update({ where: { id: existente.id }, data: c });
+      console.log(`✔ DocCargo ${c.nombre}/${c.modalidad ?? c.tipo}: actualizado`);
     }
   }
 
@@ -96,22 +106,18 @@ async function main() {
     aportaAportes: boolean;
     valor: number;
   }[] = [
-    { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", aportaAportes: true, valor: 557500.0 },
-    // FASE 1 — alcance: Jornada Completa solamente. El valor de 455 acá
-    // es el de Jornada Completa ($283.762); confirmamos que NO escala
-    // proporcional con las "unidades" del cargo (Jornada Extendida da el
-    // mismo monto, no 1,75× de un valor menor) — es un escalón, no una
-    // fórmula lineal. Jornada Extendida queda pendiente de resolver.
-    { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 283762.0 },
-    // 641 varía por CARGO, no por unidades — Preceptor cobra
-    // $234.294,31 (el valor acá), Maestro de Grado cobra exactamente el
-    // doble ($468.588,62) — el motor aplica ese ×2 como caso especial
-    // confirmado, no como fórmula general. Ver motor-docentes-pba.mjs.
+    // FIX 13/09/2026: estos son los valores de BASE (1 unidad) — el ×2 de
+    // Jornada Completa/Extendida vive en el motor (multiplicadorFijo), no
+    // acá. Guardarlos ya multiplicados rompía el cálculo de Profesor
+    // (hora cátedra), que necesita la base sin multiplicar para dividir
+    // por 15 y escalar con la cantidad de horas real.
+    { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", aportaAportes: true, valor: 278750.0 },
+    { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 141881.0 },
+    // 641 sigue siendo la excepción — su valor de base YA es el que usa
+    // Preceptor (fijo), y el motor lo multiplica aparte para Maestro. No
+    // se toca acá.
     { codigo: "641", nombre: "BONIF. 1ER Y 2DO CICLO", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: null, aportaAportes: true, valor: 234294.31 },
-    // 2575 confirmado AL CENTAVO como no aportable (ver chat 13/09) — el
-    // resto queda con aportaAportes=true por default, asumido "sí aporta"
-    // (no confirmado con un caso puntual con RURAL/667 activos todavía).
-    { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 61418.0 },
+    { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 30709.0 },
     { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 30.0 },
     // 667 aplica SOLO a Secundaria (hora cátedra) — confirmado que no
     // corresponde para Primaria (Maestro de Grado/Preceptor).

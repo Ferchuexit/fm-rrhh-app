@@ -75,6 +75,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         indice: Number(designacion.docCargo.indice),
         unidades: Number(designacion.docCargo.unidades),
         tipo: designacion.docCargo.tipo,
+        divisorHoraCatedra: designacion.docCargo.divisorHoraCatedra,
       };
       const resultado = liquidarDesignacion({
         cargo,
@@ -83,6 +84,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         tramosAntiguedad: await prisma.docTramoAntiguedad.findMany(),
         conceptos,
         zonaRural: designacion.zonaRural,
+        cantidadModulos: designacion.cantidadModulos,
       });
 
       for (const linea of resultado.detalle) {
