@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { id: string; peri
     include: {
       detalles: {
         include: { docDesignacion: { include: { docCargo: true } } },
-        orderBy: [{ docDesignacionId: "asc" }, { conceptoCodigo: "asc" }],
+        orderBy: [{ docDesignacionId: "asc" }, { createdAt: "asc" }],
       },
     },
   });

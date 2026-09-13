@@ -1157,13 +1157,14 @@ model DocLiquidacion {
 // de una liquidación (así el 641 puede aparecer para el cargo de Maestro
 // y no para las horas cátedra del mismo legajo, en el mismo período).
 model DocLiquidacionDetalle {
-  id               String  @id @default(uuid())
+  id               String   @id @default(uuid())
   docLiquidacionId String
   docDesignacionId String
   conceptoCodigo   String  // "110" (BASICO), "220" (ANTIGUEDAD), "641"...
   nombre           String
-  importe          Decimal @db.Decimal(14, 2)
+  importe          Decimal  @db.Decimal(14, 2)
   tipo             String  // 'haber' | 'descuento'
+  createdAt        DateTime @default(now()) // para ordenar el recibo tal cual se generó (haberes primero, descuentos al final) — ordenar por conceptoCodigo como texto daba un orden sin sentido ("1060" antes que "110")
 
   docLiquidacion DocLiquidacion @relation(fields: [docLiquidacionId], references: [id])
   docDesignacion DocDesignacion @relation(fields: [docDesignacionId], references: [id])
