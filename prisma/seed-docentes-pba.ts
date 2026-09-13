@@ -113,7 +113,9 @@ async function main() {
     // (no confirmado con un caso puntual con RURAL/667 activos todavía).
     { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 61418.0 },
     { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 30.0 },
-    { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 43.5 },
+    // 667 aplica SOLO a Secundaria (hora cátedra) — confirmado que no
+    // corresponde para Primaria (Maestro de Grado/Preceptor).
+    { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: "Secundaria", aplicaACargoNombre: null, aportaAportes: true, valor: 43.5 },
   ];
   for (const c of conceptos) {
     const concepto = await prisma.docConcepto.upsert({
@@ -121,12 +123,19 @@ async function main() {
       update: { nombre: c.nombre, modoCalculo: c.modoCalculo, aplicaANivel: c.aplicaANivel, aplicaACargoNombre: c.aplicaACargoNombre, aportaAportes: c.aportaAportes },
       create: { codigo: c.codigo, nombre: c.nombre, modoCalculo: c.modoCalculo, aplicaANivel: c.aplicaANivel, aplicaACargoNombre: c.aplicaACargoNombre, aportaAportes: c.aportaAportes },
     });
+    // FIX 13/09/2026: antes, si ya existía un valor para esa fecha, se
+    // salteaba sin tocarlo — eso significaba que corregir un monto acá
+    // (como pasó con 455) nunca llegaba a una base ya sembrada. Ahora
+    // actualiza siempre el valor vigente para esa fecha exacta.
     const valorExistente = await prisma.docValorConcepto.findFirst({ where: { docConceptoId: concepto.id, vigenciaDesde: new Date("2026-08-01") } });
     if (!valorExistente) {
       await prisma.docValorConcepto.create({ data: { docConceptoId: concepto.id, vigenciaDesde: new Date("2026-08-01"), valor: c.valor } });
       console.log(`✔ DocConcepto ${c.codigo} (${c.nombre}): ${c.modoCalculo} = ${c.valor}`);
+    } else if (Number(valorExistente.valor) !== c.valor) {
+      await prisma.docValorConcepto.update({ where: { id: valorExistente.id }, data: { valor: c.valor } });
+      console.log(`✔ DocConcepto ${c.codigo}: actualizado de ${valorExistente.valor} a ${c.valor}`);
     } else {
-      console.log(`… DocConcepto ${c.codigo} ya tenía valor vigente para 01/08/2026, no se tocó`);
+      console.log(`… DocConcepto ${c.codigo} ya tenía el valor correcto, no se tocó`);
     }
   }
 
