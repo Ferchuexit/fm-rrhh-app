@@ -8,6 +8,8 @@ export default function EditarLegajoPage({ params }: { params: { id: string } })
       <LegajoNavegacion legajoId={params.id} />
       <p style={{ fontSize: "0.85rem" }}>
         <a href={`/legajos/${params.id}/biometria`}>📷 Biometría (Control de Asistencia) →</a>
+        {" · "}
+        <a href={`/legajos/${params.id}/docente`}>🎓 Docente PBA →</a>
       </p>
       <LegajoForm legajoId={params.id} />
     </main>
