@@ -836,6 +836,8 @@ model Legajo {
   turnoExcepciones TurnoExcepcion[]
   fichadas      Fichada[]
   biometria     BiometriaEmpleado?
+  perfilDocente DocPerfilDocente? // solo existe si este legajo es de Docentes PBA — un legajo puede tener perfilDocente Y categoriaId de otro convenio al mismo tiempo si hiciera falta (caso raro, pero no lo bloqueamos)
+  docLiquidaciones DocLiquidacion[]
   asistencias   AsistenciaDia[]
   documentos    DocumentoLegajo[]
   cargasFamiliaGanancias CargaFamiliarGanancias[]
@@ -1013,4 +1015,135 @@ model LiquidacionDetalleEdicion {
   liquidacionDetalle LiquidacionDetalle @relation(fields: [liquidacionDetalleId], references: [id], onDelete: Cascade)
   concepto           Concepto           @relation(fields: [conceptoId], references: [id])
   usuario            Usuario            @relation(fields: [usuarioId], references: [id])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOCENTES PBA — Fase 1 (Maestro de Grado + Preceptor, Primaria)
+// Tablas paralelas a Liquidacion/LiquidacionDetalle, no las reemplazan.
+// Datos confirmados contra la calculadora oficial de FEB
+// (calculadora.feb.org.ar) y el Decreto 2022/2006, septiembre 2026.
+// ═══════════════════════════════════════════════════════════════
+
+// El nomenclador — cada fila combina cargo+modalidad tal cual aparecen
+// en la calculadora de FEB (ej: "Maestro de Grado" + "Jornada Completa"
+// son índices/unidades distintos de "Maestro de Grado" + "Jornada
+// Extendida"). Simplificación consciente de Fase 1: no separamos cargo
+// y modalidad en dos ejes cruzados — se agrega si hace falta más adelante.
+model DocCargo {
+  id        String   @id @default(uuid())
+  nombre    String   // "Maestro de Grado", "Preceptor"...
+  nivel     String   // "Primaria"...
+  modalidad String?  // "Jornada Completa - 8 hs", "Jornada Extendida...", null = estándar
+  indice    Decimal  @db.Decimal(10, 4)
+  tipo      String   @default("cargo") // 'cargo' | 'hora_catedra'
+  unidades  Decimal  @db.Decimal(6, 4) @default(1)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  designaciones DocDesignacion[]
+}
+
+// Valor de 1 punto de índice — historial, igual que las escalas de
+// Comercio/Madera. Confirmado: $349.693 desde 01/08/2026 (Preceptor,
+// índice 1.00, es el cargo testigo de esta tabla).
+model DocValorIndice {
+  id             String   @id @default(uuid())
+  vigenciaDesde  DateTime
+  valorPorIndice Decimal  @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+}
+
+// La tabla de tramos de antigüedad — universal entre cargos (confirmado
+// con Maestro de Grado, Preceptor y Profesor dando el mismo % en cada
+// tramo), aplicada como % del BASICO. Completa, sin huecos, verificada
+// contra 13 casos reales de la calculadora de FEB.
+model DocTramoAntiguedad {
+  id         String  @id @default(uuid())
+  aniosDesde Int
+  porcentaje Decimal @db.Decimal(6, 2)
+}
+
+// Catálogo de conceptos (438, 455, 624, 641, 667, 2575...) — separado del
+// Concepto genérico porque acá el "modoCalculo" es distinto a cómo
+// funcionan las fórmulas de Comercio/Madera. IPS (16%) e IOMA (4,8%) NO
+// están acá — se calculan directo en el motor, como Ganancias/Embargos.
+model DocConcepto {
+  id           String  @id @default(uuid())
+  codigo       String  @unique // "438", "455", "624"...
+  nombre       String
+  modoCalculo  String  // 'fijo_por_unidad' | 'porcentaje_basico' | 'fijo_total'
+  aplicaANivel String? // null = todos los niveles/cargos
+  activo       Boolean @default(true)
+
+  valores DocValorConcepto[]
+}
+
+// Historial de valores — $557.500, 30%, etc. cambian con cada paritaria.
+model DocValorConcepto {
+  id            String   @id @default(uuid())
+  docConceptoId String
+  vigenciaDesde DateTime
+  valor         Decimal  @db.Decimal(14, 4) // pesos si es fijo, % (0-100) si es porcentaje_basico
+
+  docConcepto DocConcepto @relation(fields: [docConceptoId], references: [id])
+}
+
+// Antigüedad TOTAL del docente (Art. 34 Ley 10.579 — se acumulan todos
+// los servicios docentes, no es por designación puntual). 1 a 1 con
+// Legajo, solo existe para legajos de Docentes PBA.
+model DocPerfilDocente {
+  id              String    @id @default(uuid())
+  legajoId        String    @unique
+  antiguedadAnios Int       @default(0)
+  antiguedadDesde DateTime? // fecha de ingreso a la docencia, para recalcular solo con el correr de los años
+
+  legajo        Legajo           @relation(fields: [legajoId], references: [id])
+  designaciones DocDesignacion[]
+}
+
+// El cargo en sí que tiene un docente — puede haber varios activos a la
+// vez para el mismo legajo (ej: Maestro de Grado + horas cátedra en otra
+// escuela).
+model DocDesignacion {
+  id              String    @id @default(uuid())
+  perfilDocenteId String
+  docCargoId      String
+  establecimiento String?
+  zonaRural       Boolean   @default(false) // Fase 1: rural sí/no (30%) — los niveles 1-5 de "Desfavorabilidad" de FEB quedan para más adelante
+  fechaAlta       DateTime
+  fechaBaja       DateTime?
+  activa          Boolean   @default(true)
+
+  perfilDocente DocPerfilDocente        @relation(fields: [perfilDocenteId], references: [id])
+  docCargo      DocCargo                @relation(fields: [docCargoId], references: [id])
+  detalles      DocLiquidacionDetalle[]
+}
+
+// Liquidación docente — paralela a Liquidacion (por período), agrupa las
+// designaciones de un mismo legajo. No reemplaza la Liquidacion existente.
+model DocLiquidacion {
+  id        String   @id @default(uuid())
+  legajoId  String
+  periodo   String   // "2026-08"
+  estado    String   @default("abierta") // 'abierta' | 'cerrada', igual que Periodo
+  createdAt DateTime @default(now())
+
+  legajo   Legajo                  @relation(fields: [legajoId], references: [id])
+  detalles DocLiquidacionDetalle[]
+}
+
+// Una línea de concepto — pertenece a UNA designación específica dentro
+// de una liquidación (así el 641 puede aparecer para el cargo de Maestro
+// y no para las horas cátedra del mismo legajo, en el mismo período).
+model DocLiquidacionDetalle {
+  id               String  @id @default(uuid())
+  docLiquidacionId String
+  docDesignacionId String
+  conceptoCodigo   String  // "110" (BASICO), "220" (ANTIGUEDAD), "641"...
+  nombre           String
+  importe          Decimal @db.Decimal(14, 2)
+  tipo             String  // 'haber' | 'descuento'
+
+  docLiquidacion DocLiquidacion @relation(fields: [docLiquidacionId], references: [id])
+  docDesignacion DocDesignacion @relation(fields: [docDesignacionId], references: [id])
 }
