@@ -93,20 +93,33 @@ async function main() {
     modoCalculo: string;
     aplicaANivel: string | null;
     aplicaACargoNombre: string | null;
+    aportaAportes: boolean;
     valor: number;
   }[] = [
-    { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", valor: 557500.0 },
-    { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, valor: 141881.0 },
-    { codigo: "641", nombre: "BONIF. 1ER Y 2DO CICLO", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: null, valor: 234294.31 },
-    { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, valor: 61418.0 },
-    { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, valor: 30.0 },
-    { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, valor: 43.5 },
+    { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", aportaAportes: true, valor: 557500.0 },
+    // FASE 1 — alcance: Jornada Completa solamente. El valor de 455 acá
+    // es el de Jornada Completa ($283.762); confirmamos que NO escala
+    // proporcional con las "unidades" del cargo (Jornada Extendida da el
+    // mismo monto, no 1,75× de un valor menor) — es un escalón, no una
+    // fórmula lineal. Jornada Extendida queda pendiente de resolver.
+    { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 283762.0 },
+    // 641 varía por CARGO, no por unidades — Preceptor cobra
+    // $234.294,31 (el valor acá), Maestro de Grado cobra exactamente el
+    // doble ($468.588,62) — el motor aplica ese ×2 como caso especial
+    // confirmado, no como fórmula general. Ver motor-docentes-pba.mjs.
+    { codigo: "641", nombre: "BONIF. 1ER Y 2DO CICLO", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: null, aportaAportes: true, valor: 234294.31 },
+    // 2575 confirmado AL CENTAVO como no aportable (ver chat 13/09) — el
+    // resto queda con aportaAportes=true por default, asumido "sí aporta"
+    // (no confirmado con un caso puntual con RURAL/667 activos todavía).
+    { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 61418.0 },
+    { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 30.0 },
+    { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 43.5 },
   ];
   for (const c of conceptos) {
     const concepto = await prisma.docConcepto.upsert({
       where: { codigo: c.codigo },
-      update: { nombre: c.nombre, modoCalculo: c.modoCalculo, aplicaANivel: c.aplicaANivel, aplicaACargoNombre: c.aplicaACargoNombre },
-      create: { codigo: c.codigo, nombre: c.nombre, modoCalculo: c.modoCalculo, aplicaANivel: c.aplicaANivel, aplicaACargoNombre: c.aplicaACargoNombre },
+      update: { nombre: c.nombre, modoCalculo: c.modoCalculo, aplicaANivel: c.aplicaANivel, aplicaACargoNombre: c.aplicaACargoNombre, aportaAportes: c.aportaAportes },
+      create: { codigo: c.codigo, nombre: c.nombre, modoCalculo: c.modoCalculo, aplicaANivel: c.aplicaANivel, aplicaACargoNombre: c.aplicaACargoNombre, aportaAportes: c.aportaAportes },
     });
     const valorExistente = await prisma.docValorConcepto.findFirst({ where: { docConceptoId: concepto.id, vigenciaDesde: new Date("2026-08-01") } });
     if (!valorExistente) {
