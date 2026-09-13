@@ -1078,7 +1078,8 @@ model DocConcepto {
   //                      el ajuste por modalidad de jornada)
   // 'fijo_total'        → monto fijo, sin multiplicar por nada
   modoCalculo  String
-  aplicaANivel String? // null = todos los niveles/cargos
+  aplicaANivel String? // null = todos los niveles
+  aplicaACargoNombre String? // null = todos los cargos de ese nivel — necesario porque, por ejemplo, 438 aplica a Maestro de Grado pero NO a Preceptor dentro de la misma Primaria
   activo       Boolean @default(true)
 
   valores DocValorConcepto[]
