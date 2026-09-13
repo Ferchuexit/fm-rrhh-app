@@ -1071,7 +1071,13 @@ model DocConcepto {
   id           String  @id @default(uuid())
   codigo       String  @unique // "438", "455", "624"...
   nombre       String
-  modoCalculo  String  // 'fijo_por_unidad' | 'porcentaje_basico' | 'fijo_total'
+  // 'fijo_por_unidad'  → monto fijo × cantidadModulos de la designación
+  //                      (NO por la modalidad de jornada — ver nota en
+  //                      DocDesignacion.cantidadModulos)
+  // 'porcentaje_basico' → % sobre el BASICO ya calculado (que sí incluye
+  //                      el ajuste por modalidad de jornada)
+  // 'fijo_total'        → monto fijo, sin multiplicar por nada
+  modoCalculo  String
   aplicaANivel String? // null = todos los niveles/cargos
   activo       Boolean @default(true)
 
@@ -1110,6 +1116,15 @@ model DocDesignacion {
   docCargoId      String
   establecimiento String?
   zonaRural       Boolean   @default(false) // Fase 1: rural sí/no (30%) — los niveles 1-5 de "Desfavorabilidad" de FEB quedan para más adelante
+  // Solo tiene sentido para docCargo.tipo='hora_catedra' (ej: Profesor).
+  // Para 'cargo' (Maestro, Preceptor, Director...) siempre es 1 — la
+  // modalidad de jornada (Completa/Extendida) NO multiplica los montos
+  // fijos, solo afecta el índice del BASICO. Confirmado contra Preceptor:
+  // 641 da $234.294,31 igual en Jornada Completa Y Extendida — pero un
+  // Profesor con 8hs cátedra (2 módulos) SÍ paga el doble de 455/641/2575,
+  // porque ahí son dos designaciones reales combinadas, no una sola con
+  // otra modalidad.
+  cantidadModulos Int       @default(1)
   fechaAlta       DateTime
   fechaBaja       DateTime?
   activa          Boolean   @default(true)
