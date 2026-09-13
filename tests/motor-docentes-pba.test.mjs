@@ -68,12 +68,40 @@ describe("calcularAntiguedad", () => {
 });
 
 describe("calcularImporteConcepto — el caso especial de 641", () => {
-  it("641 en Maestro de Grado paga el doble que en Preceptor (confirmado con 4 casos reales)", () => {
+  it("641 en Maestro de Grado escala con las unidades reales, Preceptor queda fijo — Jornada Completa", () => {
     const concepto641 = CONCEPTOS.find((c) => c.codigo === "641");
-    const paraMaestro = calcularImporteConcepto({ concepto: concepto641, basico: 769324.6, cargoNombre: "Maestro de Grado" });
-    const paraPreceptor = calcularImporteConcepto({ concepto: concepto641, basico: 699386, cargoNombre: "Preceptor" });
+    const paraMaestro = calcularImporteConcepto({ concepto: concepto641, basico: 769324.6, cargoNombre: "Maestro de Grado", unidadesCargo: 2 });
+    const paraPreceptor = calcularImporteConcepto({ concepto: concepto641, basico: 699386, cargoNombre: "Preceptor", unidadesCargo: 2 });
     expect(paraMaestro).toBeCloseTo(468588.62, 1);
     expect(paraPreceptor).toBeCloseTo(234294.31, 1);
+  });
+
+  it("641 en Jornada Extendida (1,75 unidades) — Maestro escala, Preceptor sigue fijo", () => {
+    const concepto641 = CONCEPTOS.find((c) => c.codigo === "641");
+    const paraMaestro = calcularImporteConcepto({ concepto: concepto641, basico: 673159.03, cargoNombre: "Maestro de Grado", unidadesCargo: 1.75 });
+    const paraPreceptor = calcularImporteConcepto({ concepto: concepto641, basico: 611962.75, cargoNombre: "Preceptor", unidadesCargo: 1.75 });
+    expect(paraMaestro).toBeCloseTo(410015.04, 1);
+    expect(paraPreceptor).toBeCloseTo(234294.31, 1); // idéntico a Jornada Completa — no escala nunca en Preceptor
+  });
+});
+
+describe("liquidarDesignacion — Jornada Extendida (regresión contra recibos reales)", () => {
+  const MAESTRO_JE = { nombre: "Maestro de Grado", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.1, unidades: 1.75, tipo: "cargo" };
+  const PRECEPTOR_JE = { nombre: "Preceptor", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.0, unidades: 1.75, tipo: "cargo" };
+
+  it("Maestro de Grado, Jornada Extendida, 2 años", () => {
+    const r = liquidarDesignacion({ cargo: MAESTRO_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS, zonaRural: false });
+    expect(r.basico).toBeCloseTo(673159.03, 1);
+    expect(r.antiguedad).toBeCloseTo(161558.17, 1);
+    expect(r.detalle.find((d) => d.codigo === "641").importe).toBeCloseTo(410015.04, 1);
+    // Recibo real: $2.147.672,76 — incluye $260,52 de GARANTÍA no implementada.
+    expect(r.totalHaberes).toBeCloseTo(2147412.24, 1);
+  });
+
+  it("Preceptor, Jornada Extendida, 2 años — 641 igual que en Jornada Completa", () => {
+    const r = liquidarDesignacion({ cargo: PRECEPTOR_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS, zonaRural: false });
+    expect(r.basico).toBeCloseTo(611962.75, 1);
+    expect(r.detalle.find((d) => d.codigo === "641").importe).toBeCloseTo(234294.31, 1);
   });
 });
 

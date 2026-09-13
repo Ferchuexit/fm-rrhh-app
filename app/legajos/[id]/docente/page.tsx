@@ -122,7 +122,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
         <a href={`/legajos/${params.id}/editar`}>← Volver al legajo</a>
       </p>
       <div style={{ background: "#fdf2ea", border: "1px solid #B8752B", padding: "0.6rem", maxWidth: "700px", fontSize: "0.82rem", marginBottom: "1.5rem" }}>
-        Fase 1 — solo Maestro de Grado y Preceptor, Primaria, Jornada Completa. GARANTÍA no está implementada (mueve centavos). Ver detalle en <code>motor-docentes-pba.mjs</code>.
+        Fase 1 — Maestro de Grado y Preceptor, Primaria (Jornada Completa y Extendida, las dos resueltas). GARANTÍA no está implementada (mueve centavos). Ver detalle en <code>motor-docentes-pba.mjs</code>.
       </div>
 
       {/* ── Antigüedad ── */}
