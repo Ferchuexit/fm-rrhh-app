@@ -90,6 +90,27 @@ async function main() {
     }
   }
 
+  // ── 3.5. Zona desfavorable — 5 niveles, confirmados con 5 casos reales ──
+  const tramosZona = [
+    { nivel: 1, porcentaje: 30 },
+    { nivel: 2, porcentaje: 60 },
+    { nivel: 3, porcentaje: 90 },
+    { nivel: 4, porcentaje: 100 },
+    { nivel: 5, porcentaje: 120 },
+  ];
+  for (const z of tramosZona) {
+    const existente = await prisma.docTramoZona.findUnique({ where: { nivel: z.nivel } });
+    if (!existente) {
+      await prisma.docTramoZona.create({ data: z });
+      console.log(`✔ DocTramoZona: nivel ${z.nivel} → ${z.porcentaje}%`);
+    } else if (Number(existente.porcentaje) !== z.porcentaje) {
+      await prisma.docTramoZona.update({ where: { id: existente.id }, data: { porcentaje: z.porcentaje } });
+      console.log(`✔ DocTramoZona nivel ${z.nivel}: actualizado a ${z.porcentaje}%`);
+    } else {
+      console.log(`… DocTramoZona nivel ${z.nivel} ya tenía el valor correcto, no se tocó`);
+    }
+  }
+
   // ── 4. Conceptos y sus valores (agosto 2026) ──
   // modoCalculo:
   //   'fijo_por_unidad'   → monto fijo × cantidadModulos (solo importa
@@ -118,9 +139,8 @@ async function main() {
     // se toca acá.
     { codigo: "641", nombre: "BONIF. 1ER Y 2DO CICLO", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: null, aportaAportes: true, valor: 234294.31 },
     { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 30709.0 },
-    { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 30.0 },
-    // 667 aplica SOLO a Secundaria (hora cátedra) — confirmado que no
-    // corresponde para Primaria (Maestro de Grado/Preceptor).
+    // 624 (RURAL) NO va acá — su % depende del nivel de zona desfavorable
+    // (1 a 5), se resuelve con DocTramoZona, no con un valor fijo.
     { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: "Secundaria", aplicaACargoNombre: null, aportaAportes: true, valor: 43.5 },
   ];
   for (const c of conceptos) {

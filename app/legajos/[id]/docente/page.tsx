@@ -16,7 +16,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
 
   const [nuevoCargoId, setNuevoCargoId] = useState("");
   const [nuevoEstablecimiento, setNuevoEstablecimiento] = useState("");
-  const [nuevaZonaRural, setNuevaZonaRural] = useState(false);
+  const [nuevaZonaDesfavorabilidad, setNuevaZonaDesfavorabilidad] = useState("");
   const [nuevaCantidadModulos, setNuevaCantidadModulos] = useState("4");
   const [nuevaFechaAlta, setNuevaFechaAlta] = useState(() => new Date().toISOString().slice(0, 10));
   const [agregando, setAgregando] = useState(false);
@@ -70,7 +70,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
     const res = await fetch(`/api/legajos/${params.id}/docente-designaciones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ docCargoId: nuevoCargoId, establecimiento: nuevoEstablecimiento, zonaRural: nuevaZonaRural, fechaAlta: nuevaFechaAlta, cantidadModulos: Number(nuevaCantidadModulos) }),
+      body: JSON.stringify({ docCargoId: nuevoCargoId, establecimiento: nuevoEstablecimiento, zonaDesfavorabilidad: nuevaZonaDesfavorabilidad ? Number(nuevaZonaDesfavorabilidad) : null, fechaAlta: nuevaFechaAlta, cantidadModulos: Number(nuevaCantidadModulos) }),
     });
     const data = await res.json();
     setAgregando(false);
@@ -80,7 +80,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
     }
     setNuevoCargoId("");
     setNuevoEstablecimiento("");
-    setNuevaZonaRural(false);
+    setNuevaZonaDesfavorabilidad("");
     cargar();
   }
 
@@ -142,7 +142,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
         <h3 style={{ marginTop: 0 }}>Designaciones activas</h3>
         <table style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
           <thead>
-            <tr><th>Cargo</th><th>Modalidad / Horas</th><th>Establecimiento</th><th>Rural</th><th>Desde</th><th></th></tr>
+            <tr><th>Cargo</th><th>Modalidad / Horas</th><th>Establecimiento</th><th>Zona</th><th>Desde</th><th></th></tr>
           </thead>
           <tbody>
             {(perfil?.designaciones ?? []).map((d: any) => (
@@ -150,7 +150,7 @@ export default function DocentePage({ params }: { params: { id: string } }) {
                 <td>{d.docCargo.nombre}</td>
                 <td>{d.docCargo.tipo === "hora_catedra" ? `${d.cantidadModulos} horas cátedra` : d.docCargo.modalidad}</td>
                 <td>{d.establecimiento ?? "—"}</td>
-                <td>{d.zonaRural ? "Sí" : "—"}</td>
+                <td>{d.zonaDesfavorabilidad ? `Nivel ${d.zonaDesfavorabilidad}` : "—"}</td>
                 <td>{new Date(d.fechaAlta).toLocaleDateString("es-AR", { timeZone: "UTC" })}</td>
                 <td><button onClick={() => darDeBaja(d.id)} style={{ fontSize: "0.75rem", color: "#B23A3A" }}>Dar de baja</button></td>
               </tr>
@@ -176,7 +176,15 @@ export default function DocentePage({ params }: { params: { id: string } }) {
           )}
           <input placeholder="Establecimiento (opcional)" value={nuevoEstablecimiento} onChange={(e) => setNuevoEstablecimiento(e.target.value)} />
           <label style={{ fontSize: "0.85rem" }}>
-            <input type="checkbox" checked={nuevaZonaRural} onChange={(e) => setNuevaZonaRural(e.target.checked)} /> Zona rural (+30%)
+            Zona desfavorable:{" "}
+            <select value={nuevaZonaDesfavorabilidad} onChange={(e) => setNuevaZonaDesfavorabilidad(e.target.value)}>
+              <option value="">Ninguna</option>
+              <option value="1">Nivel 1 (+30%)</option>
+              <option value="2">Nivel 2 (+60%)</option>
+              <option value="3">Nivel 3 (+90%)</option>
+              <option value="4">Nivel 4 (+100%)</option>
+              <option value="5">Nivel 5 (+120%)</option>
+            </select>
           </label>
           <label style={{ fontSize: "0.85rem" }}>
             Fecha de alta: <input type="date" value={nuevaFechaAlta} onChange={(e) => setNuevaFechaAlta(e.target.value)} />

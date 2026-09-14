@@ -4,6 +4,7 @@ import {
   calcularBasico,
   calcularBasicoHoraCatedra,
   buscarPorcentajeAntiguedad,
+  buscarPorcentajeZona,
   calcularAntiguedad,
   calcularImporteConcepto,
   calcularAportes,
@@ -27,12 +28,19 @@ const TRAMOS = [
   { aniosDesde: 24, porcentaje: 125 },
 ];
 
+const TRAMOS_ZONA = [
+  { nivel: 1, porcentaje: 30 },
+  { nivel: 2, porcentaje: 60 },
+  { nivel: 3, porcentaje: 90 },
+  { nivel: 4, porcentaje: 100 },
+  { nivel: 5, porcentaje: 120 },
+];
+
 const CONCEPTOS = [
   { codigo: "438", nombre: "BONIF. REMUN. DOCENTE 2014", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: "Maestro de Grado", aportaAportes: true, valor: 278750.0 },
   { codigo: "455", nombre: "BONIF. REMUN. DOC. 08/2008", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 141881.0 },
   { codigo: "641", nombre: "BONIF. 1ER Y 2DO CICLO", modoCalculo: "fijo_por_unidad", aplicaANivel: "Primaria", aplicaACargoNombre: null, aportaAportes: true, valor: 234294.31 },
   { codigo: "2575", nombre: "Comp. FONID/Conectividad", modoCalculo: "fijo_por_unidad", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: false, valor: 30709.0 },
-  { codigo: "624", nombre: "RURAL", modoCalculo: "porcentaje_basico", aplicaANivel: null, aplicaACargoNombre: null, aportaAportes: true, valor: 30.0 },
 ];
 
 const MAESTRO_JC = { nombre: "Maestro de Grado", nivel: "Primaria", modalidad: "Jornada Completa - 8 hs", indice: 1.1, unidades: 2, tipo: "cargo" };
@@ -109,7 +117,6 @@ describe("liquidarDesignacion — Profesor, hora cátedra (regresión contra rec
       aniosAntiguedad: 1,
       tramosAntiguedad: TRAMOS,
       conceptos: CONCEPTOS_CON_667,
-      zonaRural: false,
       cantidadModulos: 4,
     });
     expect(r.basico).toBeCloseTo(93251.47, 1);
@@ -121,8 +128,8 @@ describe("liquidarDesignacion — Profesor, hora cátedra (regresión contra rec
   });
 
   it("Profesor, 8 horas cátedra — los montos fijos dan exactamente el doble que a 4 horas", () => {
-    const r4 = liquidarDesignacion({ cargo: PROFESOR, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 1, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_667, zonaRural: false, cantidadModulos: 4 });
-    const r8 = liquidarDesignacion({ cargo: PROFESOR, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 1, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_667, zonaRural: false, cantidadModulos: 8 });
+    const r4 = liquidarDesignacion({ cargo: PROFESOR, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 1, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_667, cantidadModulos: 4 });
+    const r8 = liquidarDesignacion({ cargo: PROFESOR, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 1, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_667, cantidadModulos: 8 });
     expect(r8.basico).toBeCloseTo(r4.basico * 2, 1);
     expect(r8.detalle.find((d) => d.codigo === "455").importe).toBeCloseTo(r4.detalle.find((d) => d.codigo === "455").importe * 2, 1);
   });
@@ -133,7 +140,7 @@ describe("liquidarDesignacion — Jornada Extendida (regresión contra recibos r
   const PRECEPTOR_JE = { nombre: "Preceptor", nivel: "Primaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.0, unidades: 1.75, tipo: "cargo" };
 
   it("Maestro de Grado, Jornada Extendida, 2 años", () => {
-    const r = liquidarDesignacion({ cargo: MAESTRO_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS, zonaRural: false });
+    const r = liquidarDesignacion({ cargo: MAESTRO_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS });
     expect(r.basico).toBeCloseTo(673159.03, 1);
     expect(r.antiguedad).toBeCloseTo(161558.17, 1);
     expect(r.detalle.find((d) => d.codigo === "641").importe).toBeCloseTo(410015.04, 1);
@@ -142,7 +149,7 @@ describe("liquidarDesignacion — Jornada Extendida (regresión contra recibos r
   });
 
   it("Preceptor, Jornada Extendida, 2 años — 641 igual que en Jornada Completa", () => {
-    const r = liquidarDesignacion({ cargo: PRECEPTOR_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS, zonaRural: false });
+    const r = liquidarDesignacion({ cargo: PRECEPTOR_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS });
     expect(r.basico).toBeCloseTo(611962.75, 1);
     expect(r.detalle.find((d) => d.codigo === "641").importe).toBeCloseTo(234294.31, 1);
   });
@@ -164,7 +171,6 @@ describe("liquidarDesignacion — casos reales completos (regresión contra reci
       aniosAntiguedad: 2,
       tramosAntiguedad: TRAMOS,
       conceptos: CONCEPTOS,
-      zonaRural: false,
     });
     expect(r.basico).toBeCloseTo(769324.6, 1);
     expect(r.antiguedad).toBeCloseTo(184637.9, 1);
@@ -185,7 +191,6 @@ describe("liquidarDesignacion — casos reales completos (regresión contra reci
       aniosAntiguedad: 1,
       tramosAntiguedad: TRAMOS,
       conceptos: CONCEPTOS,
-      zonaRural: false,
     });
     expect(r.basico).toBeCloseTo(699386.0, 1);
     expect(r.antiguedad).toBeCloseTo(146871.06, 1);
@@ -202,11 +207,37 @@ describe("liquidarDesignacion — casos reales completos (regresión contra reci
     expect(r.neto).toBeCloseTo(1141954.19, 1); // real $1.142.622,15 menos GARANTÍA (haber + su aporte)
   });
 
-  it("RURAL solo se aplica si zonaRural=true", () => {
-    const sinRural = liquidarDesignacion({ cargo: MAESTRO_JC, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS, zonaRural: false });
-    const conRural = liquidarDesignacion({ cargo: MAESTRO_JC, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS, zonaRural: true });
-    expect(sinRural.detalle.find((d) => d.codigo === "624")).toBeUndefined();
-    const rural = conRural.detalle.find((d) => d.codigo === "624");
-    expect(rural.importe).toBeCloseTo(769324.6 * 0.3, 1);
+  it("sin zona desfavorable, no aparece el 624", () => {
+    const r = liquidarDesignacion({ cargo: MAESTRO_JC, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS });
+    expect(r.detalle.find((d) => d.codigo === "624")).toBeUndefined();
+  });
+});
+
+describe("buscarPorcentajeZona — tabla de 5 niveles", () => {
+  it.each([
+    [null, 0], [1, 30], [2, 60], [3, 90], [4, 100], [5, 120],
+  ])("nivel %s da %i%%", (nivel, esperado) => {
+    expect(buscarPorcentajeZona(nivel, TRAMOS_ZONA)).toBe(esperado);
+  });
+});
+
+describe("liquidarDesignacion — zona desfavorable (regresión contra 5 recibos reales)", () => {
+  it.each([
+    [1, 230797.38],
+    [2, 461594.76],
+    [3, 692392.14],
+    [4, 769324.6],
+    [5, 923189.52],
+  ])("Maestro de Grado, Jornada Completa, nivel %i de zona", (nivel, importeEsperado) => {
+    const r = liquidarDesignacion({
+      cargo: MAESTRO_JC,
+      valorPorIndice: VALOR_INDICE,
+      aniosAntiguedad: 2,
+      tramosAntiguedad: TRAMOS,
+      conceptos: CONCEPTOS,
+      zonaDesfavorabilidad: nivel,
+      tramosZona: TRAMOS_ZONA,
+    });
+    expect(r.detalle.find((d) => d.codigo === "624").importe).toBeCloseTo(importeEsperado, 1);
   });
 });

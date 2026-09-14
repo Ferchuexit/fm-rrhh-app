@@ -1116,15 +1116,23 @@ model DocPerfilDocente {
   designaciones DocDesignacion[]
 }
 
-// El cargo en sí que tiene un docente — puede haber varios activos a la
-// vez para el mismo legajo (ej: Maestro de Grado + horas cátedra en otra
-// escuela).
+// Niveles de zona desfavorable — 1 a 5, % sobre el BASICO, todos bajo el
+// mismo concepto 624 "RURAL". Confirmado con 5 casos reales (mismo
+// legajo base, solo cambiando el nivel): 30/60/90/100/120%. El salto de
+// nivel 3 a 4 es de solo +10 puntos (no +30 como el resto) — así lo dio
+// la calculadora real, no es un error de tipeo nuestro.
+model DocTramoZona {
+  id         String  @id @default(uuid())
+  nivel      Int     @unique
+  porcentaje Decimal @db.Decimal(6, 2)
+}
 model DocDesignacion {
   id              String    @id @default(uuid())
   perfilDocenteId String
   docCargoId      String
   establecimiento String?
-  zonaRural       Boolean   @default(false) // Fase 1: rural sí/no (30%) — los niveles 1-5 de "Desfavorabilidad" de FEB quedan para más adelante
+  // null = sin zona desfavorable. 1 a 5 = nivel (ver DocTramoZona).
+  zonaDesfavorabilidad Int?
   // Solo tiene sentido para docCargo.tipo='hora_catedra' (ej: Profesor).
   // Para 'cargo' (Maestro, Preceptor, Director...) siempre es 1 — la
   // modalidad de jornada (Completa/Extendida) NO multiplica los montos

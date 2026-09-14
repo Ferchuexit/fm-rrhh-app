@@ -15,8 +15,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const legajo = await prisma.legajo.findFirst({ where: { id: params.id, empresaId: empresa.id } });
     if (!legajo) return NextResponse.json({ error: "Legajo no encontrado en esta empresa." }, { status: 404 });
 
-    const { docCargoId, establecimiento, zonaRural, fechaAlta, cantidadModulos } = await req.json();
+    const { docCargoId, establecimiento, zonaDesfavorabilidad, fechaAlta, cantidadModulos } = await req.json();
     if (!docCargoId || !fechaAlta) return NextResponse.json({ error: "Faltan docCargoId y fechaAlta." }, { status: 400 });
+
+    if (zonaDesfavorabilidad != null && (zonaDesfavorabilidad < 1 || zonaDesfavorabilidad > 5)) {
+      return NextResponse.json({ error: "El nivel de zona desfavorable tiene que ser entre 1 y 5." }, { status: 400 });
+    }
 
     const cargo = await prisma.docCargo.findUnique({ where: { id: docCargoId } });
     if (!cargo) return NextResponse.json({ error: "Cargo no encontrado en el nomenclador." }, { status: 404 });
@@ -38,7 +42,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         perfilDocenteId: perfil.id,
         docCargoId,
         establecimiento: establecimiento || null,
-        zonaRural: !!zonaRural,
+        zonaDesfavorabilidad: zonaDesfavorabilidad != null ? Number(zonaDesfavorabilidad) : null,
         fechaAlta: new Date(fechaAlta),
         cantidadModulos: cargo.tipo === "hora_catedra" ? Number(cantidadModulos) : 1,
       },

@@ -83,7 +83,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         aniosAntiguedad: perfil.antiguedadAnios,
         tramosAntiguedad: await prisma.docTramoAntiguedad.findMany(),
         conceptos,
-        zonaRural: designacion.zonaRural,
+        zonaDesfavorabilidad: designacion.zonaDesfavorabilidad,
+        tramosZona: await prisma.docTramoZona.findMany(),
         cantidadModulos: designacion.cantidadModulos,
       });
 
