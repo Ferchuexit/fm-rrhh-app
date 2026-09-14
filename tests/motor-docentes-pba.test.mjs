@@ -213,6 +213,37 @@ describe("liquidarDesignacion — casos reales completos (regresión contra reci
   });
 });
 
+describe("653 — Preceptor en Secundaria (regresión contra 2 recibos reales)", () => {
+  const CONCEPTOS_CON_653 = [
+    ...CONCEPTOS,
+    { codigo: "653", nombre: "Bonif PRECEPTORES (ESB, Polimodal y Adultos)", modoCalculo: "fijo_por_unidad", aplicaANivel: "Secundaria", aplicaACargoNombre: "Preceptor", aportaAportes: true, valor: 399174.56 },
+  ];
+  const PRECEPTOR_SEC_JC = { nombre: "Preceptor", nivel: "Secundaria", modalidad: "Jornada Completa - 8 hs", indice: 1.0, unidades: 2, tipo: "cargo" };
+  const PRECEPTOR_SEC_JE = { nombre: "Preceptor", nivel: "Secundaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.0, unidades: 1.75, tipo: "cargo" };
+
+  it("653 da lo mismo en Jornada Completa y Extendida — no escala, igual patrón que 641 en Preceptor", () => {
+    const jc = liquidarDesignacion({ cargo: PRECEPTOR_SEC_JC, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_653 });
+    const je = liquidarDesignacion({ cargo: PRECEPTOR_SEC_JE, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_653 });
+    expect(jc.detalle.find((d) => d.codigo === "653").importe).toBeCloseTo(399174.56, 1);
+    expect(je.detalle.find((d) => d.codigo === "653").importe).toBeCloseTo(399174.56, 1);
+  });
+
+  it("641 NO aparece para Preceptor en Secundaria (es de Primaria)", () => {
+    const r = liquidarDesignacion({ cargo: PRECEPTOR_SEC_JC, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_653 });
+    expect(r.detalle.find((d) => d.codigo === "641")).toBeUndefined();
+  });
+
+  it("Preceptor, Secundaria, Jornada Completa, 2 años — recibo real completo", () => {
+    const r = liquidarDesignacion({ cargo: PRECEPTOR_SEC_JC, valorPorIndice: VALOR_INDICE, aniosAntiguedad: 2, tramosAntiguedad: TRAMOS, conceptos: CONCEPTOS_CON_653 });
+    expect(r.basico).toBeCloseTo(699386.0, 1);
+    expect(r.antiguedad).toBeCloseTo(167852.64, 1);
+    expect(r.ips).toBeCloseTo(248028.03, 1);
+    expect(r.ioma).toBeCloseTo(74408.41, 1);
+    expect(r.totalHaberes).toBeCloseTo(1611593.2, 1); // real $1.611.593,20 — sin GARANTÍA en este caso
+    expect(r.neto).toBeCloseTo(1289156.76, 1); // "SALARIO TOTAL DE BOLSILLO" real
+  });
+});
+
 describe("buscarPorcentajeZona — tabla de 5 niveles", () => {
   it.each([
     [null, 0], [1, 30], [2, 60], [3, 90], [4, 100], [5, 120],

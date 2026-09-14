@@ -48,6 +48,12 @@ async function main() {
     // este tipo (queda en 1 solo para no dejarlo null en una columna que
     // no admite null) — lo real es divisorHoraCatedra.
     { nombre: "Profesor", nivel: "Secundaria", modalidad: null, indice: 1.0, unidades: 1, tipo: "hora_catedra", divisorHoraCatedra: 15 },
+    // Preceptor también existe en Secundaria, mismo índice que en
+    // Primaria (1.00, confirmado — el básico da exactamente igual:
+    // $699.386 en Jornada Completa) — lo que cambia es el concepto de
+    // bonificación aplicable (653 en vez de 641).
+    { nombre: "Preceptor", nivel: "Secundaria", modalidad: "Jornada Completa - 8 hs", indice: 1.0, unidades: 2, tipo: "cargo", divisorHoraCatedra: null },
+    { nombre: "Preceptor", nivel: "Secundaria", modalidad: "Jornada Extendida/Doble Escolaridad - 6 hs", indice: 1.0, unidades: 1.75, tipo: "cargo", divisorHoraCatedra: null },
   ];
   for (const c of cargos) {
     const existente = await prisma.docCargo.findFirst({ where: { nombre: c.nombre, nivel: c.nivel, modalidad: c.modalidad } });
@@ -142,6 +148,10 @@ async function main() {
     // 624 (RURAL) NO va acá — su % depende del nivel de zona desfavorable
     // (1 a 5), se resuelve con DocTramoZona, no con un valor fijo.
     { codigo: "667", nombre: "B.R.N.B ap 1/3/14", modoCalculo: "porcentaje_basico", aplicaANivel: "Secundaria", aplicaACargoNombre: null, aportaAportes: true, valor: 43.5 },
+    // 653 es el equivalente de 641 pero para Preceptor en Secundaria
+    // (ESB/Polimodal/Adultos) — confirmado fijo, no escala con la
+    // modalidad (Jornada Completa Y Extendida dan $399.174,56 exacto).
+    { codigo: "653", nombre: "Bonif PRECEPTORES (ESB, Polimodal y Adultos)", modoCalculo: "fijo_por_unidad", aplicaANivel: "Secundaria", aplicaACargoNombre: "Preceptor", aportaAportes: true, valor: 399174.56 },
   ];
   for (const c of conceptos) {
     const concepto = await prisma.docConcepto.upsert({
