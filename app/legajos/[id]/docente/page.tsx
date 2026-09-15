@@ -122,8 +122,8 @@ export default function DocentePage({ params }: { params: { id: string } }) {
       <p style={{ fontSize: "0.85rem" }}>
         <a href={`/legajos/${params.id}/editar`}>← Volver al legajo</a>
       </p>
-      <div style={{ background: "#fdf2ea", border: "1px solid #B8752B", padding: "0.6rem", maxWidth: "700px", fontSize: "0.82rem", marginBottom: "1.5rem" }}>
-        Fase 1 — Maestro de Grado y Preceptor, Primaria (Jornada Completa y Extendida, las dos resueltas). GARANTÍA no está implementada (mueve centavos). Ver detalle en <code>motor-docentes-pba.mjs</code>.
+      <div style={{ background: "#eef6f0", border: "1px solid #2F6F5E", padding: "0.6rem", maxWidth: "700px", fontSize: "0.82rem", marginBottom: "1.5rem" }}>
+        Fase 1 completa — Maestro de Grado, Preceptor (Primaria y Secundaria) y Profesor (hora cátedra), con las dos modalidades de jornada y los 5 niveles de zona desfavorable, todo validado contra recibos reales. GARANTÍA no está implementada a propósito — es un mecanismo legal inactivo desde agosto 2015 (ver <code>motor-docentes-pba.mjs</code>).
       </div>
 
       {/* ── Antigüedad ── */}
