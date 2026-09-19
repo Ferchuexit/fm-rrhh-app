@@ -75,7 +75,8 @@ model Usuario {
 
   empresas UsuarioEmpresa[]
   edicionesLiquidacionDetalle LiquidacionDetalleEdicion[]
-  fichadasCorregidas Fichada[]
+  fichadasCorregidas Fichada[] @relation("FichadaCorregidoPor")
+  fichadasAnuladas   Fichada[] @relation("FichadaAnuladoPor")
 }
 
 // Qué empresas puede ver cada usuario — el hueco de seguridad real que
@@ -429,9 +430,19 @@ model Fichada {
   corregidoPorId   String?
   fechaCorreccion  DateTime?
 
+  // Eliminar una fichada — igual criterio que las designaciones docentes:
+  // nunca se borra de la base, se marca "anulada" con motivo, quién y
+  // cuándo. Queda afuera de los listados normales y del cálculo de
+  // asistencia, pero el registro sigue existiendo para auditoría.
+  anulada         Boolean   @default(false)
+  motivoAnulacion String?
+  anuladoPorId    String?
+  fechaAnulacion  DateTime?
+
   legajo       Legajo                 @relation(fields: [legajoId], references: [id])
   dispositivo  DispositivoAsistencia? @relation(fields: [dispositivoId], references: [id])
-  corregidoPor Usuario?               @relation(fields: [corregidoPorId], references: [id])
+  corregidoPor Usuario?               @relation("FichadaCorregidoPor", fields: [corregidoPorId], references: [id])
+  anuladoPor   Usuario?               @relation("FichadaAnuladoPor", fields: [anuladoPorId], references: [id])
 
   @@index([legajoId, fecha])
 }

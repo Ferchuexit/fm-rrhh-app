@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     const { fecha, hora } = ahoraArgentina();
 
-    const fichadasDeHoy = await prisma.fichada.count({ where: { legajoId, fecha } });
+    const fichadasDeHoy = await prisma.fichada.count({ where: { legajoId, fecha, anulada: false } });
     const tipo: "entrada" | "salida" = fichadasDeHoy % 2 === 0 ? "entrada" : "salida";
 
     const fichada = await prisma.fichada.create({

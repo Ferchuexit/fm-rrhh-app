@@ -25,6 +25,7 @@ export async function GET(req: Request) {
   const desde = searchParams.get("desde");
   const hasta = searchParams.get("hasta");
   const buscar = searchParams.get("buscar")?.trim();
+  const mostrarAnuladas = searchParams.get("mostrarAnuladas") === "1";
   const orden = COLUMNAS_ORDEN[searchParams.get("orden") ?? "fecha"] ?? COLUMNAS_ORDEN.fecha;
 
   const numeroBuscado = buscar && /^\d+$/.test(buscar) ? Number(buscar) : undefined;
@@ -32,6 +33,7 @@ export async function GET(req: Request) {
   const fichadas = await prisma.fichada.findMany({
     where: {
       legajo: { empresaId: empresa.id }, // ← el fix
+      ...(mostrarAnuladas ? {} : { anulada: false }),
       ...(legajoId ? { legajoId } : {}),
       ...(dispositivoId ? { dispositivoId } : {}),
       ...(desde || hasta
@@ -59,6 +61,7 @@ export async function GET(req: Request) {
       legajo: { select: { numeroLegajo: true, apellido: true, nombre: true } },
       dispositivo: { select: { nombre: true, ubicacion: true } },
       corregidoPor: { select: { nombre: true } },
+      anuladoPor: { select: { nombre: true } },
     },
     orderBy: orden,
     take: 500, // tope razonable — esto es para auditar, no para exportar todo el historial de una

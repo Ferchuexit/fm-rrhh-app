@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     });
 
     const turnos = await prisma.turno.findMany();
-    const fichadas = await prisma.fichada.findMany({ where: { fecha: { gte: desde, lte: hasta } } });
+    const fichadas = await prisma.fichada.findMany({ where: { fecha: { gte: desde, lte: hasta }, anulada: false } });
 
     const fichadasPorLegajoFecha = new Map<string, { hora: string }[]>();
     for (const f of fichadas) {

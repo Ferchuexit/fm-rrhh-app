@@ -33,3 +33,33 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: e.message ?? "Error inesperado al corregir la fichada." }, { status: 500 });
   }
 }
+
+// Eliminar una fichada — en realidad la marca "anulada" con motivo, quién
+// y cuándo. Nunca se borra de la base (mismo criterio que el resto del
+// sistema con registros que importan para auditoría): queda afuera de los
+// listados normales, pero el dato sigue existiendo si hace falta revisarlo.
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const sesion = await obtenerSesionActual();
+    if (!sesion) return NextResponse.json({ error: "No hay sesión activa." }, { status: 401 });
+
+    const { motivoAnulacion } = await req.json();
+    if (!motivoAnulacion?.trim()) {
+      return NextResponse.json({ error: "Hace falta indicar el motivo de la anulación." }, { status: 400 });
+    }
+
+    const fichada = await prisma.fichada.update({
+      where: { id: params.id },
+      data: {
+        anulada: true,
+        motivoAnulacion: motivoAnulacion.trim(),
+        anuladoPorId: sesion.id,
+        fechaAnulacion: new Date(),
+      },
+    });
+    return NextResponse.json(fichada);
+  } catch (e: any) {
+    console.error("Error en DELETE /api/fichadas/[id]:", e);
+    return NextResponse.json({ error: e.message ?? "Error inesperado al anular la fichada." }, { status: 500 });
+  }
+}

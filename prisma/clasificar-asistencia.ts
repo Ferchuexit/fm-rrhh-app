@@ -45,7 +45,7 @@ async function main() {
 
   const turnos = await prisma.turno.findMany();
   const fichadas = await prisma.fichada.findMany({
-    where: { fecha: { gte: desde, lte: hasta } },
+    where: { fecha: { gte: desde, lte: hasta }, anulada: false },
   });
   const periodosCerrados = await prisma.periodoAsistencia.findMany({ where: { estado: "cerrado" } });
   const fechaEstaCerrada = (fecha: Date) => periodosCerrados.find((p) => p.fechaDesde <= fecha && p.fechaHasta >= fecha) ?? null;

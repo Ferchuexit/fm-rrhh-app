@@ -11,17 +11,20 @@ export default function FichadasPage() {
   const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
   const [horaCorregida, setHoraCorregida] = useState("");
   const [motivo, setMotivo] = useState("");
+  const [anulando, setAnulando] = useState<string | null>(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState("");
   const [error, setError] = useState("");
 
   const [buscar, setBuscar] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [orden, setOrden] = useState<"fecha" | "legajo" | "apellido">("fecha");
+  const [mostrarAnuladas, setMostrarAnuladas] = useState(false);
 
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buscar, desde, hasta, orden]);
+  }, [buscar, desde, hasta, orden, mostrarAnuladas]);
 
   async function cargar() {
     setCargando(true);
@@ -30,6 +33,7 @@ export default function FichadasPage() {
     if (desde) params.set("desde", desde);
     if (hasta) params.set("hasta", hasta);
     params.set("orden", orden);
+    if (mostrarAnuladas) params.set("mostrarAnuladas", "1");
     const res = await fetch(`/api/fichadas?${params}`);
     setFichadas(await res.json());
     setCargando(false);
@@ -50,6 +54,27 @@ export default function FichadasPage() {
     setCorrigiendo(null);
     setHoraCorregida("");
     setMotivo("");
+    cargar();
+  }
+
+  async function anularFichada(id: string) {
+    if (!motivoAnulacion.trim()) {
+      setError("Hace falta indicar el motivo de la anulación.");
+      return;
+    }
+    setError("");
+    const res = await fetch(`/api/fichadas/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivoAnulacion }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error);
+      return;
+    }
+    setAnulando(null);
+    setMotivoAnulacion("");
     cargar();
   }
 
@@ -84,6 +109,9 @@ export default function FichadasPage() {
             <option value="apellido">Apellido</option>
           </select>
         </label>
+        <label style={{ fontSize: "0.85rem" }}>
+          <input type="checkbox" checked={mostrarAnuladas} onChange={(e) => setMostrarAnuladas(e.target.checked)} /> Mostrar anuladas
+        </label>
       </div>
 
       {cargando ? (
@@ -103,14 +131,18 @@ export default function FichadasPage() {
           </thead>
           <tbody>
             {fichadas.map((f) => (
-              <tr key={f.id}>
+              <tr key={f.id} style={f.anulada ? { opacity: 0.5, textDecoration: "line-through" } : undefined}>
                 <td>{new Date(f.fecha).toLocaleDateString("es-AR", { timeZone: "UTC" })}</td>
                 <td>{f.hora}</td>
                 <td>{f.legajo.numeroLegajo} — {f.legajo.apellido}, {f.legajo.nombre}</td>
                 <td>{origenTexto(f)}</td>
                 <td>{f.dispositivo ? `${f.dispositivo.nombre} (${f.dispositivo.ubicacion ?? "s/ubicación"})` : "—"}</td>
                 <td>
-                  {f.horaCorregida ? (
+                  {f.anulada ? (
+                    <span title={f.motivoAnulacion} style={{ textDecoration: "none", color: "#B23A3A" }}>
+                      Anulada <span style={{ opacity: 0.6 }}>({f.anuladoPor?.nombre})</span>
+                    </span>
+                  ) : f.horaCorregida ? (
                     <span title={f.motivoCorreccion}>
                       → {f.horaCorregida} <span style={{ opacity: 0.5 }}>({f.corregidoPor?.nombre})</span>
                     </span>
@@ -119,17 +151,28 @@ export default function FichadasPage() {
                   )}
                 </td>
                 <td>
-                  {corrigiendo === f.id ? (
+                  {f.anulada ? null : corrigiendo === f.id ? (
                     <span style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
                       <input placeholder="HH:mm" value={horaCorregida} onChange={(e) => setHoraCorregida(e.target.value)} style={{ width: "70px" }} />
                       <input placeholder="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} style={{ width: "140px" }} />
                       <button onClick={() => guardarCorreccion(f.id)}>OK</button>
                       <button onClick={() => setCorrigiendo(null)}>×</button>
                     </span>
+                  ) : anulando === f.id ? (
+                    <span style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
+                      <input placeholder="Motivo de la anulación" value={motivoAnulacion} onChange={(e) => setMotivoAnulacion(e.target.value)} style={{ width: "160px" }} />
+                      <button onClick={() => anularFichada(f.id)} style={{ color: "#B23A3A" }}>Confirmar</button>
+                      <button onClick={() => setAnulando(null)}>×</button>
+                    </span>
                   ) : (
-                    <button onClick={() => { setCorrigiendo(f.id); setHoraCorregida(""); setMotivo(""); setError(""); }} style={{ fontSize: "0.8rem" }}>
-                      Corregir
-                    </button>
+                    <span style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => { setCorrigiendo(f.id); setHoraCorregida(""); setMotivo(""); setError(""); }} style={{ fontSize: "0.8rem" }}>
+                        Corregir
+                      </button>
+                      <button onClick={() => { setAnulando(f.id); setMotivoAnulacion(""); setError(""); }} style={{ fontSize: "0.8rem", color: "#B23A3A" }}>
+                        Eliminar
+                      </button>
+                    </span>
                   )}
                 </td>
               </tr>
