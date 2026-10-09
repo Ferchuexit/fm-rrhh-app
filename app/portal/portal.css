@@ -58,3 +58,26 @@ input.p-pin { letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 .p-link { display: inline-block; padding: 0.6rem 0; font-size: 0.9rem; color: var(--azul-oscuro); }
 .p-centro { max-width: 380px; margin: 0 auto; padding-top: 1.5rem; }
 .p-pie { font-size: 0.78rem; color: #6b727b; margin-top: 1.25rem; }
+
+/* Pestañas del portal (Recibos / Vacaciones) */
+.portal-tabs { background: #fff; border-bottom: 1px solid #dfe4e8; }
+.portal-tabs-in { max-width: 560px; margin: 0 auto; display: flex; }
+.portal-tabs a { flex: 1; text-align: center; padding: 0.8rem 0.5rem; font-size: 0.95rem; font-weight: 600; color: #6b727b; text-decoration: none; border-bottom: 3px solid transparent; }
+.portal-tabs a.activa { color: var(--azul-oscuro); border-bottom-color: var(--azul-oscuro); }
+
+.p-saldo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center; margin-top: 0.75rem; }
+.p-saldo div { background: var(--gris-claro); border-radius: 8px; padding: 0.6rem 0.25rem; font-size: 0.78rem; }
+.p-saldo strong { display: block; font-size: 1.35rem; color: var(--azul-oscuro); font-variant-numeric: tabular-nums; }
+.p-saldo .dest { background: #e3f1ec; }
+.p-saldo .dest strong { color: #215446; }
+.p-fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.p-campo select { display: block; width: 100%; margin-top: 0.3rem; padding: 0.8rem; font-size: 1rem; border: 1px solid #b9c4cd; border-radius: 8px; background: #fff; }
+.p-chip.aprobada { background: #e3f1ec; color: #215446; }
+.p-chip.rechazada { background: #f8e4e4; color: #8d2a2a; }
+.p-chip.cancelada { background: #e9ecef; color: #5a616a; }
+.p-btn.chico { display: inline-block; width: auto; padding: 0.45rem 0.9rem; font-size: 0.85rem; margin: 0.5rem 0 0; }
+.p-respuesta { margin-top: 0.4rem; padding: 0.5rem 0.65rem; background: var(--gris-claro); border-radius: 6px; font-size: 0.85rem; }
+/* Los <input type="date"> tienen un ancho mínimo propio: sin esto, dos en
+   fila se salen de la tarjeta en un celular angosto. */
+.p-fila2 > * { min-width: 0; }
+.p-fila2 input { min-width: 0; padding-left: 0.5rem; padding-right: 0.4rem; font-size: 1rem; }

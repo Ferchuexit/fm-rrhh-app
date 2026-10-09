@@ -86,6 +86,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     items: [
       { href: "/accesos-portal", label: "Accesos al portal", icono: "🔑", desc: "PIN de cada empleado para entrar a /portal" },
       { href: "/firmas-recibos", label: "Firmas de recibos", icono: "✍️", desc: "Quién vio y firmó su recibo, por período" },
+      { href: "/solicitudes", label: "Solicitudes", icono: "📨", desc: "Pedidos de vacaciones y permisos para aprobar" },
     ],
   },
   {

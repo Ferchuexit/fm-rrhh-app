@@ -318,6 +318,7 @@ model Vacacion {
   fechaNotificacion  DateTime  @default(now())
   createdAt          DateTime  @default(now())
 
+  solicitud SolicitudAusencia? // si esta vacación nació de un pedido del empleado en el portal
   legajo Legajo @relation(fields: [legajoId], references: [id])
 }
 
@@ -856,6 +857,7 @@ model Legajo {
   saldosInicialesGanancias SaldoInicialGanancias[]
   embargos Embargo[]
   accesoPortal   AccesoPortal?
+  solicitudesAusencia SolicitudAusencia[]
   recibosDigitales ReciboDigital[]
 
   @@unique([empresaId, numeroLegajo])
@@ -1244,4 +1246,30 @@ model ReciboDigital {
   legajo      Legajo      @relation(fields: [legajoId], references: [id])
 
   @@index([legajoId])
+}
+
+// Pedido de vacaciones o de permiso hecho por el empleado desde /portal.
+// Es un PEDIDO, no un registro: recién cuando RR.HH. aprueba uno de
+// vacaciones se crea la Vacacion de siempre (la que alimenta el Gantt, los
+// pendientes y la notificación en PDF). Así /vacaciones sigue siendo la
+// única fuente de verdad y esto es solo la bandeja de entrada.
+model SolicitudAusencia {
+  id          String    @id @default(uuid())
+  legajoId    String
+  tipo        String // 'vacaciones' | 'permiso'
+  fechaDesde  DateTime
+  fechaHasta  DateTime
+  dias        Int // días corridos, ambos extremos incluidos
+  motivo      String? // obligatorio en permisos
+  estado      String    @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada'
+  respuesta   String? // comentario de RR.HH. — obligatorio al rechazar
+  resueltoPor String? // email del usuario que aprobó o rechazó
+  resueltoEn  DateTime?
+  vacacionId  String?   @unique // la Vacacion creada al aprobar (solo tipo 'vacaciones')
+  createdAt   DateTime  @default(now())
+
+  legajo   Legajo    @relation(fields: [legajoId], references: [id])
+  vacacion Vacacion? @relation(fields: [vacacionId], references: [id], onDelete: SetNull)
+
+  @@index([legajoId, estado])
 }
