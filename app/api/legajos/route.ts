@@ -6,7 +6,7 @@
 // POST: crea un legajo nuevo, con todas las secciones de la ficha ampliada.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { obtenerEmpresaActual } from "@/lib/empresa-actual";
+import { obtenerEmpresaActual, obtenerEmpresasAutorizadas } from "@/lib/empresa-actual";
 
 export async function GET(req: Request) {
   try {
@@ -22,7 +22,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ proximoNumero: (ultimo?.numeroLegajo ?? 0) + 1 });
     }
 
-    const empresaIdFiltro = periodoId ? (await prisma.periodo.findUniqueOrThrow({ where: { id: periodoId } })).empresaId : empresa.id;
+    // Auditoría de seguridad (08/10/2026): antes se tomaba la empresa del
+    // período SIN verificar que el usuario tuviera acceso a ella — cualquier
+    // usuario logueado que conociera (o adivinara) un periodoId ajeno podía
+    // listar la nómina de otra empresa. Ahora el período tiene que pertenecer
+    // a una empresa autorizada para este usuario (mismo criterio que
+    // /api/documentos/[id]); el admin sigue teniendo acceso global.
+    let empresaIdFiltro = empresa.id;
+    if (periodoId) {
+      const periodo = await prisma.periodo.findUnique({ where: { id: periodoId }, select: { empresaId: true } });
+      const autorizadas = await obtenerEmpresasAutorizadas();
+      // Misma respuesta si no existe que si es de otra empresa — para no
+      // confirmarle a nadie que un periodoId ajeno existe.
+      if (!periodo || !autorizadas.some((e) => e.id === periodo.empresaId)) {
+        return NextResponse.json({ error: "No se encontró ese período, o no tenés acceso a él." }, { status: 404 });
+      }
+      empresaIdFiltro = periodo.empresaId;
+    }
     const legajos = await prisma.legajo.findMany({
       where: { empresaId: empresaIdFiltro, condicion: "activo" },
       orderBy: { numeroLegajo: "asc" },

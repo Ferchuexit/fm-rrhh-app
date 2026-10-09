@@ -12,8 +12,17 @@ import { prisma } from "@/lib/prisma";
 import { construirContextoMotorLegajo } from "@/lib/liquidacion-individual-motor";
 import { recalcularLiquidacionCompleta, CODIGOS_SAC, CODIGO_GANANCIAS, CODIGOS_EMBARGO } from "@/lib/liquidacion-individual-recalculo";
 import { obtenerSesionActual } from "@/lib/auth";
+import { obtenerEmpresasAutorizadas } from "@/lib/empresa-actual";
 
 const CODIGOS_ESPECIALES = [...CODIGOS_SAC, CODIGO_GANANCIAS, ...CODIGOS_EMBARGO];
+
+// Para cortar la transacción con una respuesta de error controlada (al
+// tirar, Prisma hace rollback y libera el bloqueo de la liquidación).
+class RespuestaError extends Error {
+  constructor(public status: number, mensaje: string) {
+    super(mensaje);
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -33,27 +42,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "SAC, Retención de Ganancias y Embargos se calculan solos — no se agregan a mano." }, { status: 409 });
     }
 
-    const liquidacion = await prisma.liquidacion.findUniqueOrThrow({ where: { id: liquidacionId }, include: { periodo: true } });
-    if (liquidacion.periodo.estado === "cerrada") {
-      return NextResponse.json(
-        { error: `El período "${liquidacion.periodo.nombre}" está cerrado — no se puede editar sin querer. Reabrilo primero en /auditoria si es intencional.` },
-        { status: 409 }
-      );
-    }
-    if (!liquidacion.vigente) {
-      return NextResponse.json({ error: "Esta es una versión vieja de la liquidación — no se puede editar." }, { status: 409 });
+    // Lectura previa, FUERA del bloqueo: solo para verificar acceso y armar
+    // el contexto del motor (legajo y período de una liquidación no cambian).
+    const liquidacionPrevia = await prisma.liquidacion.findUnique({ where: { id: liquidacionId }, include: { periodo: { select: { empresaId: true } } } });
+    const empresasAutorizadas = await obtenerEmpresasAutorizadas();
+    // Antes cualquier usuario logueado podía editar una liquidación de una
+    // empresa a la que no tiene acceso, con solo conocer el id.
+    if (!liquidacionPrevia || !empresasAutorizadas.some((e) => e.id === liquidacionPrevia.periodo.empresaId)) {
+      return NextResponse.json({ error: "No se encontró esa liquidación, o no tenés acceso a ella." }, { status: 404 });
     }
 
     const concepto = await prisma.concepto.findUnique({ where: { codigo: conceptoCodigo } });
     if (!concepto) return NextResponse.json({ error: `No existe ningún concepto con código "${conceptoCodigo}".` }, { status: 404 });
 
-    const detalleActual = await prisma.liquidacionDetalle.findMany({ where: { liquidacionId }, include: { concepto: true } });
-    if (detalleActual.some((d) => d.conceptoId === concepto.id)) {
-      return NextResponse.json({ error: `"${concepto.nombre}" ya está en esta liquidación — usá "Forzar" sobre esa fila en vez de agregarlo de nuevo.` }, { status: 409 });
-    }
-    const hadEmbargoComercialAntes = detalleActual.some((d) => d.concepto.codigo === "EMBARGO_COMERCIAL");
-
-    const contexto = await construirContextoMotorLegajo(liquidacion.legajoId, liquidacion.periodoId);
+    const contexto = await construirContextoMotorLegajo(liquidacionPrevia.legajoId, liquidacionPrevia.periodoId);
     if (!contexto.ok) return NextResponse.json({ error: contexto.error }, { status: 422 });
     const { legajo, periodo, reglas, conceptos, insumosDirectosNovedades, cantidadesPorConcepto, valoresCategoria, topes, varsBase } = contexto;
 
@@ -65,41 +67,63 @@ export async function POST(req: Request) {
       );
     }
 
-    const overrides: Record<string, number> = {};
-    const insumosPreservados: Record<string, number> = {};
-    const codigosBajoControlManual = new Set<string>();
-    for (const d of detalleActual) {
-      if (codigosConRegla.has(d.concepto.codigo)) {
-        if (d.excluido) overrides[d.concepto.codigo] = 0;
-        else if (d.forzado) overrides[d.concepto.codigo] = d.importe;
-        continue;
+    const { resultado, advertenciasEmbargo } = await prisma.$transaction(async (tx) => {
+      // Auditoría de seguridad (08/10/2026) — bloqueo de fila: si dos
+      // personas editan la MISMA liquidación a la vez, la segunda espera
+      // acá hasta que la primera termine de guardar, y recién entonces lee
+      // el detalle (ya actualizado). Antes las dos leían el mismo detalle
+      // viejo y la última en guardar pisaba el recálculo de la otra.
+      await tx.$queryRaw`SELECT id FROM "Liquidacion" WHERE id = ${liquidacionId} FOR UPDATE`;
+
+      // Estado y detalle se leen DESPUÉS de tomar el bloqueo.
+      const liquidacion = await tx.liquidacion.findUniqueOrThrow({ where: { id: liquidacionId }, include: { periodo: true } });
+      if (liquidacion.periodo.estado === "cerrada") {
+        throw new RespuestaError(409, `El período "${liquidacion.periodo.nombre}" está cerrado — no se puede editar sin querer. Reabrilo primero en /auditoria si es intencional.`);
       }
-      const esEspecial = CODIGOS_ESPECIALES.includes(d.concepto.codigo);
-      if (d.excluido) {
-        if (esEspecial) codigosBajoControlManual.add(d.concepto.codigo);
-        continue;
+      if (!liquidacion.vigente) {
+        throw new RespuestaError(409, "Esta es una versión vieja de la liquidación — no se puede editar.");
       }
-      if (d.forzado) {
+
+      const detalleActual = await tx.liquidacionDetalle.findMany({ where: { liquidacionId }, include: { concepto: true } });
+      if (detalleActual.some((d) => d.conceptoId === concepto.id)) {
+        throw new RespuestaError(409, `"${concepto.nombre}" ya está en esta liquidación — usá "Forzar" sobre esa fila en vez de agregarlo de nuevo.`);
+      }
+      const hadEmbargoComercialAntes = detalleActual.some((d) => d.concepto.codigo === "EMBARGO_COMERCIAL");
+
+      const overrides: Record<string, number> = {};
+      const insumosPreservados: Record<string, number> = {};
+      const codigosBajoControlManual = new Set<string>();
+      for (const d of detalleActual) {
+        if (codigosConRegla.has(d.concepto.codigo)) {
+          if (d.excluido) overrides[d.concepto.codigo] = 0;
+          else if (d.forzado) overrides[d.concepto.codigo] = d.importe;
+          continue;
+        }
+        const esEspecial = CODIGOS_ESPECIALES.includes(d.concepto.codigo);
+        if (d.excluido) {
+          if (esEspecial) codigosBajoControlManual.add(d.concepto.codigo);
+          continue;
+        }
+        if (d.forzado) {
+          insumosPreservados[d.concepto.codigo] = d.importe;
+          if (esEspecial) codigosBajoControlManual.add(d.concepto.codigo);
+          continue;
+        }
+        if (esEspecial) continue; // se recalcula solo
         insumosPreservados[d.concepto.codigo] = d.importe;
-        if (esEspecial) codigosBajoControlManual.add(d.concepto.codigo);
-        continue;
       }
-      if (esEspecial) continue; // se recalcula solo
-      insumosPreservados[d.concepto.codigo] = d.importe;
-    }
-    const insumosDirectos = { ...insumosPreservados, ...insumosDirectosNovedades, [conceptoCodigo]: importe };
+      const insumosDirectos = { ...insumosPreservados, ...insumosDirectosNovedades, [conceptoCodigo]: importe };
 
-    let resultado: any, advertenciasEmbargo: string[], cuotasAAplicar: { id: string }[];
-    try {
-      ({ resultado, advertenciasEmbargo, cuotasAAplicar } = await recalcularLiquidacionCompleta({
-        legajo, periodo, varsBase, reglas, conceptos, cantidadesPorConcepto, valoresCategoria, topes,
-        overrides, insumosDirectos, codigosBajoControlManual, hadEmbargoComercialAntes,
-      }));
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 422 });
-    }
+      let resultado: any, advertenciasEmbargo: string[], cuotasAAplicar: { id: string }[];
+      try {
+        ({ resultado, advertenciasEmbargo, cuotasAAplicar } = await recalcularLiquidacionCompleta({
+          legajo, periodo, varsBase, reglas, conceptos, cantidadesPorConcepto, valoresCategoria, topes,
+          overrides, insumosDirectos, codigosBajoControlManual, hadEmbargoComercialAntes,
+        }));
+      } catch (e: any) {
+        throw new RespuestaError(422, e.message);
+      }
 
-    await prisma.$transaction(async (tx) => {
       let filaNuevaId: string | null = null;
       for (const d of resultado.detalle as any[]) {
         const c = conceptos.find((cc) => cc.codigo === d.conceptoCodigo);
@@ -144,10 +168,13 @@ export async function POST(req: Request) {
           },
         });
       }
-    });
+
+      return { resultado, advertenciasEmbargo };
+    }, { maxWait: 10000, timeout: 30000 });
 
     return NextResponse.json({ ok: true, bruto: resultado.bruto, neto: resultado.neto, advertencias: advertenciasEmbargo });
   } catch (e: any) {
+    if (e instanceof RespuestaError) return NextResponse.json({ error: e.message }, { status: e.status });
     console.error("Error en POST /api/liquidacion-individual/agregar:", e);
     return NextResponse.json({ error: e.message ?? "Error inesperado." }, { status: 500 });
   }

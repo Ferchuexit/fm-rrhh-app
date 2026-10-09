@@ -79,6 +79,16 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
+    // Portal del empleado (docs/75-portal-empleado.md) — estas dos pantallas
+    // son el lado RR.HH.; lo que ve el empleado vive en /portal, con su
+    // propio login, y no aparece en este menú.
+    categoria: "Portal del empleado",
+    items: [
+      { href: "/accesos-portal", label: "Accesos al portal", icono: "🔑", desc: "PIN de cada empleado para entrar a /portal" },
+      { href: "/firmas-recibos", label: "Firmas de recibos", icono: "✍️", desc: "Quién vio y firmó su recibo, por período" },
+    ],
+  },
+  {
     categoria: "Procesos",
     items: [
       { href: "/preliquidacion", label: "Preliquidación", icono: "📋", desc: "Resumen legible, exportable para aprobación" },

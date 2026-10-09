@@ -12,7 +12,9 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const esTerminal = (headers().get("x-pathname") ?? "").startsWith("/terminal");
+  const pathname = headers().get("x-pathname") ?? "";
+  // /terminal (kiosco) y /portal (empleado) manejan su propio marco — sin el padding del panel.
+  const esTerminal = pathname.startsWith("/terminal") || pathname === "/portal" || pathname.startsWith("/portal/");
   return (
     <html lang="es">
       <body>

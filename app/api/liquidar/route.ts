@@ -7,6 +7,7 @@
 // convenio, o por rango de legajo — para no tener que reliquidar a toda la
 // empresa cada vez que se necesita reintentar unos pocos.
 import { NextResponse } from "next/server";
+import { liberarRecibosDigitales } from "@/lib/portal";
 import { prisma } from "@/lib/prisma";
 import { liquidarLegajo } from "@/lib/motor/motor-reglas.mjs";
 import { armarContextoTopes } from "@/lib/motor/parametros-topes.mjs";
@@ -465,6 +466,9 @@ export async function DELETE(req: Request) {
       select: { id: true },
     });
     const liquidacionIds = liquidaciones.map((l) => l.id);
+
+    const bloqueoPorFirma = await liberarRecibosDigitales(liquidacionIds);
+    if (bloqueoPorFirma) return NextResponse.json({ error: bloqueoPorFirma }, { status: 409 });
 
     if (liquidacionIds.length > 0) {
       await prisma.$transaction([

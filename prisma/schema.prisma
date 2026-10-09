@@ -855,6 +855,8 @@ model Legajo {
   deduccionesSiradig     DeduccionSiradig[]
   saldosInicialesGanancias SaldoInicialGanancias[]
   embargos Embargo[]
+  accesoPortal   AccesoPortal?
+  recibosDigitales ReciboDigital[]
 
   @@unique([empresaId, numeroLegajo])
 }
@@ -955,6 +957,7 @@ model Liquidacion {
   convenio Convenio?            @relation(fields: [convenioId], references: [id])
   detalle  LiquidacionDetalle[]
   novedadesUtilizadas LiquidacionNovedad[]
+  reciboDigital ReciboDigital?
 
   @@unique([periodoId, legajoId, version])
 }
@@ -1192,4 +1195,53 @@ model DocLiquidacionDetalle {
 
   docLiquidacion DocLiquidacion @relation(fields: [docLiquidacionId], references: [id])
   docDesignacion DocDesignacion @relation(fields: [docDesignacionId], references: [id])
+}
+
+// ──────────────────────────────────────────────────────────
+// PORTAL DEL EMPLEADO (ver docs/75-portal-empleado.md)
+// ──────────────────────────────────────────────────────────
+
+// La llave de un empleado para entrar a /portal. Es un modelo APARTE de
+// Usuario a propósito: Usuario es quien opera el sistema (consultora o
+// RR.HH. del cliente) y puede ver a toda la dotación; AccesoPortal solo
+// deja ver lo propio de UN legajo. Mezclarlos en una misma tabla con un
+// "rol empleado" hubiera dejado a cada ruta vieja de /api a un olvido de
+// distancia de mostrarle a un operario el recibo de un compañero.
+model AccesoPortal {
+  id               String    @id @default(uuid())
+  legajoId         String    @unique
+  pinHash          String // bcrypt, igual que Usuario.passwordHash — nunca el PIN en texto plano
+  debeCambiarPin   Boolean   @default(true) // true mientras el PIN sea el temporal que generó RR.HH.
+  activo           Boolean   @default(true)
+  intentosFallidos Int       @default(0)
+  bloqueadoHasta   DateTime?
+  ultimoIngreso    DateTime?
+  generadoPor      String? // email del usuario que generó o reseteó el PIN por última vez
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  legajo Legajo @relation(fields: [legajoId], references: [id])
+}
+
+// Constancia de entrega y firma de UN recibo. Cuelga de Liquidacion (no de
+// periodo+legajo): si el período se reabre y se vuelve a liquidar, la
+// versión nueva es otra Liquidacion y necesita su propia firma — la firma
+// vieja queda atada a la versión que el empleado realmente vio.
+model ReciboDigital {
+  id             String    @id @default(uuid())
+  liquidacionId  String    @unique
+  legajoId       String
+  primeraVistaEn DateTime? // primera vez que el empleado abrió el recibo en el portal
+  firma          String? // null = sin firmar | 'conforme' | 'disconforme'
+  firmadoEn      DateTime?
+  observacion    String? // obligatoria si firma en disconformidad
+  ipFirma        String?
+  userAgentFirma String?
+  hashContenido  String? // SHA-256 del contenido del recibo al momento de firmar — ver lib/portal.ts
+  createdAt      DateTime  @default(now())
+
+  liquidacion Liquidacion @relation(fields: [liquidacionId], references: [id])
+  legajo      Legajo      @relation(fields: [legajoId], references: [id])
+
+  @@index([legajoId])
 }

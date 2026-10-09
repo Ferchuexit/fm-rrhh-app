@@ -23,6 +23,9 @@ export default async function Nav() {
   // middleware, ver siguienteConPathname() en middleware.ts.
   const pathname = headers().get("x-pathname") ?? "";
   if (pathname.startsWith("/terminal")) return null;
+  // El portal del empleado tiene su propio encabezado (app/portal/layout.tsx)
+  // — el menú del sistema no tiene nada que hacer ahí.
+  if (pathname === "/portal" || pathname.startsWith("/portal/")) return null;
 
   const sesion = await obtenerSesionActual();
   const categorias = sesion ? menuFiltradoPorRol(sesion.rol) : [];

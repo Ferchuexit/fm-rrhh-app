@@ -4,6 +4,7 @@
 // no se editan acá a propósito: cambiarlos rompería reglas y liquidaciones
 // ya existentes que los referencian por ese valor exacto.
 import { NextResponse } from "next/server";
+import { liberarRecibosDigitales } from "@/lib/portal";
 import { prisma } from "@/lib/prisma";
 import { validarNumeroConcepto } from "@/lib/motor/catalogo-conceptos.mjs";
 
@@ -92,6 +93,8 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     // haría que el bruto/neto ya guardado no coincida más con lo que
     // realmente se sumó. Si hace falta esa liquidación, hay que volver a
     // correrla desde /liquidar después de esto.
+    const bloqueoPorFirma = await liberarRecibosDigitales(liquidacionIds);
+    if (bloqueoPorFirma) return NextResponse.json({ error: bloqueoPorFirma }, { status: 409 });
     if (liquidacionIds.length > 0) {
       await prisma.liquidacionDetalle.deleteMany({ where: { liquidacionId: { in: liquidacionIds } } });
       await prisma.liquidacion.deleteMany({ where: { id: { in: liquidacionIds } } });

@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { NOMBRE_COOKIE, verificarSesion } from "@/lib/auth-edge";
+import { NOMBRE_COOKIE_PORTAL, verificarSesionPortal } from "@/lib/portal-edge";
 
 const RUTAS_PUBLICAS = [
   "/login",
@@ -49,8 +50,43 @@ function siguienteConPathname(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
+// ── Portal del empleado ──────────────────────────────────────────────
+// Todo lo que cuelga de /portal y /api/portal es un mundo aparte: se entra
+// con la cookie del EMPLEADO (sesion_portal), nunca con la del sistema, y
+// al revés — con sesion_portal no se pasa a ninguna otra ruta. Por eso se
+// resuelve acá arriba y retorna siempre: nada de /portal llega a las
+// reglas de roles de más abajo.
+const PORTAL_PUBLICAS = ["/portal/login", "/api/portal/login", "/api/portal/logout"];
+const PORTAL_CON_PIN_TEMPORAL = ["/portal/cambiar-pin", "/api/portal/cambiar-pin"];
+
+async function middlewarePortal(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const esApi = pathname.startsWith("/api/");
+  if (PORTAL_PUBLICAS.includes(pathname)) return siguienteConPathname(req);
+
+  const token = req.cookies.get(NOMBRE_COOKIE_PORTAL)?.value;
+  const sesion = token ? await verificarSesionPortal(token) : null;
+  if (!sesion) {
+    if (esApi) return NextResponse.json({ error: "Tu sesión venció. Volvé a ingresar." }, { status: 401 });
+    return NextResponse.redirect(new URL("/portal/login", req.url));
+  }
+
+  // Con el PIN temporal que entregó RR.HH. no se ve nada todavía: primero
+  // hay que elegir uno propio (si no, quien generó el PIN podría entrar y
+  // firmar un recibo en nombre del empleado).
+  if (sesion.debeCambiarPin && !PORTAL_CON_PIN_TEMPORAL.includes(pathname)) {
+    if (esApi) return NextResponse.json({ error: "Primero tenés que elegir tu PIN propio." }, { status: 403 });
+    return NextResponse.redirect(new URL("/portal/cambiar-pin", req.url));
+  }
+  return siguienteConPathname(req);
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (pathname === "/portal" || pathname.startsWith("/portal/") || pathname.startsWith("/api/portal/")) {
+    return middlewarePortal(req);
+  }
 
   if (RUTAS_PUBLICAS.includes(pathname)) {
     return siguienteConPathname(req);
