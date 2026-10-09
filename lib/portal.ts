@@ -6,6 +6,8 @@ import { cookies, headers } from "next/headers";
 import { createHash } from "crypto";
 import { prisma } from "./prisma";
 import { armarDatosRecibo } from "./armar-recibo";
+import { verificarPassword } from "./auth";
+import { MAX_INTENTOS_PIN, MINUTOS_BLOQUEO_PIN } from "./portal-pin";
 import { NOMBRE_COOKIE_PORTAL, HORAS_SESION_PORTAL, verificarSesionPortal, firmarSesionPortal, type SesionPortal } from "./portal-edge";
 export * from "./portal-edge";
 export * from "./portal-pin";
@@ -98,5 +100,25 @@ export async function liberarRecibosDigitales(liquidacionIds: string[]): Promise
     return `No se puede eliminar: ${firmados} de estas liquidaciones ya ${firmados === 1 ? "tiene su recibo firmado" : "tienen su recibo firmado"} por el empleado en el portal. Para corregir, volvé a liquidar el período (se genera una versión nueva y la firmada queda como antecedente).`;
   }
   await prisma.reciboDigital.deleteMany({ where: { liquidacionId: { in: liquidacionIds } } });
+  return null;
+}
+
+// Confirmación con PIN para cualquier firma del portal (constancias del
+// legajo; el recibo tiene la suya propia, anterior a esto). Mismo bloqueo
+// que el login: 5 errores → 15 minutos. Devuelve el error a mostrar, o
+// null si el PIN es correcto.
+export async function verificarPinDeFirma(legajoId: string, pin: string): Promise<{ error: string; status: number } | null> {
+  const acceso = await prisma.accesoPortal.findUnique({ where: { legajoId } });
+  if (!acceso || !acceso.activo) return { error: "Tu acceso al portal no está activo. Consultá con RR.HH.", status: 403 };
+  if (acceso.bloqueadoHasta && acceso.bloqueadoHasta > new Date()) return { error: "Demasiados intentos con el PIN. Esperá unos minutos y probá de nuevo.", status: 429 };
+  if (!(await verificarPassword(pin, acceso.pinHash))) {
+    const intentos = acceso.intentosFallidos + 1;
+    await prisma.accesoPortal.update({
+      where: { id: acceso.id },
+      data: { intentosFallidos: intentos >= MAX_INTENTOS_PIN ? 0 : intentos, bloqueadoHasta: intentos >= MAX_INTENTOS_PIN ? new Date(Date.now() + MINUTOS_BLOQUEO_PIN * 60000) : null },
+    });
+    return { error: "El PIN no es correcto.", status: 401 };
+  }
+  if (acceso.intentosFallidos > 0) await prisma.accesoPortal.update({ where: { id: acceso.id }, data: { intentosFallidos: 0 } });
   return null;
 }
