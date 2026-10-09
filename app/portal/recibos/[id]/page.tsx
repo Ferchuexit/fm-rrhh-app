@@ -24,7 +24,7 @@ export default async function ReciboPortal({ params }: { params: { id: string } 
 
   return (
     <>
-      <a className="p-link" href="/portal">← Mis recibos</a>
+      <a className="p-link" href="/portal/recibos">← Mis recibos</a>
       <h1>{liq.periodo.nombre}</h1>
       <p className="p-sub">
         Legajo {datos.legajo.numero} · {datos.legajo.categoria} · Pago {datos.periodo.fechaPago}

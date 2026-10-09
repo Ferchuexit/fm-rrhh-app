@@ -11,13 +11,18 @@ export default async function Home() {
       <div style={{ textAlign: "center", padding: "2rem 0 1rem" }}>
         <LogoFM height={52} />
         <p style={{ color: "#4A4F58", marginTop: "0.75rem" }}>
-          Sistema de liquidación y gestión de RRHH — Maestros, Novedades, Liquidaciones, Procesos, Salidas, Reportes y Administración
+          Liquidación de sueldos y Gestión Humana, en un solo lugar
         </p>
       </div>
 
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-        {categorias.map((cat) => (
+        {categorias.map((cat, i) => (
           <div key={cat.categoria} style={{ marginBottom: "2rem" }}>
+            {(i === 0 || categorias[i - 1].bloque !== cat.bloque) && (
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#6b727b", margin: i === 0 ? "0 0 0.9rem" : "2.5rem 0 0.9rem" }}>
+                {cat.bloque}
+              </div>
+            )}
             <h2 style={{ fontSize: "1rem", color: "#163A5C", borderBottom: "2px solid #7FA8C6", paddingBottom: "0.3rem", marginBottom: "0.85rem" }}>
               {cat.categoria}
             </h2>

@@ -82,3 +82,67 @@ code {
   border-radius: 3px;
   font-size: 0.85em;
 }
+
+/* ──────────────────────────────────────────────────────────
+   Menú lateral del panel (app/MenuLateral.tsx)
+   ────────────────────────────────────────────────────────── */
+body.con-menu { --ml-ancho: 250px; --ml-alto: 52px; }
+body.con-menu[data-menu="colapsado"] { --ml-ancho: 62px; }
+
+.ml-top { position: fixed; top: 0; left: 0; right: 0; height: var(--ml-alto); z-index: 12; background: var(--azul-oscuro); border-bottom: 3px solid var(--azul-claro); display: flex; align-items: center; gap: 0.5rem; padding: 0 1rem 0 0.6rem; }
+.ml-burger { background: transparent; padding: 0.55rem 0.6rem; display: flex; flex-direction: column; gap: 4px; border-radius: 6px; }
+.ml-burger:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.ml-burger span { display: block; width: 20px; height: 2px; background: #fff; border-radius: 2px; }
+.ml-logo { display: flex; align-items: center; }
+.ml-top-der { margin-left: auto; display: flex; align-items: center; gap: 0.85rem; font-size: 0.82rem; color: #cfe0ee; min-width: 0; }
+.ml-usuario { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ml-usuario span { opacity: 0.6; }
+.ml-salir { color: #fff; white-space: nowrap; }
+
+.ml-lado { position: fixed; top: var(--ml-alto); left: 0; bottom: 0; width: var(--ml-ancho); z-index: 11; background: #fff; border-right: 1px solid #dfe4e8; overflow-y: auto; overflow-x: hidden; padding: 0.6rem 0.5rem 2rem; transition: width 0.15s ease; }
+.ml-contenido { margin-left: var(--ml-ancho); padding: calc(var(--ml-alto) + 1.5rem) 2rem 2rem; transition: margin-left 0.15s ease; }
+
+.ml-bloque { margin: 1rem 0.6rem 0.35rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9199; white-space: nowrap; }
+.ml-item { display: flex; align-items: center; gap: 0.65rem; width: 100%; padding: 0.5rem 0.6rem; border-radius: 8px; background: transparent; color: var(--gris-oscuro); font-size: 0.9rem; font-weight: 500; text-align: left; text-decoration: none; white-space: nowrap; }
+.ml-item:hover:not(:disabled) { background: var(--gris-claro); }
+.ml-item.activo, .ml-item.con-activo { color: var(--azul-oscuro); font-weight: 700; }
+.ml-item.activo { background: #e8f0f6; }
+.ml-ico { width: 1.5rem; text-align: center; font-size: 1.05rem; flex-shrink: 0; }
+.ml-txt { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.ml-flecha { color: #8a9199; font-size: 1.1rem; line-height: 1; transition: transform 0.12s ease; }
+.ml-flecha.abierta { transform: rotate(90deg); }
+.ml-sub { margin: 0.1rem 0 0.35rem 1.35rem; padding-left: 0.75rem; border-left: 2px solid var(--gris-claro); }
+.ml-subitem { display: block; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.86rem; color: var(--gris-oscuro); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ml-subitem:hover { background: var(--gris-claro); }
+.ml-subitem.activo { background: #e8f0f6; color: var(--azul-oscuro); font-weight: 700; }
+
+/* Achicado: solo íconos */
+body[data-menu="colapsado"] .ml-txt, body[data-menu="colapsado"] .ml-flecha, body[data-menu="colapsado"] .ml-sub { display: none; }
+body[data-menu="colapsado"] .ml-bloque { margin: 0.7rem 0.4rem 0.35rem; border-top: 1px solid #dfe4e8; }
+body[data-menu="colapsado"] .ml-bloque span { display: none; }
+body[data-menu="colapsado"] .ml-item { justify-content: center; padding: 0.55rem 0; }
+body[data-menu="colapsado"] .ml-item.con-activo { background: #e8f0f6; }
+
+.ml-velo { display: none; }
+
+/* Pantallas angostas: el menú es un cajón que se abre con ☰ */
+@media (max-width: 900px) {
+  body.con-menu, body.con-menu[data-menu="colapsado"] { --ml-ancho: 0px; }
+  .ml-lado { width: 270px; transform: translateX(-100%); transition: transform 0.18s ease; box-shadow: none; }
+  .ml-lado.abierto { transform: none; box-shadow: 4px 0 18px rgba(0,0,0,0.18); }
+  .ml-velo { display: block; position: fixed; inset: var(--ml-alto) 0 0 0; background: rgba(0,0,0,0.35); z-index: 10; }
+  .ml-contenido { padding: calc(var(--ml-alto) + 1rem) 1rem 2rem; }
+  .ml-usuario { display: none; }
+  body[data-menu="colapsado"] .ml-txt { display: block; }
+  body[data-menu="colapsado"] .ml-flecha { display: inline; }
+  body[data-menu="colapsado"] .ml-sub { display: block; }
+  body[data-menu="colapsado"] .ml-bloque span { display: inline; }
+  body[data-menu="colapsado"] .ml-bloque { border-top: none; margin: 1rem 0.6rem 0.35rem; }
+  body[data-menu="colapsado"] .ml-item { justify-content: flex-start; padding: 0.5rem 0.6rem; }
+}
+
+/* Al imprimir un reporte, el menú no sale en el papel */
+@media print {
+  .ml-top, .ml-lado, .ml-velo { display: none !important; }
+  .ml-contenido { margin: 0; padding: 0; }
+}

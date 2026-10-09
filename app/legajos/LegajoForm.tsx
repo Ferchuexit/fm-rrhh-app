@@ -387,7 +387,7 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
 
       {/* ── Documentos del legajo — panel lateral, solo con legajo ya creado ── */}
       {esEdicion && (
-        <div style={{ width: "320px", flexShrink: 0, position: "sticky", top: "1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ width: "320px", flexShrink: 0, position: "sticky", top: "4.5rem" /* debajo de la barra superior fija */, display: "flex", flexDirection: "column", gap: "1rem" }}>
           <TarjetaCarnet foto={f.fotoBase64} numeroLegajo={f.numeroLegajo} apellido={f.apellido} nombre={f.nombre} categoria={categorias.find((c) => c.id === f.categoriaId)?.nombre} />
           <CargasFamiliaGanancias legajoId={legajoId!} />
           <EmbargosLegajo legajoId={legajoId!} />

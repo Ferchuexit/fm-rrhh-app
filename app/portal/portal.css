@@ -59,11 +59,20 @@ input.p-pin { letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 .p-centro { max-width: 380px; margin: 0 auto; padding-top: 1.5rem; }
 .p-pie { font-size: 0.78rem; color: #6b727b; margin-top: 1.25rem; }
 
-/* Pestañas del portal (Recibos / Vacaciones) */
-.portal-tabs { background: #fff; border-bottom: 1px solid #dfe4e8; }
-.portal-tabs-in { max-width: 560px; margin: 0 auto; display: flex; }
-.portal-tabs a { flex: 1; text-align: center; padding: 0.8rem 0.5rem; font-size: 0.95rem; font-weight: 600; color: #6b727b; text-decoration: none; border-bottom: 3px solid transparent; }
-.portal-tabs a.activa { color: var(--azul-oscuro); border-bottom-color: var(--azul-oscuro); }
+/* Barra inferior del portal — como una app: siempre a mano del pulgar */
+.portal-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: #fff; border-top: 1px solid #dfe4e8; padding-bottom: env(safe-area-inset-bottom); }
+.portal-barra-in { max-width: 560px; margin: 0 auto; display: flex; }
+.portal-barra a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.5rem 0.25rem 0.45rem; font-size: 0.72rem; font-weight: 600; color: #6b727b; text-decoration: none; }
+.portal-barra a.activa { color: var(--azul-oscuro); }
+.portal-barra svg { width: 24px; height: 24px; }
+.portal-main { padding-bottom: 5.5rem; }
+
+/* Inicio: grilla de "apps" con globito de pendientes */
+.p-apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 0.75rem; margin-top: 0.5rem; }
+.p-app { display: flex; flex-direction: column; align-items: center; gap: 0.45rem; text-decoration: none; color: var(--gris-oscuro); font-size: 0.82rem; font-weight: 600; text-align: center; line-height: 1.2; }
+.p-app-ico { position: relative; width: 100%; max-width: 92px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #dfe4e8; border-radius: 22px; font-size: 2.3rem; box-shadow: 0 1px 3px rgba(22,58,92,0.08); }
+.p-app:active .p-app-ico { background: #f1f5f8; }
+.p-globo { position: absolute; top: -7px; right: -7px; min-width: 24px; height: 24px; padding: 0 6px; display: flex; align-items: center; justify-content: center; background: var(--rojo); color: #fff; border-radius: 999px; font-size: 0.8rem; font-weight: 700; border: 2px solid var(--gris-claro); }
 
 .p-saldo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center; margin-top: 0.75rem; }
 .p-saldo div { background: var(--gris-claro); border-radius: 8px; padding: 0.6rem 0.25rem; font-size: 0.78rem; }

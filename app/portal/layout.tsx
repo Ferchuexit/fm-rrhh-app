@@ -5,7 +5,7 @@ import type { Metadata, Viewport } from "next";
 import "./portal.css";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
-import PortalTabs from "./PortalTabs";
+import PortalBarra from "./PortalBarra";
 
 export const metadata: Metadata = { title: "Portal del empleado" };
 export const viewport: Viewport = { themeColor: "#163A5C", width: "device-width", initialScale: 1 };
@@ -30,8 +30,8 @@ export default async function PortalLayout({ children }: { children: React.React
           )}
         </div>
       </header>
-      {sesion && !sesion.debeCambiarPin && <PortalTabs />}
       <main className="portal-main">{children}</main>
+      {sesion && !sesion.debeCambiarPin && <PortalBarra />}
     </div>
   );
 }

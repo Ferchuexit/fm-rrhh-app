@@ -33,6 +33,13 @@
 //     Lo que hoy se llama "Auditoría" en la app es otra cosa: el semáforo
 //     de validación antes de cerrar un período — por eso vive en
 //     "Procesos", no en "Administración".
+//
+// Menú lateral (docs/77-menu-lateral.md): las categorías se agrupan en dos
+// BLOQUES — "Liquidación de sueldos" (lo que el sistema ya era) y "Gestión
+// Humana" (los módulos que se van sumando, con los nombres de área que usa
+// el mercado: Gestión de RR.HH., Operaciones, Plataforma...). Sumar un área
+// nueva (Comunicación interna, Desarrollo de talento, Cultura) es agregar
+// una entrada acá; una categoría sin ítems visibles no se dibuja.
 export interface ItemMenu {
   href: string;
   label: string;
@@ -42,13 +49,20 @@ export interface ItemMenu {
 }
 
 export interface CategoriaMenu {
+  bloque: string;
   categoria: string;
+  icono: string;
   items: ItemMenu[];
 }
 
+const SUELDOS = "Liquidación de sueldos";
+const GESTION = "Gestión Humana";
+
 export const ESTRUCTURA_MENU: CategoriaMenu[] = [
   {
+    bloque: SUELDOS,
     categoria: "Maestros",
+    icono: "🗂️",
     items: [
       { href: "/empresas", label: "Empresas", icono: "🏢", desc: "Clientes de la consultora", soloAdmin: true },
       { href: "/legajos", label: "Legajos", icono: "👥", desc: "Empleados y ficha completa" },
@@ -60,48 +74,41 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
+    bloque: SUELDOS,
     categoria: "Novedades",
-    items: [
-      { href: "/novedades", label: "Novedades", icono: "📥", desc: "Excel, carga manual y validación" },
-      { href: "/asistencia", label: "Asistencia", icono: "🗓️", desc: "Calendario de presentes/ausentes, desde fichadas" },
-      { href: "/fichadas", label: "Fichadas", icono: "🕒", desc: "Dato crudo de reloj/terminal — auditoría y corrección" },
-      { href: "/dispositivos", label: "Dispositivos", icono: "📱", desc: "Terminales de fichada en clientes (admin)" },
-    ],
+    icono: "📥",
+    items: [{ href: "/novedades", label: "Novedades", icono: "📥", desc: "Excel, carga manual y validación" }],
   },
   {
+    bloque: SUELDOS,
     categoria: "Liquidaciones",
+    icono: "🧾",
     items: [
       { href: "/periodos", label: "Períodos", icono: "🗓️", desc: "Mensuales, quincenas, fechas reales" },
       { href: "/liquidacion-masiva", label: "Liquidación Masiva", icono: "🧾", desc: "Filtrar por convenio, rango, o todos" },
       { href: "/liquidacion-individual", label: "Liquidación Individual", icono: "🧍", desc: "Ver el recibo de un legajo puntual, con navegación" },
       { href: "/recibos", label: "Recibos", icono: "📄", desc: "Descarga masiva — PDF combinado" },
-      { href: "/vacaciones", label: "Vacaciones", icono: "🏖️", desc: "Notificación, pendientes, Gantt" },
     ],
   },
   {
-    // Portal del empleado (docs/75-portal-empleado.md) — estas dos pantallas
-    // son el lado RR.HH.; lo que ve el empleado vive en /portal, con su
-    // propio login, y no aparece en este menú.
-    categoria: "Portal del empleado",
-    items: [
-      { href: "/accesos-portal", label: "Accesos al portal", icono: "🔑", desc: "PIN de cada empleado para entrar a /portal" },
-      { href: "/firmas-recibos", label: "Firmas de recibos", icono: "✍️", desc: "Quién vio y firmó su recibo, por período" },
-      { href: "/solicitudes", label: "Solicitudes", icono: "📨", desc: "Pedidos de vacaciones y permisos para aprobar" },
-    ],
-  },
-  {
+    bloque: SUELDOS,
     categoria: "Procesos",
+    icono: "🚦",
     items: [
       { href: "/preliquidacion", label: "Preliquidación", icono: "📋", desc: "Resumen legible, exportable para aprobación" },
       { href: "/auditoria", label: "Auditoría y cierre", icono: "🚦", desc: "Semáforo y cierre del período" },
     ],
   },
   {
+    bloque: SUELDOS,
     categoria: "Salidas",
+    icono: "📤",
     items: [{ href: "/exportar", label: "Exportar", icono: "📤", desc: "LSD y consolidado F.931" }],
   },
   {
+    bloque: SUELDOS,
     categoria: "Reportes",
+    icono: "📈",
     items: [
       { href: "/dashboard", label: "Dashboard", icono: "📈", desc: "Indicadores y KPIs de decisión" },
       { href: "/kpis", label: "KPI's", icono: "📊", desc: "Ausentismo, puntualidad y motivos" },
@@ -110,12 +117,45 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
-    categoria: "Administración",
+    bloque: SUELDOS,
+    categoria: "Configuración",
+    icono: "⚙️",
     items: [
-      { href: "/usuarios", label: "Usuarios", icono: "🔐", desc: "Altas, roles y permisos", soloAdmin: true },
       { href: "/parametros", label: "Parámetros", icono: "📊", desc: "Topes vigentes por período", soloAdmin: true },
       { href: "/estado-implementacion", label: "Estado por convenio", icono: "📋", desc: "Qué está cargado en cada CCT", soloAdmin: true },
       { href: "/actualizaciones-normativas", label: "Actualizaciones normativas", icono: "📜", desc: "Bitácora de cambios de ley, CCT, y ARCA aplicados", soloAdmin: true },
+    ],
+  },
+  {
+    // Lo que RR.HH. gestiona con el empleado. Las tres últimas pantallas son
+    // el lado RR.HH. del portal (docs/75 y 76); lo que ve el empleado vive
+    // en /portal, con su propio login, y no aparece en este menú.
+    bloque: GESTION,
+    categoria: "Gestión de RR.HH.",
+    icono: "🤝",
+    items: [
+      { href: "/vacaciones", label: "Vacaciones", icono: "🏖️", desc: "Notificación, pendientes, Gantt" },
+      { href: "/solicitudes", label: "Solicitudes", icono: "📨", desc: "Pedidos de vacaciones y permisos para aprobar" },
+      { href: "/firmas-recibos", label: "Firmas de recibos", icono: "✍️", desc: "Quién vio y firmó su recibo, por período" },
+    ],
+  },
+  {
+    bloque: GESTION,
+    categoria: "Operaciones",
+    icono: "🕒",
+    items: [
+      { href: "/asistencia", label: "Asistencia", icono: "🗓️", desc: "Calendario de presentes/ausentes, desde fichadas" },
+      { href: "/fichadas", label: "Fichadas", icono: "🕒", desc: "Dato crudo de reloj/terminal — auditoría y corrección" },
+      { href: "/dispositivos", label: "Dispositivos", icono: "📱", desc: "Terminales de fichada en clientes (admin)" },
+    ],
+  },
+  {
+    bloque: GESTION,
+    categoria: "Plataforma",
+    icono: "🔐",
+    items: [
+      { href: "/accesos-portal", label: "Accesos al portal", icono: "🔑", desc: "PIN de cada empleado para entrar a /portal" },
+      { href: "/usuarios", label: "Usuarios", icono: "🔐", desc: "Altas, roles y permisos", soloAdmin: true },
     ],
   },
 ];
@@ -123,7 +163,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
 // Filtra por rol, y descarta categorías que quedan vacías después del filtro.
 export function menuFiltradoPorRol(rol: string | undefined): CategoriaMenu[] {
   return ESTRUCTURA_MENU.map((cat) => ({
-    categoria: cat.categoria,
+    ...cat,
     items: cat.items.filter((i) => !i.soloAdmin || rol === "admin"),
   })).filter((cat) => cat.items.length > 0);
 }
