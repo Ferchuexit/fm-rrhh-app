@@ -74,18 +74,71 @@ export function horarioDeLaSemana(fecha: Date, a: Asignacion): string | null {
   return a.horarioIds[((semanas % a.horarioIds.length) + a.horarioIds.length) % a.horarioIds.length];
 }
 
+// Lo que pisa al horario habitual en una fecha puntual.
+export interface CambioDia { tipo: string; ingreso?: string | null; salida?: string | null; motivo?: string | null }
+export interface Excepciones {
+  feriados: Map<string, string>; // "AAAA-MM-DD" → nombre del feriado (toda la empresa)
+  cambios: Map<string, CambioDia>; // "AAAA-MM-DD" → cambio de ese día para ESTA persona
+}
+export const claveDia = (fecha: Date) => fecha.toISOString().slice(0, 10);
+
 export type Jornada =
   | { tipo: "sin_asignar" } // no tiene horario cargado: vale el turno de respaldo, si hay
-  | { tipo: "franco"; horario: Horario } // tiene horario y ese día no trabaja
-  | { tipo: "trabaja"; horario: Horario; ingreso: string; salida: string; nocturno: boolean };
+  | { tipo: "franco"; horario: Horario | null; cambio?: boolean } // ese día no trabaja
+  | { tipo: "trabaja"; horario: Horario | null; ingreso: string; salida: string; nocturno: boolean; cambio?: boolean }
+  // Feriado de la empresa. `base` = lo que le tocaba ese día: si igual fue a
+  // trabajar, la asistencia se compara contra eso.
+  | { tipo: "feriado"; nombre: string; base: Jornada };
 
-export function jornadaDelDia(fecha: Date, asignaciones: Asignacion[], horarios: Map<string, Horario>): Jornada {
+// Orden de prioridad: cambio de ese día para la persona > feriado de la
+// empresa > horario habitual.
+export function jornadaDelDia(fecha: Date, asignaciones: Asignacion[], horarios: Map<string, Horario>, exc?: Excepciones): Jornada {
   const a = asignacionVigente(fecha, asignaciones);
-  const horario = a ? horarios.get(horarioDeLaSemana(fecha, a) ?? "") : undefined;
-  if (!horario) return { tipo: "sin_asignar" }; // sin asignación, o el horario fue borrado
-  const d = horario.dias[String(fecha.getUTCDay())];
-  if (!d) return { tipo: "franco", horario };
-  return { tipo: "trabaja", horario, ingreso: d.ingreso, salida: d.salida, nocturno: esNocturno(d) };
+  const horario = (a ? horarios.get(horarioDeLaSemana(fecha, a) ?? "") : undefined) ?? null; // null: sin asignación, o el horario fue borrado
+  const d = horario?.dias[String(fecha.getUTCDay())];
+  const base: Jornada = !horario ? { tipo: "sin_asignar" } : !d ? { tipo: "franco", horario } : { tipo: "trabaja", horario, ingreso: d.ingreso, salida: d.salida, nocturno: esNocturno(d) };
+
+  const cambio = exc?.cambios.get(claveDia(fecha));
+  if (cambio?.tipo === "franco") return { tipo: "franco", horario, cambio: true };
+  if (cambio?.tipo === "horario" && cambio.ingreso && cambio.salida) {
+    return { tipo: "trabaja", horario, ingreso: cambio.ingreso, salida: cambio.salida, nocturno: esNocturno({ ingreso: cambio.ingreso, salida: cambio.salida }), cambio: true };
+  }
+  const feriado = exc?.feriados.get(claveDia(fecha));
+  if (feriado !== undefined) return { tipo: "feriado", nombre: feriado, base };
+  return base;
+}
+
+// Un cambio de un día, tal como llega del formulario → válido o el motivo.
+export function validarCambio(tipo: unknown, ingreso: unknown, salida: unknown): string | null {
+  if (tipo === "franco") return null;
+  if (tipo !== "horario") return "Elegí qué cambia ese día.";
+  if (!HORA.test(String(ingreso ?? "")) || !HORA.test(String(salida ?? ""))) return "Para un horario distinto van las dos horas, en formato 24 hs (por ejemplo 14:00 y 22:00).";
+  if (ingreso === salida) return "Entra y sale a la misma hora.";
+  return null;
+}
+
+// ── Feriados ─────────────────────────────────────────────────────────
+// Domingo de Pascua (algoritmo de Meeus/Jones/Butcher, calendario gregoriano).
+export function pascua(anio: number): Date {
+  const a = anio % 19, b = Math.floor(anio / 100), c = anio % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31), dia = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(anio, mes - 1, dia));
+}
+
+// Los feriados nacionales que caen siempre en su fecha (o se calculan desde
+// Pascua). NO incluye los trasladables (17/6, 17/8, 12/10, 20/11) ni los
+// puentes, que el Gobierno fija cada año: esos se cargan a mano mirando el
+// calendario oficial.
+export function feriadosInamovibles(anio: number): { fecha: Date; nombre: string }[] {
+  const fijo = (mes: number, dia: number, nombre: string) => ({ fecha: new Date(Date.UTC(anio, mes - 1, dia)), nombre });
+  const desdePascua = (dias: number, nombre: string) => ({ fecha: new Date(pascua(anio).getTime() + dias * DIA_MS), nombre });
+  return [
+    fijo(1, 1, "Año Nuevo"), desdePascua(-48, "Carnaval"), desdePascua(-47, "Carnaval"), fijo(3, 24, "Día de la Memoria"), fijo(4, 2, "Día del Veterano y de los Caídos en Malvinas"),
+    desdePascua(-2, "Viernes Santo"), fijo(5, 1, "Día del Trabajador"), fijo(5, 25, "Revolución de Mayo"), fijo(6, 20, "Paso a la Inmortalidad de Belgrano"),
+    fijo(7, 9, "Día de la Independencia"), fijo(12, 8, "Inmaculada Concepción"), fijo(12, 25, "Navidad"),
+  ].sort((x, y) => x.fecha.getTime() - y.fecha.getTime());
 }
 
 // ── Fichadas de un turno que cruza la medianoche ─────────────────────
@@ -124,6 +177,9 @@ export function fichadasDeLaJornada(hoy: Jornada, ayer: Jornada, fichadasHoy: st
 
 // El turno tal como lo espera el motor de asistencia: en un nocturno, la
 // salida va +24 hs para que "salió 5 minutos antes" se calcule bien.
+// Lo que cuenta para repartir fichadas: en un feriado, lo que le tocaba.
+export const jornadaEfectiva = (j: Jornada): Jornada => (j.tipo === "feriado" ? j.base : j);
+
 export function turnoParaElMotor(j: Jornada): { horaIngreso: string; horaSalida: string } | null {
   if (j.tipo !== "trabaja") return null;
   return { horaIngreso: j.ingreso, horaSalida: j.nocturno ? sumar24(j.salida) : j.salida };

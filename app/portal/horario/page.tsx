@@ -29,9 +29,9 @@ export default async function PortalHorario() {
           <div className="p-card">
             <strong style={{ color: "var(--azul-oscuro)" }}>Hoy, {NOMBRE_DIA[hoy.getUTCDay()].toLowerCase()} {corta(hoy)}</strong>
             <div style={{ fontSize: "1.35rem", fontWeight: 700, color: "var(--azul-oscuro)", marginTop: "0.3rem" }}>
-              {deHoy?.tipo === "trabaja" ? `${deHoy.ingreso} a ${deHoy.salida}` : deHoy?.tipo === "franco" ? "Franco" : "Sin horario cargado"}
+              {deHoy?.tipo === "trabaja" ? `${deHoy.ingreso} a ${deHoy.salida}` : deHoy?.tipo === "franco" ? "Franco" : deHoy?.tipo === "feriado" ? `Feriado: ${deHoy.feriado}` : "Sin horario cargado"}
             </div>
-            {deHoy?.tipo === "trabaja" && <div className="p-card-dato">Turno {deHoy.horario}{deHoy.nocturno ? " · salís al día siguiente" : ""}</div>}
+            {deHoy?.tipo === "trabaja" && <div className="p-card-dato">{deHoy.cambio ? "Cambio de turno para hoy" : `Turno ${deHoy.horario}`}{deHoy.nocturno ? " · salís al día siguiente" : ""}</div>}
           </div>
 
           {[0, 1].map((semana) => (
@@ -46,10 +46,10 @@ export default async function PortalHorario() {
                       {j.tipo === "trabaja" ? (
                         <span style={{ textAlign: "right" }}>
                           <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: j.color, marginRight: 6 }} aria-hidden="true" />
-                          <strong>{j.ingreso}–{j.salida}</strong> <span style={{ color: "#6b727b" }}>{j.horario}</span>
+                          <strong>{j.ingreso}–{j.salida}</strong> <span style={{ color: "#6b727b" }}>{j.cambio ? "cambio" : j.horario}</span>
                         </span>
                       ) : (
-                        <span style={{ color: "#6b727b" }}>{j.tipo === "franco" ? "Franco" : "Sin horario"}</span>
+                        <span style={{ color: "#6b727b" }}>{j.tipo === "franco" ? (j.cambio ? "Franco (cambio)" : "Franco") : j.tipo === "feriado" ? `Feriado · ${j.feriado}` : "Sin horario"}</span>
                       )}
                     </div>
                   );
@@ -57,7 +57,7 @@ export default async function PortalHorario() {
               </div>
             </div>
           ))}
-          <p className="p-pie">Si te cambian el horario, te llega un aviso. Los feriados y los cambios de último momento los confirma tu jefe.</p>
+          <p className="p-pie">Si te cambian el horario, te llega un aviso.</p>
         </>
       )}
     </>

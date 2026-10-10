@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { fechaDesdeTexto, hoyArgentina } from "@/lib/ausencias-reglas";
-import { horariosDeEmpresa, vistaDeJornada, jornadaDelDia, asignacionVigente, lunesDe, resumenHorario } from "@/lib/turnos";
+import { horariosDeEmpresa, vistaDeJornada, jornadaDelDia, asignacionVigente, lunesDe, resumenHorario, excepcionesEntre } from "@/lib/turnos";
 
 export const dynamic = "force-dynamic";
 const DIA_MS = 24 * 3600 * 1000;
@@ -28,9 +28,12 @@ export async function GET(req: Request) {
       }),
     ]);
     const dias = Array.from({ length: 7 }, (_, i) => new Date(lunes.getTime() + i * DIA_MS));
+    const exc = await excepcionesEntre(empresa.id, dias[0], dias[6]);
 
     return NextResponse.json({
       semana: lunes,
+      feriados: exc.feriados.map((f) => ({ fecha: f.fecha, nombre: f.nombre })),
+      cambios: exc.cambios.map((c) => ({ id: c.id, legajoId: c.legajoId, fecha: c.fecha, tipo: c.tipo, ingreso: c.ingreso, salida: c.salida, motivo: c.motivo })),
       horarios: [...horarios.values()].map((h) => ({ ...h, resumen: resumenHorario(h.dias) })),
       legajos: legajos.map((l) => {
         // La asignación que vale esta semana; si no hay, la próxima que arranca.
@@ -40,7 +43,7 @@ export async function GET(req: Request) {
           id: l.id, numero: l.numeroLegajo, apellido: l.apellido, nombre: l.nombre, centroCostoId: l.centroCostoId, sector: l.centroCosto?.nombre ?? "Sin asignar",
           asignacion: vigente ? { desde: vigente.desde, horarioIds: vigente.horarioIds } : null,
           proxima: proxima ? { desde: proxima.desde, horarioIds: proxima.horarioIds } : null,
-          jornadas: dias.map((d) => vistaDeJornada(jornadaDelDia(d, l.asignacionesHorario, horarios))),
+          jornadas: dias.map((d) => vistaDeJornada(jornadaDelDia(d, l.asignacionesHorario, horarios, exc.de(l.id)))),
         };
       }),
     });

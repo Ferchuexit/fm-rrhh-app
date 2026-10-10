@@ -62,6 +62,10 @@ export function avisoCambioDeHorario(desde: Date): TextoAviso {
   return { tipo: "horario", titulo: "Cambió tu horario de trabajo", cuerpo: `Tenés un horario nuevo desde el ${dia(desde)}. Entrá para verlo.`, url: "/portal/horario" };
 }
 
+export function avisoCambioDeUnDia(fecha: Date): TextoAviso {
+  return { tipo: "horario", titulo: "Cambio en tu horario", cuerpo: `Hay un cambio para el ${dia(fecha)}. Entrá para verlo.`, url: "/portal/horario" };
+}
+
 export function avisoIngresoAlEmpleado(): TextoAviso {
   return { tipo: "ingreso", titulo: "Te damos la bienvenida", cuerpo: "Tenés algunos pasos para completar tu ingreso. Entrá para verlos.", url: "/portal/ingreso" };
 }

@@ -17,7 +17,7 @@
 //   npx tsx prisma/clasificar-asistencia.ts 2026-01-16 2026-01-31
 import { PrismaClient } from "@prisma/client";
 import { clasificarJornada } from "../lib/asistencia-jornada";
-import type { Horario } from "../lib/turnos-reglas";
+import { claveDia, type Horario, type CambioDia } from "../lib/turnos-reglas";
 
 const prisma = new PrismaClient();
 
@@ -40,7 +40,7 @@ async function main() {
 
   const legajos = await prisma.legajo.findMany({
     where: { condicion: "activo" },
-    select: { id: true, numeroLegajo: true, apellido: true, convenioId: true, fichadaObligatoria: true, asignacionesHorario: { select: { desde: true, hasta: true, horarioIds: true } } },
+    select: { id: true, empresaId: true, numeroLegajo: true, apellido: true, convenioId: true, fichadaObligatoria: true, asignacionesHorario: { select: { desde: true, hasta: true, horarioIds: true } } },
   });
   const horarios = new Map((await prisma.horarioTrabajo.findMany()).map((h) => [h.id, h as unknown as Horario]));
   console.log(`Legajos activos: ${legajos.length}`);
@@ -61,6 +61,19 @@ async function main() {
     fichadasPorLegajoFecha.get(clave)!.push({ hora: f.hora });
   }
 
+  // Feriados (por empresa) y cambios de un día (por legajo) del rango.
+  const rango = { gte: new Date(desde.getTime() - 24 * 3600 * 1000), lte: new Date(hasta.getTime() + 24 * 3600 * 1000) };
+  const feriadosPorEmpresa = new Map<string, Map<string, string>>();
+  for (const f of await prisma.feriado.findMany({ where: { fecha: rango } })) {
+    if (!feriadosPorEmpresa.has(f.empresaId)) feriadosPorEmpresa.set(f.empresaId, new Map());
+    feriadosPorEmpresa.get(f.empresaId)!.set(claveDia(f.fecha), f.nombre);
+  }
+  const cambiosPorLegajo = new Map<string, Map<string, CambioDia>>();
+  for (const c of await prisma.cambioDeTurno.findMany({ where: { fecha: rango } })) {
+    if (!cambiosPorLegajo.has(c.legajoId)) cambiosPorLegajo.set(c.legajoId, new Map());
+    cambiosPorLegajo.get(c.legajoId)!.set(claveDia(c.fecha), c);
+  }
+
   let procesados = 0, saltadosPorManual = 0, saltadosPorCierre = 0, contadorEstados: Record<string, number> = {};
 
   for (const legajo of legajos) {
@@ -74,7 +87,7 @@ async function main() {
 
       const resultado = clasificarJornada(
         fecha,
-        { id: legajo.id, convenioId: legajo.convenioId, fichadaObligatoria: legajo.fichadaObligatoria, asignaciones: legajo.asignacionesHorario },
+        { id: legajo.id, convenioId: legajo.convenioId, fichadaObligatoria: legajo.fichadaObligatoria, asignaciones: legajo.asignacionesHorario, excepciones: { feriados: feriadosPorEmpresa.get(legajo.empresaId) ?? new Map(), cambios: cambiosPorLegajo.get(legajo.id) ?? new Map() } },
         horarios,
         turnos as any,
         (dia) => (fichadasPorLegajoFecha.get(`${legajo.id}|${dia.toISOString()}`) ?? []).map((x) => x.hora)

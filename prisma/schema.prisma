@@ -153,6 +153,7 @@ model Empresa {
   presupuestos PresupuestoSalarial[]
   horarios HorarioTrabajo[]
   plantillasIngreso PlantillaIngreso[]
+  feriados Feriado[]
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -928,6 +929,7 @@ model Legajo {
   recibosDigitales ReciboDigital[]
   suscripcionesPush SuscripcionPush[]
   asignacionesHorario AsignacionHorario[]
+  cambiosDeTurno      CambioDeTurno[]
   ingresos            Ingreso[]
   avisos            Aviso[]
 
@@ -1591,4 +1593,37 @@ model TareaIngreso {
   ingreso Ingreso @relation(fields: [ingresoId], references: [id], onDelete: Cascade)
 
   @@index([ingresoId, orden])
+}
+
+// Día no laborable para toda la empresa. Los nacionales cambian cada año
+// (puentes, traslados), así que se cargan por empresa y por fecha; la
+// pantalla Turnos sugiere los que no se mueven.
+model Feriado {
+  id        String   @id @default(uuid())
+  empresaId String
+  fecha     DateTime
+  nombre    String
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, fecha])
+}
+
+// Cambio de UN día para UNA persona, por encima de su horario habitual:
+// ese día no trabaja ('franco') o trabaja en otro horario ('horario': cubre
+// otro turno, entra más tarde). Gana sobre el horario y sobre un feriado.
+model CambioDeTurno {
+  id         String   @id @default(uuid())
+  legajoId   String
+  fecha      DateTime
+  tipo       String // 'franco' | 'horario'
+  ingreso    String? // "HH:mm", solo con tipo 'horario'
+  salida     String?
+  motivo     String?
+  cargadoPor String?
+  createdAt  DateTime @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@unique([legajoId, fecha])
 }

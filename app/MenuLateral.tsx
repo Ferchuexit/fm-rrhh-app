@@ -36,6 +36,9 @@ export default function MenuLateral({ categorias, usuario, children }: { categor
     try { localStorage.setItem(CLAVE, nuevo ? "1" : "0"); } catch {}
   }
 
+  // El ítem marcado es UNO solo: si dos coinciden (Accesos al portal y
+  // Avisos enviados, que cuelga de la misma dirección), gana el más específico.
+  const hrefActivo = categorias.flatMap((c) => c.items.map((i) => i.href)).filter((h) => esActivo(pathname, h)).sort((a, b) => b.length - a.length)[0];
   const estaAbierto = (cat: CategoriaMenu) => abiertos[cat.categoria] ?? cat.items.some((i) => esActivo(pathname, i.href));
 
   return (
@@ -93,7 +96,7 @@ export default function MenuLateral({ categorias, usuario, children }: { categor
               {abierto && (
                 <div className="ml-sub">
                   {cat.items.map((it) => (
-                    <a key={it.href} href={it.href} className={`ml-subitem${esActivo(pathname, it.href) ? " activo" : ""}`} aria-current={esActivo(pathname, it.href) ? "page" : undefined}>
+                    <a key={it.href} href={it.href} className={`ml-subitem${it.href === hrefActivo ? " activo" : ""}`} aria-current={it.href === hrefActivo ? "page" : undefined}>
                       {it.label}
                     </a>
                   ))}

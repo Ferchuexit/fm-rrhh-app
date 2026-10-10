@@ -54,8 +54,12 @@ empresa no tiene ningún usuario así, les llega a los administradores.
 
 Cada aviso queda en la tabla `Aviso`: a quién, qué decía, a cuántos
 celulares llegó y si salió el mail. Un aviso con todo en cero significa que
-la persona no tenía avisos activados ni mail cargado. (Todavía no hay una
-pantalla para consultarlo.)
+la persona no tenía avisos activados ni mail cargado.
+
+Se consulta en **Plataforma → Avisos enviados**: quién tiene acceso al
+portal, quién activó los avisos en el celular, quién tiene mail, y los
+últimos 200 avisos con su resultado. Si al servidor le faltan las llaves de
+las notificaciones o la clave del mail, la pantalla lo dice arriba.
 
 ## Qué hay que configurar
 
@@ -106,8 +110,6 @@ npx prisma generate
 
 ## Pendiente
 
-- Pantalla para que RR.HH. vea qué avisos salieron y quién tiene los avisos
-  activados.
 - Recordatorios (recibo sin firmar después de N días, acuse pendiente).
 - Elegir por empresa qué eventos avisan.
 - WhatsApp.

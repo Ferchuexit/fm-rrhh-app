@@ -9,6 +9,7 @@ import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { obtenerPeriodosCerrados, fechaEstaCerrada } from "@/lib/periodo-asistencia-lock";
 import { clasificarJornada } from "@/lib/asistencia-jornada";
 import type { Horario } from "@/lib/turnos-reglas";
+import { excepcionesEntre } from "@/lib/turnos";
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +44,10 @@ export async function POST(req: Request) {
       fichadasPorLegajoFecha.get(clave)!.push({ hora: f.hora });
     }
 
+    // Feriados de la empresa y cambios de un día (un día antes: para saber
+    // si la noche anterior fue un turno que cruza la medianoche).
+    const excepciones = await excepcionesEntre(empresa.id, new Date(desde.getTime() - 24 * 3600 * 1000), diaSiguiente);
+
     let procesados = 0, saltadosPorManual = 0, saltadosPorCierre = 0;
     const contadorEstados: Record<string, number> = {};
 
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
 
         const resultado = clasificarJornada(
           fecha,
-          { id: legajo.id, convenioId: legajo.convenioId, fichadaObligatoria: legajo.fichadaObligatoria, asignaciones: legajo.asignacionesHorario },
+          { id: legajo.id, convenioId: legajo.convenioId, fichadaObligatoria: legajo.fichadaObligatoria, asignaciones: legajo.asignacionesHorario, excepciones: excepciones.de(legajo.id) },
           horarios,
           turnos as any,
           (dia) => (fichadasPorLegajoFecha.get(`${legajo.id}|${dia.toISOString()}`) ?? []).map((x) => x.hora)

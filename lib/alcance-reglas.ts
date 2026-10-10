@@ -74,7 +74,7 @@ const CREA = ["create", "createMany", "createManyAndReturn", "upsert"];
 // pero no tocar: cerrar un período de asistencia o cambiar una terminal
 // afecta también a los sectores que no son suyos.
 // Tampoco define los horarios de la empresa: asigna los que existen.
-const SOLO_MIRAR_CON_SECTORES = ["PeriodoAsistencia", "DispositivoAsistencia", "HorarioTrabajo", "PlantillaIngreso"];
+const SOLO_MIRAR_CON_SECTORES = ["PeriodoAsistencia", "DispositivoAsistencia", "HorarioTrabajo", "PlantillaIngreso", "Feriado"];
 
 export const MENSAJE_FUERA_DE_ALCANCE = "Eso está fuera de las empresas o sectores que tenés asignados. Si lo necesitás, pedíselo al administrador.";
 

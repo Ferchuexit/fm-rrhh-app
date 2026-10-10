@@ -62,14 +62,39 @@ estaba copiada en los dos.
 - Un usuario **limitado a sectores** asigna horarios a su gente, pero no
   crea ni modifica los horarios de la empresa.
 
+## Feriados
+
+En la misma pantalla, abajo. Se cargan **por empresa y por fecha**.
+
+- El botón **"Cargar los nacionales fijos"** agrega los que no cambian de
+  fecha, más Carnaval y Viernes Santo (se calculan desde Pascua).
+- Los **trasladables** (17/6, 17/8, 12/10, 20/11) y los **puentes** los fija
+  el Gobierno cada año: hay que agregarlos a mano mirando el calendario
+  oficial. También se puede sumar el día del gremio o una parada de planta.
+- En Asistencia, quien **no ficha un feriado queda como feriado (F)**, no como
+  ausente. Si fue a trabajar, se compara contra el horario que le tocaba.
+  Esto vale también para quien usa el turno de respaldo por convenio.
+
+## Cambios de un solo día
+
+Tocando una celda de la tabla se cambia **solo ese día de esa persona**:
+
+- **No trabaja (franco)**, o
+- **Trabaja en otro horario** (cubre otro turno, entra más tarde). Se puede
+  tomar el de un horario existente o escribir las horas.
+
+El cambio se ve con borde punteado, le llega un aviso a la persona, y
+Asistencia compara ese día contra el horario del cambio. Prioridad: cambio
+del día > feriado > horario habitual.
+
 ## Límites conocidos
 
 - **Editar un horario** cambia lo que les toca a todos los que lo tienen,
   también hacia atrás. Si el horario cambió desde una fecha, conviene crear
   uno nuevo y asignarlo desde ese día. La pantalla lo avisa.
 - No se borra un horario que alguien tiene o tuvo asignado.
-- Todavía no hay **feriados ni cambios de un solo día** ("el jueves cubrís el
-  turno de Pérez"): se corrigen a mano en Asistencia, como hasta ahora.
+- Un **feriado trabajado** queda como presente o tarde; el pago doble no se
+  genera solo: se sigue cargando como novedad.
 - Las rotaciones son por **semana completa**; no hay esquemas del tipo 6×2 o
   4×4 (días corridos).
 - Si alguien pasa de un turno noche a uno que arranca a la misma hora en que
@@ -80,8 +105,10 @@ estaba copiada en los dos.
 
 - Tablas `HorarioTrabajo` y `AsignacionHorario` (migración `turnos`).
 - Reglas puras en `lib/turnos-reglas.ts` (`tests/turnos-reglas.test.mjs`).
+- Tablas `Feriado` y `CambioDeTurno` (migración `feriados_cambios_turno`).
 - `GET /api/turnos?semana=`, `POST|DELETE /api/turnos/horarios`,
-  `POST /api/turnos/asignaciones`.
+  `POST /api/turnos/asignaciones`, `GET|POST|DELETE /api/turnos/feriados`,
+  `POST /api/turnos/cambios`.
 
 ## Instalación
 

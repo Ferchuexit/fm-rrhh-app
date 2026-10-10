@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
 import { equipoDe } from "@/lib/equipo";
 import { saldoVacaciones, hoyArgentina } from "@/lib/ausencias";
-import { horariosDeEmpresa, jornadaDelDia, vistaDeJornada } from "@/lib/turnos";
+import { horariosDeEmpresa, jornadaDelDia, vistaDeJornada, excepcionesEntre } from "@/lib/turnos";
 import { fechaPeriodo } from "../formato";
 import PedidoForm from "../vacaciones/PedidoForm";
 import CancelarPedido from "../vacaciones/CancelarPedido";
@@ -38,11 +38,12 @@ export default async function PortalEquipo() {
   // la pantalla sigue sin ese dato.
   const turnoDeHoy = new Map<string, string>();
   try {
-    const [horarios, asignaciones] = await Promise.all([horariosDeEmpresa(sesion.empresaId), prisma.asignacionHorario.findMany({ where: { legajoId: { in: ids } } })]);
+    const [horarios, asignaciones, exc] = await Promise.all([horariosDeEmpresa(sesion.empresaId), prisma.asignacionHorario.findMany({ where: { legajoId: { in: ids } } }), excepcionesEntre(sesion.empresaId, hoy, hoy, ids)]);
     for (const id of ids) {
-      const j = vistaDeJornada(jornadaDelDia(hoy, asignaciones.filter((a) => a.legajoId === id), horarios));
-      if (j.tipo === "trabaja") turnoDeHoy.set(id, `Hoy: ${j.ingreso} a ${j.salida} (${j.horario})`);
+      const j = vistaDeJornada(jornadaDelDia(hoy, asignaciones.filter((a) => a.legajoId === id), horarios, exc.de(id)));
+      if (j.tipo === "trabaja") turnoDeHoy.set(id, `Hoy: ${j.ingreso} a ${j.salida} (${j.cambio ? "cambio de turno" : j.horario})`);
       else if (j.tipo === "franco") turnoDeHoy.set(id, "Hoy: franco");
+      else if (j.tipo === "feriado") turnoDeHoy.set(id, `Hoy: feriado (${j.feriado})`);
     }
   } catch (e) {
     console.error("Portal equipo: no se pudieron cargar los turnos:", e);

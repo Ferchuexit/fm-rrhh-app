@@ -166,6 +166,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     icono: "🔐",
     items: [
       { href: "/accesos-portal", label: "Accesos al portal", icono: "🔑", desc: "PIN de cada empleado para entrar a /portal" },
+      { href: "/accesos-portal/avisos", label: "Avisos enviados", icono: "🔔", desc: "Quién recibe avisos en el celular o por mail, y qué se le mandó" },
       { href: "/usuarios", label: "Usuarios", icono: "🔐", desc: "Altas y a qué empresas entra cada uno, con qué rol", soloAdmin: true },
       { href: "/roles", label: "Roles y permisos", icono: "🛡️", desc: "Qué puede ver y gestionar cada rol, módulo por módulo", soloAdmin: true },
     ],

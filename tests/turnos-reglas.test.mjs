@@ -117,3 +117,60 @@ describe("Asistencia con el horario asignado", () => {
     expect(clasificar("2026-11-04", fijo("m"), { "2026-11-04": ["06:00:00", "14:00:00"] }, respaldo).estado).toBe("P");
   });
 });
+
+describe("Feriados y cambios de un día", () => {
+  const exc = (feriados = {}, cambios = {}) => ({ feriados: new Map(Object.entries(feriados)), cambios: new Map(Object.entries(cambios)) });
+  const legajo = (asignaciones, excepciones) => ({ id: "L", convenioId: "c", fichadaObligatoria: true, asignaciones, excepciones });
+  const con = (porFecha) => (fecha) => porFecha[fecha.toISOString().slice(0, 10)] ?? [];
+
+  it("Pascua y los feriados que dependen de ella", () => {
+    expect(T.pascua(2026)).toEqual(f("2026-04-05"));
+    expect(T.pascua(2027)).toEqual(f("2027-03-28"));
+    expect(T.pascua(2025)).toEqual(f("2025-04-20"));
+    const de2026 = T.feriadosInamovibles(2026).map((x) => x.fecha.toISOString().slice(0, 10));
+    for (const d of ["2026-01-01", "2026-02-16", "2026-02-17", "2026-03-24", "2026-04-02", "2026-04-03", "2026-05-01", "2026-05-25", "2026-06-20", "2026-07-09", "2026-12-08", "2026-12-25"]) expect(de2026, d).toContain(d);
+    expect(de2026).toHaveLength(12);
+    expect(de2026).not.toContain("2026-10-12"); // trasladable: se carga a mano
+  });
+
+  it("feriado: la jornada lo dice, y recuerda qué le tocaba", () => {
+    const j = T.jornadaDelDia(f("2026-11-04"), fijo("m"), horarios, exc({ "2026-11-04": "Día de prueba" }));
+    expect(j).toMatchObject({ tipo: "feriado", nombre: "Día de prueba", base: { tipo: "trabaja", ingreso: "06:00" } });
+    expect(T.jornadaDelDia(f("2026-11-05"), fijo("m"), horarios, exc({ "2026-11-04": "x" })).tipo).toBe("trabaja");
+  });
+  it("cambio de un día: franco o en otro horario, y le gana al feriado", () => {
+    expect(T.jornadaDelDia(f("2026-11-04"), fijo("m"), horarios, exc({}, { "2026-11-04": { tipo: "franco" } }))).toMatchObject({ tipo: "franco", cambio: true });
+    expect(T.jornadaDelDia(f("2026-11-04"), fijo("m"), horarios, exc({}, { "2026-11-04": { tipo: "horario", ingreso: "22:00", salida: "06:00" } }))).toMatchObject({ tipo: "trabaja", ingreso: "22:00", nocturno: true, cambio: true });
+    expect(T.jornadaDelDia(f("2026-11-04"), fijo("m"), horarios, exc({ "2026-11-04": "Feriado" }, { "2026-11-04": { tipo: "horario", ingreso: "08:00", salida: "12:00" } }))).toMatchObject({ tipo: "trabaja", ingreso: "08:00" });
+    // sábado (franco por horario) que le toca trabajar por un cambio
+    expect(T.jornadaDelDia(f("2026-11-07"), fijo("m"), horarios, exc({}, { "2026-11-07": { tipo: "horario", ingreso: "06:00", salida: "12:00" } })).tipo).toBe("trabaja");
+    // quien no tiene horario asignado también puede tener un cambio puntual
+    expect(T.jornadaDelDia(f("2026-11-04"), [], horarios, exc({}, { "2026-11-04": { tipo: "horario", ingreso: "08:00", salida: "12:00" } })).tipo).toBe("trabaja");
+  });
+  it("valida el cambio que llega del formulario", () => {
+    expect(T.validarCambio("franco")).toBeNull();
+    expect(T.validarCambio("horario", "14:00", "22:00")).toBeNull();
+    expect(T.validarCambio("horario", "14", "22:00")).toMatch(/dos horas/);
+    expect(T.validarCambio("horario", "14:00", "14:00")).toMatch(/misma hora/);
+    expect(T.validarCambio("otra")).toMatch(/qué cambia/);
+  });
+
+  it("asistencia: feriado sin fichadas es 'F', no ausente", () => {
+    const r = clasificarJornada(f("2026-11-04"), legajo(fijo("m"), exc({ "2026-11-04": "Feriado" })), horarios, [], con({}));
+    expect(r.estado).toBe("F");
+  });
+  it("asistencia: si trabajó el feriado, se compara contra su horario", () => {
+    const r = clasificarJornada(f("2026-11-04"), legajo(fijo("m"), exc({ "2026-11-04": "Feriado" })), horarios, [], con({ "2026-11-04": ["06:15:00", "14:00:00"] }));
+    expect(r).toMatchObject({ estado: "T", minutosTarde: 15 });
+  });
+  it("asistencia: feriado también para quien usa el turno de respaldo", () => {
+    const respaldo = [{ legajoId: null, convenioId: "c", diaSemana: 3, horaIngreso: "07:00", horaSalida: "17:00", vigenciaDesde: f("2026-01-01"), vigenciaHasta: null }];
+    expect(clasificarJornada(f("2026-11-04"), legajo([], exc({ "2026-11-04": "Feriado" })), horarios, respaldo, con({})).estado).toBe("F");
+  });
+  it("asistencia: con un cambio de un día se compara contra el horario del cambio", () => {
+    const cubre = exc({}, { "2026-11-04": { tipo: "horario", ingreso: "14:00", salida: "22:00" } });
+    expect(clasificarJornada(f("2026-11-04"), legajo(fijo("m"), cubre), horarios, [], con({ "2026-11-04": ["14:00:00", "22:00:00"] })).estado).toBe("P");
+    const libre = exc({}, { "2026-11-04": { tipo: "franco" } });
+    expect(clasificarJornada(f("2026-11-04"), legajo(fijo("m"), libre), horarios, [], con({})).estado).toBe("FRANCO");
+  });
+});
