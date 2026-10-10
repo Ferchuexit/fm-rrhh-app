@@ -1525,6 +1525,11 @@ model HorarioTrabajo {
   // la semana (0=domingo .. 6=sábado). Día que no figura = franco. Si la
   // salida es menor o igual al ingreso, el turno termina al día siguiente.
   dias      Json
+  // Esquema por CICLO de días en vez de por día de la semana (6×2, 4×4…):
+  // [{ dias: 6, ingreso: "06:00", salida: "14:00" }, { dias: 2 }] — un
+  // tramo sin horas es franco. Si está cargado, `dias` no se usa. Qué día
+  // del ciclo le toca a cada persona lo dice su asignación (diaDeCiclo).
+  ciclo     Json?
   createdAt DateTime @default(now())
 
   empresa Empresa @relation(fields: [empresaId], references: [id])
@@ -1543,6 +1548,10 @@ model AsignacionHorario {
   desde      DateTime
   hasta      DateTime?
   horarioIds String[]
+  // Solo para horarios por ciclo: qué día del ciclo es la fecha `desde`
+  // (1 = el primero). Es lo que distingue a una guardia de otra cuando
+  // comparten el mismo esquema.
+  diaDeCiclo Int       @default(1)
   cargadoPor String?
   createdAt  DateTime  @default(now())
 

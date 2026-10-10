@@ -40,7 +40,7 @@ async function main() {
 
   const legajos = await prisma.legajo.findMany({
     where: { condicion: "activo" },
-    select: { id: true, empresaId: true, numeroLegajo: true, apellido: true, convenioId: true, fichadaObligatoria: true, asignacionesHorario: { select: { desde: true, hasta: true, horarioIds: true } } },
+    select: { id: true, empresaId: true, numeroLegajo: true, apellido: true, convenioId: true, fichadaObligatoria: true, asignacionesHorario: { select: { desde: true, hasta: true, horarioIds: true, diaDeCiclo: true } } },
   });
   const horarios = new Map((await prisma.horarioTrabajo.findMany()).map((h) => [h.id, h as unknown as Horario]));
   console.log(`Legajos activos: ${legajos.length}`);

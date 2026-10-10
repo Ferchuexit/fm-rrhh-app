@@ -3,7 +3,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
-import { limpiarDias, COLORES_HORARIO } from "@/lib/turnos";
+import { limpiarDias, limpiarCiclo, COLORES_HORARIO } from "@/lib/turnos";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 const errorDe = (e: any, accion: string) => (e?.name === "FueraDeAlcance" ? NextResponse.json({ error: "Los horarios de la empresa los define RR.HH. Vos podés asignar los que ya existen." }, { status: 403 }) : NextResponse.json({ error: `No se pudo ${accion} el horario. Probá de nuevo en un momento.` }, { status: 500 }));
@@ -15,18 +16,22 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const nombre = String(body.nombre ?? "").trim().slice(0, 40);
     if (nombre.length < 2) return NextResponse.json({ error: "Ponele un nombre al horario (por ejemplo: Mañana)." }, { status: 400 });
-    const { dias, error } = limpiarDias(body.dias);
+    // Dos formas de definirlo: por día de la semana, o por ciclo de días
+    // (6×2, 4×4…). Un horario es de una forma o de la otra.
+    const porCiclo = Array.isArray(body.ciclo);
+    const { dias, ciclo, error } = porCiclo ? { dias: {}, ...limpiarCiclo(body.ciclo) } : { ciclo: null, ...limpiarDias(body.dias) };
     if (error) return NextResponse.json({ error }, { status: 400 });
     const color = COLORES_HORARIO.includes(body.color) ? body.color : COLORES_HORARIO[0];
+    const datos = { nombre, color, dias, ciclo: ciclo ? (ciclo as unknown as Prisma.InputJsonValue) : Prisma.DbNull };
 
     // Editar un horario cambia lo que les toca a quienes lo tienen asignado,
     // también hacia atrás: por eso la pantalla lo avisa antes de guardar.
     if (body.id) {
-      const { count } = await prisma.horarioTrabajo.updateMany({ where: { id: String(body.id), empresaId: empresa.id }, data: { nombre, color, dias } });
+      const { count } = await prisma.horarioTrabajo.updateMany({ where: { id: String(body.id), empresaId: empresa.id }, data: datos });
       if (count === 0) return NextResponse.json({ error: "Ese horario ya no existe." }, { status: 404 });
       return NextResponse.json({ ok: true, id: body.id });
     }
-    const creado = await prisma.horarioTrabajo.create({ data: { empresaId: empresa.id, nombre, color, dias } });
+    const creado = await prisma.horarioTrabajo.create({ data: { empresaId: empresa.id, ...datos } });
     return NextResponse.json({ ok: true, id: creado.id });
   } catch (e: any) {
     if (e?.code === "P2002") return NextResponse.json({ error: "Ya hay un horario con ese nombre." }, { status: 409 });

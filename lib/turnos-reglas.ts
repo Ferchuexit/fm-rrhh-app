@@ -5,8 +5,11 @@
 
 export interface DiaHorario { ingreso: string; salida: string } // "HH:mm"
 export type Dias = Record<string, DiaHorario>; // clave "0".."6" (0 = domingo)
-export interface Horario { id: string; nombre: string; color: string; dias: Dias }
-export interface Asignacion { desde: Date; hasta: Date | null; horarioIds: string[] }
+// Un tramo de un esquema por ciclo: tantos días seguidos con ese horario, o
+// de franco si no trae horas.
+export interface Tramo { dias: number; ingreso?: string; salida?: string }
+export interface Horario { id: string; nombre: string; color: string; dias: Dias; ciclo?: Tramo[] | null }
+export interface Asignacion { desde: Date; hasta: Date | null; horarioIds: string[]; diaDeCiclo?: number }
 
 const DIA_MS = 24 * 3600 * 1000;
 export const NOMBRE_DIA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -48,6 +51,55 @@ export function resumenHorario(dias: Dias): string {
     else grupos.push({ desde: pos, hasta: pos, texto });
   }
   return grupos.map((g) => `${g.desde === g.hasta ? corto[orden[g.desde]] : `${corto[orden[g.desde]]} a ${corto[orden[g.hasta]]}`} ${g.texto}`).join(" · ");
+}
+
+// ── Esquemas por ciclo (6×2, 4×4, 6×2 rotando mañana/tarde/noche) ────
+// No siguen la semana: se repiten cada N días, así que el franco va
+// corriendo de día. Se definen por tramos y cada persona entra al ciclo en
+// un día distinto (su "guardia").
+export const MAX_DIAS_CICLO = 84;
+export const MAX_TRAMOS = 12;
+
+export function limpiarCiclo(entrada: unknown): { ciclo: Tramo[]; error: string | null } {
+  if (!Array.isArray(entrada) || entrada.length === 0) return { ciclo: [], error: "Armá el ciclo: al menos un tramo de trabajo." };
+  if (entrada.length > MAX_TRAMOS) return { ciclo: [], error: `Un ciclo puede tener hasta ${MAX_TRAMOS} tramos.` };
+  const ciclo: Tramo[] = [];
+  for (const [i, t] of entrada.entries()) {
+    const dias = Number(t?.dias);
+    if (!Number.isInteger(dias) || dias < 1 || dias > 31) return { ciclo: [], error: `Revisá cuántos días dura el tramo ${i + 1} (de 1 a 31).` };
+    const ingreso = String(t?.ingreso ?? ""), salida = String(t?.salida ?? "");
+    if (!ingreso && !salida) { ciclo.push({ dias }); continue; } // franco
+    if (!HORA.test(ingreso) || !HORA.test(salida)) return { ciclo: [], error: `Revisá el horario del tramo ${i + 1}: van las dos horas, en formato 24 hs (por ejemplo 06:00 y 14:00).` };
+    if (ingreso === salida) return { ciclo: [], error: `En el tramo ${i + 1} entra y sale a la misma hora.` };
+    ciclo.push({ dias, ingreso, salida });
+  }
+  if (!ciclo.some((t) => t.ingreso)) return { ciclo: [], error: "El ciclo no tiene ningún día de trabajo." };
+  if (largoDelCiclo(ciclo) > MAX_DIAS_CICLO) return { ciclo: [], error: `El ciclo completo puede durar hasta ${MAX_DIAS_CICLO} días.` };
+  return { ciclo, error: null };
+}
+
+export const largoDelCiclo = (ciclo: Tramo[]) => ciclo.reduce((a, t) => a + t.dias, 0);
+
+// El ciclo día por día: el horario de cada uno, o null si es franco.
+export function diasDelCiclo(ciclo: Tramo[]): (DiaHorario | null)[] {
+  return ciclo.flatMap((t) => Array.from({ length: t.dias }, () => (t.ingreso && t.salida ? { ingreso: t.ingreso, salida: t.salida } : null)));
+}
+
+// Qué le toca en `fecha` a quien arrancó el ciclo el día `desde` parado en
+// `diaDeCiclo` (1 = primer día). Sirve también para fechas anteriores.
+export function diaEnElCiclo(fecha: Date, desde: Date, diaDeCiclo: number, ciclo: Tramo[]): DiaHorario | null {
+  const dias = diasDelCiclo(ciclo);
+  if (dias.length === 0) return null;
+  const corridos = Math.round((fecha.getTime() - desde.getTime()) / DIA_MS) + (diaDeCiclo - 1);
+  return dias[((corridos % dias.length) + dias.length) % dias.length];
+}
+
+// "6 días 06:00–14:00 · 2 francos — 42 hs por semana en promedio"
+export function resumenCiclo(ciclo: Tramo[]): string {
+  const tramos = ciclo.map((t) => (t.ingreso ? `${t.dias} ${t.dias === 1 ? "día" : "días"} ${t.ingreso}–${t.salida}` : `${t.dias} ${t.dias === 1 ? "franco" : "francos"}`));
+  const horas = ciclo.reduce((a, t) => a + (t.ingreso && t.salida ? t.dias * horasDelDia({ ingreso: t.ingreso, salida: t.salida }) : 0), 0);
+  const porSemana = Math.round((horas / largoDelCiclo(ciclo)) * 7 * 10) / 10;
+  return `${tramos.join(" · ")} — ${String(porSemana).replace(".", ",")} hs por semana en promedio`;
 }
 
 // El lunes de la semana de esa fecha (fechas a medianoche UTC, como en
@@ -95,7 +147,8 @@ export type Jornada =
 export function jornadaDelDia(fecha: Date, asignaciones: Asignacion[], horarios: Map<string, Horario>, exc?: Excepciones): Jornada {
   const a = asignacionVigente(fecha, asignaciones);
   const horario = (a ? horarios.get(horarioDeLaSemana(fecha, a) ?? "") : undefined) ?? null; // null: sin asignación, o el horario fue borrado
-  const d = horario?.dias[String(fecha.getUTCDay())];
+  // Por ciclo: cuenta días desde que arrancó. Semanal: mira el día de la semana.
+  const d = horario?.ciclo?.length && a ? diaEnElCiclo(fecha, a.desde, a.diaDeCiclo ?? 1, horario.ciclo) : horario?.dias[String(fecha.getUTCDay())];
   const base: Jornada = !horario ? { tipo: "sin_asignar" } : !d ? { tipo: "franco", horario } : { tipo: "trabaja", horario, ingreso: d.ingreso, salida: d.salida, nocturno: esNocturno(d) };
 
   const cambio = exc?.cambios.get(claveDia(fecha));

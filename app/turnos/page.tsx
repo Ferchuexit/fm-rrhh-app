@@ -3,13 +3,13 @@
 // Turnos: quién trabaja cada día de la semana, asignar un horario (o una
 // rotación) a una o varias personas, y definir los horarios de la empresa.
 import { useEffect, useMemo, useState } from "react";
-import { COLORES_HORARIO, NOMBRE_DIA } from "@/lib/turnos-reglas";
+import { COLORES_HORARIO, NOMBRE_DIA, resumenCiclo, largoDelCiclo, type Tramo } from "@/lib/turnos-reglas";
 
-type Jornada = { tipo: "sin_asignar" | "franco" | "trabaja" | "feriado"; horario?: string; color?: string; ingreso?: string; salida?: string; nocturno?: boolean; cambio?: boolean; feriado?: string };
+type Jornada = { tipo: "sin_asignar" | "franco" | "trabaja" | "feriado"; horario?: string; color?: string; ingreso?: string; salida?: string; nocturno?: boolean; cambio?: boolean; feriado?: string; grupo?: string };
 type Feriado = { id?: string; fecha: string; nombre: string };
 type Cambio = { legajoId: string; fecha: string; tipo: string; ingreso: string | null; salida: string | null; motivo: string | null };
-type Horario = { id: string; nombre: string; color: string; dias: Record<string, { ingreso: string; salida: string }>; resumen: string };
-type Fila = { id: string; numero: number; apellido: string; nombre: string; centroCostoId: string | null; sector: string; asignacion: { desde: string; horarioIds: string[] } | null; proxima: { desde: string; horarioIds: string[] } | null; jornadas: Jornada[] };
+type Horario = { id: string; nombre: string; color: string; dias: Record<string, { ingreso: string; salida: string }>; resumen: string; ciclo: Tramo[] | null; largo?: number; diasCiclo?: ({ ingreso: string; salida: string } | null)[] };
+type Fila = { id: string; numero: number; apellido: string; nombre: string; centroCostoId: string | null; sector: string; asignacion: { desde: string; horarioIds: string[]; diaDeCiclo: number } | null; proxima: { desde: string; horarioIds: string[] } | null; jornadas: Jornada[] };
 
 const DIA_MS = 24 * 3600 * 1000;
 const ORDEN = [1, 2, 3, 4, 5, 6, 0]; // la semana arranca el lunes
@@ -17,7 +17,16 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 const corta = (d: Date) => `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 const caja: React.CSSProperties = { background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1.5rem", maxWidth: "1100px" };
 const btnSec: React.CSSProperties = { background: "white", color: "#163A5C", border: "1px solid #163A5C" };
-const HORARIO_VACIO = { id: "", nombre: "", color: COLORES_HORARIO[0], dias: {} as Horario["dias"] };
+const HORARIO_VACIO = { id: "", nombre: "", color: COLORES_HORARIO[0], dias: {} as Horario["dias"], ciclo: null as Tramo[] | null };
+// Esquemas habituales de planta con turnos continuos, para no armarlos a mano.
+const M = { ingreso: "06:00", salida: "14:00" }, T = { ingreso: "14:00", salida: "22:00" }, N = { ingreso: "22:00", salida: "06:00" };
+const PRESETS: { nombre: string; ciclo: Tramo[] }[] = [
+  { nombre: "6×2", ciclo: [{ dias: 6, ...M }, { dias: 2 }] },
+  { nombre: "6×2 rotando mañana, tarde y noche", ciclo: [{ dias: 6, ...M }, { dias: 2 }, { dias: 6, ...T }, { dias: 2 }, { dias: 6, ...N }, { dias: 2 }] },
+  { nombre: "4×4 de 12 hs (2 de día, 2 de noche)", ciclo: [{ dias: 2, ingreso: "06:00", salida: "18:00" }, { dias: 2, ingreso: "18:00", salida: "06:00" }, { dias: 4 }] },
+  { nombre: "5×2", ciclo: [{ dias: 5, ...M }, { dias: 2 }] },
+  { nombre: "7×7 de 12 hs", ciclo: [{ dias: 7, ingreso: "07:00", salida: "19:00" }, { dias: 7 }] },
+];
 
 export default function TurnosPage() {
   const [semana, setSemana] = useState(""); // lunes, AAAA-MM-DD ("" = esta semana)
@@ -27,6 +36,7 @@ export default function TurnosPage() {
   const [elegidos, setElegidos] = useState<Set<string>>(new Set());
   // asignar
   const [rotacion, setRotacion] = useState<string[]>([""]);
+  const [diaDeCiclo, setDiaDeCiclo] = useState(1);
   const [desde, setDesde] = useState("");
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const [trabajando, setTrabajando] = useState(false);
@@ -93,6 +103,8 @@ export default function TurnosPage() {
   const sectores = useMemo(() => [...new Map((datos?.legajos ?? []).filter((l) => l.centroCostoId).map((l) => [l.centroCostoId!, l.sector])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [datos]);
   const filas = (datos?.legajos ?? []).filter((l) => !sector || l.centroCostoId === sector);
   const nombreDe = (id: string) => datos?.horarios.find((h) => h.id === id)?.nombre ?? "(borrado)";
+  // El horario elegido para asignar, si es por ciclo (pide el día de arranque).
+  const cicloElegido = rotacion.length === 1 ? datos?.horarios.find((h) => h.id === rotacion[0] && h.ciclo) ?? null : null;
   const todosElegidos = filas.length > 0 && filas.every((f) => elegidos.has(f.id));
 
   function mover(semanas: number) {
@@ -107,7 +119,7 @@ export default function TurnosPage() {
     if (!quitar && horarioIds.length === 0) { setAviso({ ok: false, texto: "Elegí un horario." }); return; }
     setTrabajando(true);
     setAviso(null);
-    const res = await fetch("/api/turnos/asignaciones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ legajoIds: [...elegidos], horarioIds, desde }) });
+    const res = await fetch("/api/turnos/asignaciones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ legajoIds: [...elegidos], horarioIds, desde, diaDeCiclo }) });
     const d = await res.json().catch(() => ({ error: "El servidor no devolvió una respuesta válida." }));
     setTrabajando(false);
     if (!res.ok) { setAviso({ ok: false, texto: d.error ?? "No se pudo asignar." }); return; }
@@ -119,7 +131,7 @@ export default function TurnosPage() {
   async function guardarHorario() {
     if (!form) return;
     setErrorForm("");
-    const res = await fetch("/api/turnos/horarios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const res = await fetch("/api/turnos/horarios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form.ciclo ? form : { ...form, ciclo: undefined }) });
     const d = await res.json().catch(() => ({ error: "El servidor no devolvió una respuesta válida." }));
     if (!res.ok) { setErrorForm(d.error ?? "No se pudo guardar."); return; }
     setForm(null);
@@ -147,7 +159,7 @@ export default function TurnosPage() {
     <main>
       <h1>Turnos</h1>
       <p style={{ maxWidth: "860px" }}>
-        Definí los <strong>horarios</strong> de la empresa y asignáselos a la gente, fijos o en <strong>rotación semanal</strong>. Con el horario cargado,{" "}
+        Definí los <strong>horarios</strong> de la empresa y asignáselos a la gente, fijos, en <strong>rotación semanal</strong> o por <strong>ciclo de días</strong> (6×2, 4×4). Con el horario cargado,{" "}
         <a href="/asistencia">Asistencia</a> detecta sola las tardanzas y ausencias, y cada persona ve el suyo en el portal.
       </p>
       {error && <p style={{ color: "#B23A3A" }}>{error}</p>}
@@ -199,6 +211,7 @@ export default function TurnosPage() {
                       <td style={{ fontSize: "0.82rem" }}>
                         {l.asignacion ? l.asignacion.horarioIds.map(nombreDe).join(" → ") : <span style={{ color: "#B8752B" }}>Sin horario</span>}
                         {l.asignacion && l.asignacion.horarioIds.length > 1 && <div style={{ fontSize: "0.72rem", color: "#6b727b" }}>rota cada semana</div>}
+                        {l.asignacion && datos.horarios.find((h) => h.id === l.asignacion!.horarioIds[0])?.ciclo && <div style={{ fontSize: "0.72rem", color: "#6b727b" }}>ciclo de {datos.horarios.find((h) => h.id === l.asignacion!.horarioIds[0])!.largo} días</div>}
                         {l.proxima && <div style={{ fontSize: "0.72rem", color: "#6b727b" }}>desde el {corta(new Date(l.proxima.desde))}: {l.proxima.horarioIds.map(nombreDe).join(" → ")}</div>}
                       </td>
                       {l.jornadas.map((j, i) => (
@@ -228,7 +241,7 @@ export default function TurnosPage() {
                       <td></td><td colSpan={2}>Trabajan ese día</td>
                       {dias.map((d, i) => {
                         const porHorario = new Map<string, number>();
-                        for (const l of filas) if (l.jornadas[i].tipo === "trabaja") porHorario.set(l.jornadas[i].horario!, (porHorario.get(l.jornadas[i].horario!) ?? 0) + 1);
+                        for (const l of filas) if (l.jornadas[i].tipo === "trabaja") { const k = l.jornadas[i].grupo ?? l.jornadas[i].horario!; porHorario.set(k, (porHorario.get(k) ?? 0) + 1); }
                         const total = [...porHorario.values()].reduce((a, b) => a + b, 0);
                         return <td key={iso(d)} style={{ textAlign: "center" }} title={[...porHorario].map(([h, n]) => `${h}: ${n}`).join(" · ")}>{total}{porHorario.size > 1 && <div style={{ fontSize: "0.68rem", fontWeight: 400, color: "#6b727b" }}>{[...porHorario].map(([h, n]) => `${h} ${n}`).join(" · ")}</div>}</td>;
                       })}
@@ -254,7 +267,7 @@ export default function TurnosPage() {
                   {cambio.tipo === "horario" && (
                     <>
                       <label>Tomar el de<br />
-                        <select value="" onChange={(e) => { const h = datos.horarios.find((x) => x.id === e.target.value); const d = h && (h.dias[new Date(cambio.fecha).getUTCDay()] ?? Object.values(h.dias)[0]); if (d) setCambio({ ...cambio, ingreso: d.ingreso, salida: d.salida }); }}>
+                        <select value="" onChange={(e) => { const h = datos.horarios.find((x) => x.id === e.target.value); const d = h && (h.dias[new Date(cambio.fecha).getUTCDay()] ?? Object.values(h.dias)[0] ?? h.diasCiclo?.find(Boolean)); if (d) setCambio({ ...cambio, ingreso: d.ingreso, salida: d.salida }); }}>
                           <option value="">— elegir un horario —</option>
                           {datos.horarios.map((h) => <option key={h.id} value={h.id}>{h.nombre}</option>)}
                         </select>
@@ -279,18 +292,26 @@ export default function TurnosPage() {
               <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "flex-end", marginTop: "0.6rem" }}>
                 {rotacion.map((id, i) => (
                   <label key={i}>{rotacion.length > 1 ? `Semana ${i + 1}` : "Horario"}<br />
-                    <select value={id} onChange={(e) => setRotacion(rotacion.map((x, k) => (k === i ? e.target.value : x)))}>
+                    <select value={id} onChange={(e) => { setRotacion(rotacion.map((x, k) => (k === i ? e.target.value : x))); setDiaDeCiclo(1); }}>
                       <option value="">Elegir…</option>
                       {datos.horarios.map((h) => <option key={h.id} value={h.id}>{h.nombre} ({h.resumen})</option>)}
                     </select>
                   </label>
                 ))}
-                {rotacion.length < 8 && <button onClick={() => setRotacion([...rotacion, ""])} style={btnSec} title="Para turnos rotativos: una semana cada horario, en este orden">+ Rotar con otro</button>}
+                {cicloElegido && (
+                  <label>El día «desde» es…<br />
+                    <select value={diaDeCiclo} onChange={(e) => setDiaDeCiclo(Number(e.target.value))}>
+                      {cicloElegido.diasCiclo!.map((d, i) => <option key={i} value={i + 1}>día {i + 1} del ciclo: {d ? `${d.ingreso}–${d.salida}` : "franco"}</option>)}
+                    </select>
+                  </label>
+                )}
+                {!cicloElegido && rotacion.length < 8 && <button onClick={() => setRotacion([...rotacion, ""])} style={btnSec} title="Para turnos rotativos: una semana cada horario, en este orden">+ Rotar con otro</button>}
                 {rotacion.length > 1 && <button onClick={() => setRotacion(rotacion.slice(0, -1))} style={btnSec}>Quitar el último</button>}
                 <label>Desde<br /><input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
                 <button onClick={() => asignar()} disabled={trabajando || elegidos.size === 0}>{trabajando ? "Guardando…" : "Asignar"}</button>
                 <button onClick={() => asignar(true)} disabled={trabajando || elegidos.size === 0} style={{ ...btnSec, color: "#B23A3A", borderColor: "#B23A3A" }}>Dejar sin horario</button>
               </div>
+              {cicloElegido && <p style={{ fontSize: "0.8rem", color: "#6b727b", margin: "0.5rem 0 0" }}>Es un esquema por ciclo: rota solo, sin mirar la semana. Para armar las <strong>guardias</strong>, asigná el mismo esquema a cada grupo cambiando el día de arranque (por ejemplo: guardia A en el día 1, guardia B en el día 3). La tabla de arriba te muestra cuántos quedan trabajando cada día.</p>}
               {rotacion.length > 1 && <p style={{ fontSize: "0.8rem", color: "#6b727b", margin: "0.5rem 0 0" }}>La semana de la fecha "desde" hace el horario de la Semana 1; cada lunes pasa al siguiente y, al terminar, vuelve a empezar.</p>}
               {aviso && <p style={{ color: aviso.ok ? "#2F6F5E" : "#B23A3A", margin: "0.5rem 0 0" }}>{aviso.texto}</p>}
             </div>
@@ -308,7 +329,7 @@ export default function TurnosPage() {
                 <span style={{ width: 14, height: 14, borderRadius: 3, background: h.color, flexShrink: 0 }} aria-hidden="true" />
                 <strong style={{ minWidth: "140px" }}>{h.nombre}</strong>
                 <span style={{ flex: 1, color: "#4A4F58", fontSize: "0.9rem" }}>{h.resumen}</span>
-                <button onClick={() => { setForm({ id: h.id, nombre: h.nombre, color: h.color, dias: h.dias }); setErrorForm(""); }} style={{ ...btnSec, padding: "0.25rem 0.7rem" }}>Editar</button>
+                <button onClick={() => { setForm({ id: h.id, nombre: h.nombre, color: h.color, dias: h.dias, ciclo: h.ciclo }); setErrorForm(""); }} style={{ ...btnSec, padding: "0.25rem 0.7rem" }}>Editar</button>
                 <button onClick={() => borrarHorario(h)} style={{ ...btnSec, padding: "0.25rem 0.7rem", color: "#B23A3A", borderColor: "#B23A3A" }}>Borrar</button>
               </div>
             ))}
@@ -325,7 +346,41 @@ export default function TurnosPage() {
                     ))}
                   </div>
                 </div>
-                {ORDEN.map((d) => (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ marginRight: "1.2rem" }}><input type="radio" checked={!form.ciclo} onChange={() => setForm({ ...form, ciclo: null })} style={{ marginRight: 5 }} />Por día de la semana <span style={{ color: "#6b727b" }}>(lunes a viernes, sábado medio día…)</span></label>
+                  <label><input type="radio" checked={!!form.ciclo} onChange={() => setForm({ ...form, ciclo: form.ciclo ?? PRESETS[0].ciclo })} style={{ marginRight: 5 }} />Por ciclo de días <span style={{ color: "#6b727b" }}>(6×2, 4×4: el franco va corriendo)</span></label>
+                </div>
+                {form.ciclo && (
+                  <div>
+                    <div style={{ marginBottom: "0.5rem", fontSize: "0.85rem" }}>Partir de:{" "}
+                      {PRESETS.map((p) => <button key={p.nombre} onClick={() => setForm({ ...form, ciclo: p.ciclo.map((t) => ({ ...t })), nombre: form.nombre || p.nombre })} style={{ ...btnSec, padding: "0.15rem 0.6rem", fontSize: "0.8rem", marginRight: 4, marginBottom: 4 }}>{p.nombre}</button>)}
+                    </div>
+                    {form.ciclo.map((t, i) => {
+                      const cambiar = (c: Partial<Tramo>) => setForm({ ...form, ciclo: form.ciclo!.map((x, k) => (k === i ? { ...x, ...c } : x)) });
+                      const trabaja = t.ingreso !== undefined;
+                      return (
+                        <div key={i} style={{ display: "flex", gap: "0.6rem", alignItems: "center", marginBottom: "0.3rem", flexWrap: "wrap" }}>
+                          <input type="number" min={1} max={31} value={t.dias} onChange={(e) => cambiar({ dias: Number(e.target.value) })} style={{ width: 60 }} aria-label={`Días del tramo ${i + 1}`} />
+                          <select value={trabaja ? "trabaja" : "franco"} onChange={(e) => setForm({ ...form, ciclo: form.ciclo!.map((x, k) => (k === i ? (e.target.value === "franco" ? { dias: x.dias } : { dias: x.dias, ...M }) : x)) })} aria-label={`Tramo ${i + 1}`}>
+                            <option value="trabaja">{t.dias === 1 ? "día" : "días"} de trabajo</option>
+                            <option value="franco">{t.dias === 1 ? "día" : "días"} de franco</option>
+                          </select>
+                          {trabaja && (
+                            <>
+                              de <input type="time" value={t.ingreso} onChange={(e) => cambiar({ ingreso: e.target.value })} aria-label={`Ingreso del tramo ${i + 1}`} /> a
+                              <input type="time" value={t.salida} onChange={(e) => cambiar({ salida: e.target.value })} aria-label={`Salida del tramo ${i + 1}`} />
+                              {(t.salida ?? "") <= (t.ingreso ?? "") && <span style={{ fontSize: "0.8rem", color: "#6E6AA8" }}>sale al día siguiente</span>}
+                            </>
+                          )}
+                          {form.ciclo!.length > 1 && <button onClick={() => setForm({ ...form, ciclo: form.ciclo!.filter((_, k) => k !== i) })} style={{ ...btnSec, padding: "0.15rem 0.6rem", fontSize: "0.8rem" }} aria-label={`Quitar el tramo ${i + 1}`}>✕</button>}
+                        </div>
+                      );
+                    })}
+                    {form.ciclo.length < 12 && <button onClick={() => setForm({ ...form, ciclo: [...form.ciclo!, form.ciclo![form.ciclo!.length - 1].ingreso ? { dias: 2 } : { dias: 6, ...M }] })} style={{ ...btnSec, padding: "0.2rem 0.7rem", fontSize: "0.85rem", marginTop: 4 }}>+ Tramo</button>}
+                    <p style={{ fontSize: "0.85rem", margin: "0.6rem 0 0" }}>Se repite cada <strong>{largoDelCiclo(form.ciclo)} días</strong>: {form.ciclo.every((t) => t.dias >= 1 && (!t.ingreso || (t.salida && t.ingreso !== t.salida))) ? resumenCiclo(form.ciclo) : "revisá los tramos"}.</p>
+                  </div>
+                )}
+                {!form.ciclo && ORDEN.map((d) => (
                   <div key={d} style={{ display: "flex", gap: "0.6rem", alignItems: "center", marginBottom: "0.3rem" }}>
                     <label style={{ width: "120px" }}><input type="checkbox" checked={!!form.dias[d]} onChange={() => cambiarDia(d, null)} style={{ marginRight: 6 }} />{NOMBRE_DIA[d]}</label>
                     {form.dias[d] ? (

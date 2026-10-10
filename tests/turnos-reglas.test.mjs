@@ -174,3 +174,72 @@ describe("Feriados y cambios de un día", () => {
     expect(clasificarJornada(f("2026-11-04"), legajo(fijo("m"), libre), horarios, [], con({})).estado).toBe("FRANCO");
   });
 });
+
+// ── Esquemas por ciclo (6×2, 4×4…) ──
+import { limpiarCiclo, diasDelCiclo, diaEnElCiclo, resumenCiclo, largoDelCiclo, jornadaDelDia as jornadaCiclo } from "../lib/turnos-reglas.ts";
+
+describe("Horarios por ciclo", () => {
+  const dia = (s) => new Date(s + "T00:00:00Z");
+  const M = { ingreso: "06:00", salida: "14:00" }, T = { ingreso: "14:00", salida: "22:00" }, N = { ingreso: "22:00", salida: "06:00" };
+  const seisPorDos = [{ dias: 6, ...M }, { dias: 2 }];
+  const rotativo = [{ dias: 6, ...M }, { dias: 2 }, { dias: 6, ...T }, { dias: 2 }, { dias: 6, ...N }, { dias: 2 }];
+
+  it("valida los tramos", () => {
+    expect(limpiarCiclo(seisPorDos)).toEqual({ ciclo: seisPorDos, error: null });
+    expect(limpiarCiclo([]).error).toMatch(/al menos un tramo/);
+    expect(limpiarCiclo([{ dias: 2 }]).error).toMatch(/ningún día de trabajo/);
+    expect(limpiarCiclo([{ dias: 0, ...M }]).error).toMatch(/tramo 1/);
+    expect(limpiarCiclo([{ dias: 6, ingreso: "6", salida: "14:00" }]).error).toMatch(/formato 24 hs/);
+    expect(limpiarCiclo([{ dias: 6, ingreso: "06:00", salida: "06:00" }]).error).toMatch(/misma hora/);
+    expect(limpiarCiclo([{ dias: 31, ...M }, { dias: 31 }, { dias: 31, ...T }]).error).toMatch(/hasta 84 días/);
+    expect(limpiarCiclo([{ dias: "6", ingreso: "06:00", salida: "14:00", otra: 1 }]).ciclo).toEqual([{ dias: 6, ...M }]);
+  });
+
+  it("el 6×2 se repite cada 8 días y el franco va corriendo de día", () => {
+    expect(largoDelCiclo(seisPorDos)).toBe(8);
+    expect(diasDelCiclo(seisPorDos).map((d) => (d ? "T" : "F")).join("")).toBe("TTTTTTFF");
+    const desde = dia("2026-11-02"); // lunes
+    const tres = Array.from({ length: 24 }, (_, i) => (diaEnElCiclo(new Date(desde.getTime() + i * 86400000), desde, 1, seisPorDos) ? "T" : "F")).join("");
+    expect(tres).toBe("TTTTTTFFTTTTTTFFTTTTTTFF");
+    // primera vuelta: franco domingo y lunes; segunda: lunes y martes
+    expect(diaEnElCiclo(dia("2026-11-08"), desde, 1, seisPorDos)).toBeNull();
+    expect(diaEnElCiclo(dia("2026-11-16"), desde, 1, seisPorDos)).toBeNull();
+    expect(diaEnElCiclo(dia("2026-11-17"), desde, 1, seisPorDos)).toBeNull();
+  });
+
+  it("cada guardia entra al ciclo en un día distinto", () => {
+    const desde = dia("2026-11-02");
+    expect(diaEnElCiclo(desde, desde, 1, seisPorDos)).toEqual(M);
+    expect(diaEnElCiclo(desde, desde, 7, seisPorDos)).toBeNull(); // arranca de franco
+    expect(diaEnElCiclo(dia("2026-11-04"), desde, 7, seisPorDos)).toEqual(M); // 2 francos y vuelve
+    // rotativo: quien arranca en el día 9 empieza de tarde
+    expect(diaEnElCiclo(desde, desde, 9, rotativo)).toEqual(T);
+    expect(diaEnElCiclo(desde, desde, 17, rotativo)).toEqual(N);
+  });
+
+  it("también da bien para fechas anteriores al arranque", () => {
+    const desde = dia("2026-11-02");
+    expect(diaEnElCiclo(dia("2026-11-01"), desde, 1, seisPorDos)).toBeNull(); // el día 8 de la vuelta anterior
+    expect(diaEnElCiclo(dia("2026-10-31"), desde, 1, seisPorDos)).toBeNull();
+    expect(diaEnElCiclo(dia("2026-10-30"), desde, 1, seisPorDos)).toEqual(M);
+  });
+
+  it("jornadaDelDia usa el ciclo y respeta noche, cambios y feriados", () => {
+    const horarios = new Map([["c", { id: "c", nombre: "6x2 rotativo", color: "#000", dias: {}, ciclo: rotativo }]]);
+    const asig = [{ desde: dia("2026-11-02"), hasta: null, horarioIds: ["c"], diaDeCiclo: 17 }]; // arranca de noche
+    expect(jornadaCiclo(dia("2026-11-02"), asig, horarios)).toMatchObject({ tipo: "trabaja", ingreso: "22:00", salida: "06:00", nocturno: true });
+    expect(jornadaCiclo(dia("2026-11-08"), asig, horarios)).toMatchObject({ tipo: "franco" }); // día 23 del ciclo
+    expect(jornadaCiclo(dia("2026-11-10"), asig, horarios)).toMatchObject({ tipo: "trabaja", ingreso: "06:00" }); // vuelve a empezar, de mañana
+    const exc = { feriados: new Map([["2026-11-03", "Feriado"]]), cambios: new Map([["2026-11-04", { tipo: "franco" }]]) };
+    expect(jornadaCiclo(dia("2026-11-03"), asig, horarios, exc)).toMatchObject({ tipo: "feriado", base: { tipo: "trabaja", ingreso: "22:00" } });
+    expect(jornadaCiclo(dia("2026-11-04"), asig, horarios, exc)).toMatchObject({ tipo: "franco", cambio: true });
+    // sin diaDeCiclo (asignaciones viejas) arranca en el día 1
+    expect(jornadaCiclo(dia("2026-11-02"), [{ desde: dia("2026-11-02"), hasta: null, horarioIds: ["c"] }], horarios)).toMatchObject({ ingreso: "06:00" });
+  });
+
+  it("el resumen dice los tramos y las horas semanales promedio", () => {
+    expect(resumenCiclo(seisPorDos)).toBe("6 días 06:00–14:00 · 2 francos — 42 hs por semana en promedio");
+    expect(resumenCiclo([{ dias: 2, ingreso: "06:00", salida: "18:00" }, { dias: 2, ingreso: "18:00", salida: "06:00" }, { dias: 4 }])).toMatch(/4 francos — 42 hs/);
+    expect(resumenCiclo([{ dias: 1, ...M }, { dias: 1 }])).toBe("1 día 06:00–14:00 · 1 franco — 28 hs por semana en promedio");
+  });
+});

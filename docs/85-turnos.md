@@ -116,3 +116,27 @@ del día > feriado > horario habitual.
 npx prisma migrate deploy
 npx prisma generate
 ```
+
+## Esquemas por ciclo (6×2, 4×4…)
+
+Para turnos continuos, donde el franco **no cae siempre el mismo día** y la
+rotación no sigue la semana.
+
+- Al crear un horario, elegir **"Por ciclo de días"** y armarlo por tramos:
+  *6 días de 06:00 a 14:00, 2 de franco*. Hay atajos para los más comunes:
+  6×2, 6×2 rotando mañana/tarde/noche (24 días), 4×4 de 12 hs, 5×2 y 7×7.
+  La pantalla muestra cada cuántos días se repite y las **horas semanales
+  promedio** (un 6×2 de 8 hs da 42).
+- Al asignarlo se elige, además de la fecha, **en qué día del ciclo arranca**
+  la persona. Así se arman las **guardias**: el mismo esquema para todos,
+  cada grupo con un día de arranque distinto.
+- La tabla semanal colorea por turno (mañana, tarde, noche) y el total de
+  "Trabajan ese día" se abre por turno, para ver la cobertura.
+- Un horario por ciclo se asigna solo: no se combina con la rotación semanal
+  (ya rota por su cuenta). Un ciclo dura hasta 84 días y 12 tramos.
+- Todo lo demás funciona igual: cambios de un día, feriados, turno noche,
+  Asistencia, "Mi horario" en el portal.
+
+Técnico: `HorarioTrabajo.ciclo` (tramos) y `AsignacionHorario.diaDeCiclo`;
+la cuenta está en `diaEnElCiclo()` de `lib/turnos-reglas.ts`. Trae migración
+(`turnos_por_ciclo`).
