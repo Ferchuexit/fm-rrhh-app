@@ -68,6 +68,8 @@ export const RUTAS_PUBLICAS = [
   "/login", "/api/login",
   "/api/dispositivos/vincular", "/api/dispositivos/heartbeat", "/api/fichadas/terminal", "/api/dispositivos/legajos",
   "/api/dispositivos/biometria", "/api/dispositivos/biometria/enrolar", "/api/dispositivos/verificar-pin", "/terminal",
+  // La tarea diaria que dispara Vercel: sin sesión, protegida con CRON_SECRET.
+  "/api/cron/recordatorios",
 ];
 
 // Cualquier usuario del panel con sesión, tenga el rol que tenga.

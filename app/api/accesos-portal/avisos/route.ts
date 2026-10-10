@@ -28,7 +28,12 @@ export async function GET(req: Request) {
       }),
     ]);
 
+    // La última corrida de la tarea diaria de recordatorios (si la tabla
+    // todavía no existe en esta base, la pantalla abre igual).
+    const ultima = await prisma.ejecucionRecordatorios.findFirst({ orderBy: { fecha: "desc" } }).catch(() => null);
+
     return NextResponse.json({
+      recordatorios: { configurado: !!process.env.CRON_SECRET, ultima },
       // Qué canales tiene configurados el sistema: si falta alguno, la
       // pantalla lo dice en vez de dejar adivinar por qué no llega nada.
       canales: { push: !!clavePublicaPush(), mail: !!process.env.RESEND_API_KEY },

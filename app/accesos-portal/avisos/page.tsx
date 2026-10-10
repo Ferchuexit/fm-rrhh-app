@@ -11,7 +11,7 @@ const caja: React.CSSProperties = { background: "white", border: "1px solid #dfe
 const TIPO: Record<string, string> = { recibo: "Recibo", solicitud: "Vacaciones / permisos", noticia: "Noticia", legajo: "Legajo", horario: "Horario", ingreso: "Ingreso", prueba: "Prueba" };
 
 export default function AvisosEnviadosPage() {
-  const [datos, setDatos] = useState<{ canales: { push: boolean; mail: boolean }; personas: Persona[]; avisos: Aviso[] } | null>(null);
+  const [datos, setDatos] = useState<{ canales: { push: boolean; mail: boolean }; recordatorios: { configurado: boolean; ultima: { fecha: string; terminadaEn: string | null; resumen: Record<string, number> | null } | null }; personas: Persona[]; avisos: Aviso[] } | null>(null);
   const [error, setError] = useState("");
   const [de, setDe] = useState("");
   const [soloSinCanal, setSoloSinCanal] = useState(false);
@@ -59,6 +59,20 @@ export default function AvisosEnviadosPage() {
               {!datos.canales.mail && <div><strong>El mail no está configurado</strong> en este servidor: falta la clave de Resend. No sale ningún mail.</div>}
             </div>
           )}
+
+          <div style={{ ...caja, borderLeft: `4px solid ${datos.recordatorios.configurado ? "#2F6F5E" : "#B8752B"}` }}>
+            <h3 style={{ marginTop: 0 }}>Recordatorios automáticos</h3>
+            {!datos.recordatorios.configurado && <p style={{ marginTop: 0 }}><strong>No están activados</strong> en este servidor: falta la variable <code>CRON_SECRET</code> (ver <code>docs/90-recordatorios.md</code>).</p>}
+            <p style={{ margin: "0 0 0.4rem", fontSize: "0.9rem" }}>
+              Todos los días a las 9, el sistema les recuerda lo que tienen pendiente: evaluaciones y autoevaluaciones por vencer, evaluación sin firmar, objetivos que vencen, la capacitación de mañana,
+              capacitaciones sin confirmar y habilitaciones por vencer. Los lunes suma los recibos sin firmar y le manda a RR.HH. un mail con los pendientes de la empresa.
+            </p>
+            <p style={{ margin: 0, fontSize: "0.9rem", color: "#4A4F58" }}>
+              {datos.recordatorios.ultima
+                ? <>Última vez que corrió: <strong>{new Date(datos.recordatorios.ultima.fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" })}</strong>{datos.recordatorios.ultima.terminadaEn ? (() => { const r = Object.entries(datos.recordatorios.ultima!.resumen ?? {}); const n = r.filter(([k]) => !k.endsWith("_error") && k !== "resumen_rrhh").reduce((a, [, v]) => a + v, 0); return <> — {n === 0 ? "no había nada para recordar" : `${n} ${n === 1 ? "recordatorio" : "recordatorios"} (en todas las empresas)`}{r.some(([k]) => k.endsWith("_error")) && <span style={{ color: "#B23A3A" }}> · alguna parte falló: avisale a soporte</span>}.</>; })() : " — no terminó."}</>
+                : "Todavía no corrió nunca."}
+            </p>
+          </div>
 
           <div style={caja}>
             <h3 style={{ marginTop: 0 }}>Quién recibe avisos</h3>

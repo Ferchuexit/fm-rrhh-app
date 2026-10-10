@@ -1832,3 +1832,14 @@ model PlanCarrera {
 
   legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 }
+
+// ── Recordatorios automáticos ──
+// Una fila por día en que corrió la tarea diaria (lib/recordatorios.ts).
+// Sirve para dos cosas: que una segunda corrida el mismo día no mande todo
+// de nuevo, y que RR.HH. vea en "Avisos enviados" que la tarea anda.
+model EjecucionRecordatorios {
+  fecha       DateTime  @id // el día (00:00 UTC), no la hora
+  iniciadaEn  DateTime  @default(now())
+  terminadaEn DateTime?
+  resumen     Json? // { tipo: cantidad de personas avisadas }
+}
