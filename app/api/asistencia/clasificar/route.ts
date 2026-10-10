@@ -1,14 +1,14 @@
 // FM RRHH — app/api/asistencia/clasificar/route.ts
-// Mismo motor y misma lógica que prisma/clasificar-asistencia.ts (CLI) —
-// esta ruta existe para poder correrlo con un botón desde /asistencia en
-// vez de la terminal. Si tocás la lógica de clasificación, tocala en los
-// DOS lugares (o mejor: avisá para unificarlos en un solo módulo
-// compartido la próxima vuelta).
+// El botón "Clasificar" de /asistencia. La decisión de cada día (presente,
+// tarde, ausente…) está en lib/asistencia-jornada.ts, compartida con el
+// script prisma/clasificar-asistencia.ts: acá solo se cargan los datos y se
+// guarda el resultado.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { obtenerPeriodosCerrados, fechaEstaCerrada } from "@/lib/periodo-asistencia-lock";
-import { clasificarDia, resolverTurno } from "@/lib/motor/motor-asistencia.mjs";
+import { clasificarJornada } from "@/lib/asistencia-jornada";
+import type { Horario } from "@/lib/turnos-reglas";
 
 export async function POST(req: Request) {
   try {
@@ -27,11 +27,14 @@ export async function POST(req: Request) {
 
     const legajos = await prisma.legajo.findMany({
       where: { empresaId: empresa.id, condicion: "activo" },
-      select: { id: true, convenioId: true, fichadaObligatoria: true },
+      select: { id: true, convenioId: true, fichadaObligatoria: true, asignacionesHorario: { select: { desde: true, hasta: true, horarioIds: true } } },
     });
+    const horarios = new Map((await prisma.horarioTrabajo.findMany({ where: { empresaId: empresa.id } })).map((h) => [h.id, h as unknown as Horario]));
 
     const turnos = await prisma.turno.findMany();
-    const fichadas = await prisma.fichada.findMany({ where: { fecha: { gte: desde, lte: hasta }, anulada: false } });
+    // Un día más: la salida de un turno noche queda con la fecha siguiente.
+    const diaSiguiente = new Date(hasta.getTime() + 24 * 3600 * 1000);
+    const fichadas = await prisma.fichada.findMany({ where: { fecha: { gte: desde, lte: diaSiguiente }, anulada: false, legajo: { empresaId: empresa.id } } });
 
     const fichadasPorLegajoFecha = new Map<string, { hora: string }[]>();
     for (const f of fichadas) {
@@ -54,12 +57,13 @@ export async function POST(req: Request) {
         });
         if (existente?.origen === "manual") { saltadosPorManual++; continue; }
 
-        const turno = resolverTurno(fecha, legajo.id, legajo.convenioId, turnos as any);
-        const clave = `${legajo.id}|${fecha.toISOString()}`;
-        const fichadasDelDia = fichadasPorLegajoFecha.get(clave) ?? [];
-        const diaSemana = fecha.getUTCDay();
-
-        const resultado = clasificarDia(fichadasDelDia, turno, { diaSemana, fichadaObligatoria: legajo.fichadaObligatoria });
+        const resultado = clasificarJornada(
+          fecha,
+          { id: legajo.id, convenioId: legajo.convenioId, fichadaObligatoria: legajo.fichadaObligatoria, asignaciones: legajo.asignacionesHorario },
+          horarios,
+          turnos as any,
+          (dia) => (fichadasPorLegajoFecha.get(`${legajo.id}|${dia.toISOString()}`) ?? []).map((x) => x.hora)
+        );
 
         await prisma.asistenciaDia.upsert({
           where: { legajoId_fecha: { legajoId: legajo.id, fecha } },

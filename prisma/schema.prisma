@@ -151,6 +151,7 @@ model Empresa {
   // esas y este campo se ignora. Ver 82-planificacion-vacaciones.md.
   pctContribucionesEstimado Decimal? @db.Decimal(5, 2)
   presupuestos PresupuestoSalarial[]
+  horarios HorarioTrabajo[]
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -925,6 +926,7 @@ model Legajo {
   cambiosDatos        SolicitudCambioDatos[]
   recibosDigitales ReciboDigital[]
   suscripcionesPush SuscripcionPush[]
+  asignacionesHorario AsignacionHorario[]
   avisos            Aviso[]
 
   @@unique([empresaId, numeroLegajo])
@@ -1491,4 +1493,43 @@ model Aviso {
   legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 
   @@index([legajoId, createdAt])
+}
+
+// Un horario de trabajo de la empresa, con nombre: "Mañana", "Noche",
+// "Administración". Dice qué días se trabaja y de qué hora a qué hora.
+// Reemplaza, para quien lo tenga asignado, a los Turno cargados por script
+// (que siguen valiendo como respaldo para quien no tenga ninguno).
+model HorarioTrabajo {
+  id        String   @id @default(uuid())
+  empresaId String
+  nombre    String
+  color     String   @default("#7FA8C6")
+  // { "1": { "ingreso": "06:00", "salida": "14:00" }, ... } — clave = día de
+  // la semana (0=domingo .. 6=sábado). Día que no figura = franco. Si la
+  // salida es menor o igual al ingreso, el turno termina al día siguiente.
+  dias      Json
+  createdAt DateTime @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, nombre])
+}
+
+// Qué horario cumple una persona desde una fecha. Con un solo horario es
+// fijo; con varios es una ROTACIÓN semanal en ese orden (la semana de
+// `desde` es la primera). Se guarda el historial: cambiar el horario cierra
+// la asignación anterior, no la pisa — la asistencia de meses pasados se
+// sigue leyendo con el horario que valía entonces.
+model AsignacionHorario {
+  id         String    @id @default(uuid())
+  legajoId   String
+  desde      DateTime
+  hasta      DateTime?
+  horarioIds String[]
+  cargadoPor String?
+  createdAt  DateTime  @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@index([legajoId, desde])
 }

@@ -58,6 +58,10 @@ export function avisoCambioDatosRespondido(aprobado: boolean): TextoAviso {
   };
 }
 
+export function avisoCambioDeHorario(desde: Date): TextoAviso {
+  return { tipo: "horario", titulo: "Cambió tu horario de trabajo", cuerpo: `Tenés un horario nuevo desde el ${dia(desde)}. Entrá para verlo.`, url: "/portal/horario" };
+}
+
 export const avisoDePrueba = (): TextoAviso => ({ tipo: "prueba", titulo: "Los avisos funcionan", cuerpo: "Así te va a llegar cuando haya un recibo, una respuesta o una noticia.", url: "/portal" });
 
 // "Android · Chrome" — para que el empleado reconozca su celular en la lista.

@@ -153,6 +153,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     categoria: "Operaciones",
     icono: "🕒",
     items: [
+      { href: "/turnos", label: "Turnos", icono: "🔁", desc: "Horarios de trabajo, rotaciones y quién trabaja cada día" },
       { href: "/asistencia", label: "Asistencia", icono: "🗓️", desc: "Calendario de presentes/ausentes, desde fichadas" },
       { href: "/fichadas", label: "Fichadas", icono: "🕒", desc: "Dato crudo de reloj/terminal — auditoría y corrección" },
       { href: "/dispositivos", label: "Dispositivos", icono: "📱", desc: "Terminales de fichada en clientes (admin)" },

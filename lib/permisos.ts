@@ -48,7 +48,7 @@ export const MODULOS: DefModulo[] = [
   { clave: "legajo_digital", nombre: "Legajo digital", bloque: "Gestión Humana", desc: "Checklist de documentación y bandeja de revisión", rutas: ["/legajo-digital", "/api/legajo-digital"] },
   { clave: "vacaciones", nombre: "Vacaciones y permisos", bloque: "Gestión Humana", desc: "Registro, Gantt y solicitudes del portal", rutas: ["/vacaciones", "/solicitudes", "/api/vacaciones", "/api/solicitudes"] },
   { clave: "firmas_recibos", nombre: "Firmas de recibos", bloque: "Gestión Humana", desc: "Quién vio y firmó su recibo", rutas: ["/firmas-recibos", "/api/firmas-recibos"] },
-  { clave: "asistencia", nombre: "Asistencia y fichadas", bloque: "Gestión Humana", desc: "Calendario de asistencia y corrección de fichadas", rutas: ["/asistencia", "/fichadas", "/api/asistencia", "/api/fichadas", "/api/periodos-asistencia"] },
+  { clave: "asistencia", nombre: "Asistencia y fichadas", bloque: "Gestión Humana", desc: "Horarios y turnos, calendario de asistencia y corrección de fichadas", rutas: ["/asistencia", "/fichadas", "/turnos", "/api/asistencia", "/api/fichadas", "/api/periodos-asistencia", "/api/turnos"] },
   // /api/empresas/actual (el logo que muestra la terminal) cuelga de acá y
   // no de "empresas" (solo admin): lo usa la pantalla de Dispositivos.
   { clave: "dispositivos", nombre: "Dispositivos de fichada", bloque: "Gestión Humana", desc: "Terminales instaladas en la empresa y su PIN", rutas: ["/dispositivos", "/api/dispositivos", "/api/empresas/actual"] },

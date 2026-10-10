@@ -73,7 +73,8 @@ const CREA = ["create", "createMany", "createManyAndReturn", "upsert"];
 // Cosas de TODA la empresa que alguien limitado a un sector puede mirar
 // pero no tocar: cerrar un período de asistencia o cambiar una terminal
 // afecta también a los sectores que no son suyos.
-const SOLO_MIRAR_CON_SECTORES = ["PeriodoAsistencia", "DispositivoAsistencia"];
+// Tampoco define los horarios de la empresa: asigna los que existen.
+const SOLO_MIRAR_CON_SECTORES = ["PeriodoAsistencia", "DispositivoAsistencia", "HorarioTrabajo"];
 
 export const MENSAJE_FUERA_DE_ALCANCE = "Eso está fuera de las empresas o sectores que tenés asignados. Si lo necesitás, pedíselo al administrador.";
 

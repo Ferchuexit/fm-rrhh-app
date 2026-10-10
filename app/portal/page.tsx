@@ -33,6 +33,7 @@ export default async function PortalInicio() {
     { href: "/portal/noticias", icono: "📣", label: "Noticias", globo: noticiasNuevas },
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
+    { href: "/portal/horario", icono: "🕒", label: "Mi horario", globo: 0 },
     // Solo para quien tiene gente a cargo ("Reporta a" en el legajo).
     ...(genteACargo > 0 ? [{ href: "/portal/equipo", icono: "👥", label: "Mi equipo", globo: 0 }] : []),
     { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: pendientesLegajo },
