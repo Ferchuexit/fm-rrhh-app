@@ -14,16 +14,20 @@ export default async function PortalInicio() {
 
   const [recibos, legajoDigital, pedidosPendientes] = await Promise.all([
     recibosDelEmpleado(sesion.legajoId),
-    cargarLegajoDigital(sesion.legajoId),
+    // Si el legajo digital falla (por ejemplo, falta aplicar su migración),
+    // el inicio del portal tiene que seguir abriendo: recibos y vacaciones
+    // no dependen de eso.
+    cargarLegajoDigital(sesion.legajoId).catch((e) => { console.error("Portal: no se pudo cargar el legajo digital:", e); return null; }),
     prisma.solicitudAusencia.count({ where: { legajoId: sesion.legajoId, estado: "pendiente" } }),
   ]);
   const sinFirmar = recibos.filter((r) => !r.reciboDigital?.firma).length;
+  const pendientesLegajo = legajoDigital?.resumen.pendientesEmpleado ?? 0;
 
   // globo = cosas que esperan una acción DEL EMPLEADO (no de RR.HH.).
   const APPS = [
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
-    { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: legajoDigital.resumen.pendientesEmpleado },
+    { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: pendientesLegajo },
     { href: "/portal/cambiar-pin", icono: "🔑", label: "Mi PIN", globo: 0 },
   ];
 
@@ -35,9 +39,9 @@ export default async function PortalInicio() {
         <a href="/portal/recibos" className="p-aviso pendiente" style={{ display: "block", textDecoration: "none" }}>
           Tenés <strong>{sinFirmar} {sinFirmar === 1 ? "recibo" : "recibos"}</strong> para firmar ›
         </a>
-      ) : legajoDigital.resumen.pendientesEmpleado > 0 ? (
+      ) : pendientesLegajo > 0 ? (
         <a href="/portal/legajo" className="p-aviso pendiente" style={{ display: "block", textDecoration: "none" }}>
-          A tu legajo le {legajoDigital.resumen.pendientesEmpleado === 1 ? "falta 1 cosa" : `faltan ${legajoDigital.resumen.pendientesEmpleado} cosas`} que dependen de vos ›
+          A tu legajo le {pendientesLegajo === 1 ? "falta 1 cosa" : `faltan ${pendientesLegajo} cosas`} que dependen de vos ›
         </a>
       ) : pedidosPendientes > 0 ? (
         <a href="/portal/vacaciones" className="p-aviso info" style={{ display: "block", textDecoration: "none" }}>

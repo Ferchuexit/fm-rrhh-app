@@ -44,7 +44,9 @@ export default function LegajoDigitalPage() {
   const archivo = useRef<HTMLInputElement>(null);
 
   async function cargar() {
-    const d = await fetch("/api/legajo-digital").then((r) => r.json());
+    const res = await fetch("/api/legajo-digital");
+    const d = await res.json().catch(() => ({ error: "El servidor no devolvió una respuesta válida — mirá la terminal donde corre npm run dev." }));
+    if (!res.ok || d.error) { setError(d.error ?? "No se pudo cargar."); return; }
     setDatos(d);
   }
   useEffect(() => { cargar(); }, []);
@@ -67,7 +69,7 @@ export default function LegajoDigitalPage() {
     await post("/api/legajo-digital/documentos", { legajoId, tipo: tipoSubida, contenidoBase64 }, "subir");
   }
 
-  if (!datos) return <main><h1>Legajo digital</h1><p>Cargando…</p></main>;
+  if (!datos) return <main><h1>Legajo digital</h1>{error ? <p style={{ color: "#B23A3A", background: "#f8e4e4", padding: "0.6rem 0.8rem", maxWidth: "900px" }}>{error}</p> : <p>Cargando…</p>}</main>;
 
   const q = filtro.trim().toLowerCase();
   const visibles = datos.legajos.filter((l) => (!soloIncompletos || !l.resumen.completo) && (!q || `${l.numeroLegajo} ${l.apellido} ${l.nombre}`.toLowerCase().includes(q)));
