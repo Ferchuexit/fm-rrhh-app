@@ -24,6 +24,10 @@ export default function UsuariosPage() {
     setEmpresasPanel(id);
   }
 
+  function toggleSector(empresaId: string, sectorId: string) {
+    setEmpresasDelUsuario((prev) => prev.map((e) => (e.id !== empresaId ? e : { ...e, sectores: (e.sectores ?? []).includes(sectorId) ? e.sectores.filter((x: string) => x !== sectorId) : [...(e.sectores ?? []), sectorId] })));
+  }
+
   function cambiarRol(empresaId: string, rolId: string) {
     setEmpresasDelUsuario((prev) => prev.map((e) => (e.id === empresaId ? { ...e, rolId: rolId || null } : e)));
   }
@@ -33,7 +37,7 @@ export default function UsuariosPage() {
   }
 
   async function guardarEmpresas(id: string) {
-    const asignaciones = empresasDelUsuario.filter((e) => e.asignada).map((e) => ({ empresaId: e.id, rolId: e.rolId ?? null }));
+    const asignaciones = empresasDelUsuario.filter((e) => e.asignada).map((e) => ({ empresaId: e.id, rolId: e.rolId ?? null, sectores: e.sectores ?? [] }));
     const res = await fetch(`/api/usuarios/${id}/empresas`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -188,9 +192,10 @@ export default function UsuariosPage() {
                     Empresas a las que entra <strong>{u.nombre}</strong>, y con qué rol en cada una. Sin marcar, la empresa no le aparece. El rol define
                     qué módulos ve y cuáles puede modificar — se arman en <a href="/roles">Roles y permisos</a>. El cambio le llega en unos minutos, sin
                     que tenga que volver a entrar.
+                    Con <strong>sectores</strong> marcados, solo ve a la gente de esos centros de costo; requiere un rol de Gestión Humana (por ejemplo, Supervisor).
                   </p>
                   {empresasDelUsuario.map((e) => (
-                    <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.85rem", marginBottom: "0.3rem" }}>
+                    <div key={e.id} style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", fontSize: "0.85rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
                       <label style={{ minWidth: "260px" }}>
                         <input type="checkbox" checked={e.asignada} onChange={() => toggleEmpresa(e.id)} style={{ marginRight: "0.4rem" }} />
                         {e.nombreFantasia || e.razonSocial}
@@ -200,6 +205,18 @@ export default function UsuariosPage() {
                           <option value="">Sin rol — como antes ({u.rol === "lectura" ? "solo lectura" : "operador"})</option>
                           {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                         </select>
+                      )}
+                      {e.asignada && (e.centrosCosto ?? []).length > 0 && (
+                        <span style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "baseline" }}>
+                          <span style={{ color: "#6b727b" }}>Sectores:</span>
+                          {e.centrosCosto.map((c: any) => (
+                            <label key={c.id}>
+                              <input type="checkbox" checked={(e.sectores ?? []).includes(c.id)} onChange={() => toggleSector(e.id, c.id)} style={{ marginRight: "0.25rem" }} />
+                              {c.nombre}
+                            </label>
+                          ))}
+                          <em style={{ color: "#6b727b" }}>{(e.sectores ?? []).length === 0 ? "ninguno marcado = ve toda la empresa" : "solo ve y gestiona gente de los marcados"}</em>
+                        </span>
                       )}
                     </div>
                   ))}

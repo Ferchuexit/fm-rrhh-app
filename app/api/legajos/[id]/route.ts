@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { validarJefe } from "@/lib/equipo";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const legajo = await prisma.legajo.findUniqueOrThrow({ where: { id: params.id } });
+  // findUnique y no findUniqueOrThrow: un legajo que no existe — o que está
+  // fuera de los sectores de quien consulta — responde 404 en JSON, no un
+  // error sin control.
+  const legajo = await prisma.legajo.findUnique({ where: { id: params.id } });
+  if (!legajo) return NextResponse.json({ error: "No se encontró ese legajo, o no está entre los sectores que tenés asignados." }, { status: 404 });
   return NextResponse.json(legajo);
 }
 

@@ -96,6 +96,12 @@ model UsuarioEmpresa {
   // lectura) — ver permisosHeredados() en lib/permisos.ts.
   rolId     String?
 
+  // Alcance por sector: ids de CentroCosto a los que está limitado en esta
+  // empresa. Vacío = ve toda la empresa. Con sectores, solo ve y gestiona
+  // gente de esos centros de costo (lib/alcance.ts) y su rol tiene que ser
+  // de Gestión Humana (rolAdmiteSectores en lib/permisos.ts).
+  sectores  String[] @default([])
+
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   empresa Empresa @relation(fields: [empresaId], references: [id])
   rol     Rol?    @relation(fields: [rolId], references: [id], onDelete: SetNull)

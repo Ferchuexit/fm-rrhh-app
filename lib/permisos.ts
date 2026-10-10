@@ -219,3 +219,18 @@ export function permisosEnEmpresa(pt: PermisosToken | null | undefined, empresaC
   const fila = pt.emp.find(([id]) => id === empresaCookie) ?? pt.emp[0];
   return descompactar(pt.roles?.[fila[1]] ?? "");
 }
+
+// ── Alcance por sector ───────────────────────────────────────────────
+// Un usuario limitado a ciertos sectores solo puede tener un rol de
+// Gestión Humana, más Legajos en "ver". El filtro por sector cubre los
+// datos de personas, pero no los totales de liquidación ni los reportes de
+// toda la empresa: con esta regla, esas pantallas directamente no le
+// aparecen. Devuelve los módulos que sobran (vacío = el rol sirve).
+export function modulosIncompatiblesConSectores(permisos: Permisos): string[] {
+  return MODULOS.filter((m) => {
+    const nivel = permisos[m.clave];
+    if (!nivel) return false;
+    if (m.bloque === "Gestión Humana") return false;
+    return !(m.clave === "legajos" && nivel === "ver");
+  }).map((m) => m.nombre);
+}

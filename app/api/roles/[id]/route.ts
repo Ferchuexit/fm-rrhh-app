@@ -1,7 +1,7 @@
 // FM RRHH — app/api/roles/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { limpiarPermisos } from "@/lib/permisos";
+import { limpiarPermisos, modulosIncompatiblesConSectores } from "@/lib/permisos";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       data.nombre = nombre;
     }
     if (body.descripcion !== undefined) data.descripcion = String(body.descripcion).trim().slice(0, 200) || null;
-    if (body.permisos !== undefined) data.permisos = limpiarPermisos(body.permisos);
+    if (body.permisos !== undefined) {
+      data.permisos = limpiarPermisos(body.permisos);
+      // Si este rol lo tiene alguien limitado a sectores, no se le pueden
+      // sumar módulos que muestran datos de toda la empresa.
+      const sobran = modulosIncompatiblesConSectores(data.permisos);
+      if (sobran.length > 0) {
+        const limitados = await prisma.usuarioEmpresa.count({ where: { rolId: params.id, NOT: { sectores: { isEmpty: true } } } });
+        if (limitados > 0) {
+          return NextResponse.json({ error: `Este rol lo tienen ${limitados} usuario(s) limitados a ciertos sectores, y no se puede combinar con: ${sobran.join(", ")}. Quitales los sectores en Usuarios, o armá otro rol para quienes ven toda la empresa.` }, { status: 409 });
+        }
+      }
+    }
     await prisma.rol.update({ where: { id: params.id }, data });
     return NextResponse.json({ ok: true });
   } catch (e: any) {

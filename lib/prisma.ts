@@ -22,13 +22,26 @@
 // no aparece acá, vuelve a fallar el chequeo de tipos en cualquier lugar
 // que lo use — es la señal de que hay que agregarlo a esta lista.
 import { PrismaClient, Prisma } from "@prisma/client";
+import { extensionDeAlcance } from "./alcance";
+
+// Para las pocas pantallas que necesitan SABER si quien mira está limitado
+// (mostrar un aviso, validar algo de toda la empresa). null = sin límite.
+let sectoresDelPedidoActual: () => Promise<string[] | null> = async () => null;
+export const sectoresDelUsuarioActual = () => sectoresDelPedidoActual();
 
 function numOrNull(d: Prisma.Decimal | null): number | null {
   return d === null ? null : d.toNumber();
 }
 
 function crearPrismaClient() {
-  return new PrismaClient().$extends({
+  const base = new PrismaClient();
+  // Alcance por sector (lib/alcance.ts): filtra las consultas de los
+  // usuarios limitados a ciertos centros de costo. Es de tipo `query` pero
+  // solo toca los ARGUMENTOS (el where), nunca el resultado — por eso no
+  // repite el problema de tipos que cuenta el comentario de arriba.
+  const alcance = extensionDeAlcance(base);
+  sectoresDelPedidoActual = alcance.sectoresDelPedido;
+  return base.$extends(alcance.extension).$extends({
     result: {
       escala: {
         basico: { needs: { basico: true }, compute: (e) => e.basico.toNumber() },

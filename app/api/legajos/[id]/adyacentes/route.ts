@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const actual = await prisma.legajo.findUniqueOrThrow({ where: { id: params.id } });
+  const actual = await prisma.legajo.findUnique({ where: { id: params.id } });
+  if (!actual) return NextResponse.json({ anterior: null, siguiente: null }); // no existe, o es de un sector que quien consulta no ve
 
   const anterior = await prisma.legajo.findFirst({
     where: { empresaId: actual.empresaId, numeroLegajo: { lt: actual.numeroLegajo } },
