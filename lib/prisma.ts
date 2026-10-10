@@ -35,8 +35,8 @@ function numOrNull(d: Prisma.Decimal | null): number | null {
 
 function crearPrismaClient() {
   const base = new PrismaClient();
-  // Alcance por sector (lib/alcance.ts): filtra las consultas de los
-  // usuarios limitados a ciertos centros de costo. Es de tipo `query` pero
+  // Alcance (lib/alcance.ts): limita las consultas de cada usuario a sus
+  // empresas asignadas y, si tiene, a sus centros de costo. Es de tipo `query` pero
   // solo toca los ARGUMENTOS (el where), nunca el resultado — por eso no
   // repite el problema de tipos que cuenta el comentario de arriba.
   const alcance = extensionDeAlcance(base);

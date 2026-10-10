@@ -1,4 +1,23 @@
-# 83 · Alcance por sector
+# 83 · Alcance: por empresa y por sector
+
+Dos límites sobre qué datos toca cada usuario del panel, uno adentro del
+otro. Los dos se aplican en el mismo lugar (ver "Cómo está hecho").
+
+## 1. Por empresa (siempre, para todo el que no es administrador)
+
+Un usuario solo llega a datos de **las empresas que tiene asignadas**:
+legajos y todo lo que cuelga de ellos, períodos, liquidaciones, sectores,
+noticias, terminales, presupuestos. Vale para leer, modificar y dar de alta,
+y vale aunque conozca el identificador de un dato ajeno o cambie a mano la
+empresa seleccionada.
+
+No hay nada que configurar: sale de las empresas tildadas en **Usuarios**.
+
+Por qué existe: antes cada ruta tenía que acordarse de verificar la empresa,
+y varias no lo hacían (por ejemplo, guardar un legajo). Hoy la verificación
+no depende de cada ruta.
+
+## 2. Por sector (opcional)
 
 ## Qué resuelve
 
@@ -59,17 +78,28 @@ de mis sectores" antes de ejecutarse.
   `lib/alcance-reglas.ts`.
 - El portal del empleado y la terminal de fichadas no pasan por el filtro:
   ahí no hay un usuario del panel.
+- Lo mismo para lo que es **de una empresa** (tablas con `empresaId`, y lo
+  que cuelga de ellas a un salto). Las tablas generales —convenios, escalas,
+  conceptos, reglas— son compartidas y no se filtran.
 - El administrador nunca está limitado.
-- Un cambio de sectores tarda **hasta 10 segundos** en aplicarse.
+- Un cambio de empresas o sectores tarda **hasta 10 segundos** en aplicarse.
+- Si algo queda fuera de alcance, la consulta devuelve "no encontrado" o el
+  error "Eso está fuera de las empresas o sectores que tenés asignados".
 
 ### Límites conocidos
 
-- No filtra datos anidados pedidos desde una tabla que no es de personas
-  (por ejemplo, un período con sus liquidaciones) ni SQL directo. Hoy eso
-  solo ocurre en pantallas de liquidación, a las que un usuario limitado no
-  entra por la regla del rol. Si se agrega una pantalla de Gestión Humana
-  que consulte así, hay que filtrarla a mano con
-  `sectoresDelUsuarioActual()` de `lib/prisma.ts`.
+- **Por empresa**: no filtra datos anidados pedidos desde una tabla
+  *general* (por ejemplo, un convenio con todos sus legajos) ni SQL directo.
+  Hoy ninguna pantalla consulta así; si se agrega una, hay que filtrarla a
+  mano.
+- **Por sector**: además, no filtra datos anidados pedidos desde una tabla
+  de la empresa (por ejemplo, un período con sus liquidaciones). Eso solo
+  ocurre en pantallas de liquidación, a las que un usuario limitado a
+  sectores no entra por la regla del rol. Para una pantalla nueva de Gestión
+  Humana que consulte así: `sectoresDelUsuarioActual()` de `lib/prisma.ts`.
+- El historial de ediciones de una liquidación (`LiquidacionDetalleEdicion`)
+  queda a tres saltos del legajo y no se filtra solo; hoy se lee siempre
+  desde su liquidación, que sí está filtrada.
 - El alcance es por **centro de costo**, no por sucursal.
 
 ## Instalación

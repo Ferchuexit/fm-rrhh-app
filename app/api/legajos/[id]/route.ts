@@ -7,7 +7,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   // fuera de los sectores de quien consulta — responde 404 en JSON, no un
   // error sin control.
   const legajo = await prisma.legajo.findUnique({ where: { id: params.id } });
-  if (!legajo) return NextResponse.json({ error: "No se encontró ese legajo, o no está entre los sectores que tenés asignados." }, { status: 404 });
+  if (!legajo) return NextResponse.json({ error: "No se encontró ese legajo, o no está entre las empresas y sectores que tenés asignados." }, { status: 404 });
   return NextResponse.json(legajo);
 }
 
@@ -49,6 +49,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   } catch (e: any) {
     if (e.code === "P2002") {
       return NextResponse.json({ error: `Ya existe un legajo con ese número en esta empresa.` }, { status: 409 });
+    }
+    // El legajo no existe, o es de una empresa o sector que este usuario no
+    // tiene asignado (lib/alcance.ts no deja modificarlo).
+    if (e.name === "FueraDeAlcance" || e.code === "P2025") {
+      return NextResponse.json({ error: "No se encontró ese legajo, o no está entre las empresas y sectores que tenés asignados." }, { status: 404 });
     }
     throw e;
   }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
+import { permisosActuales } from "@/lib/permisos-servidor";
 
 export default async function LegajosPage({ searchParams }: { searchParams: { q?: string; mostrarInactivos?: string } }) {
   const empresa = await obtenerEmpresaActual();
@@ -13,6 +14,11 @@ export default async function LegajosPage({ searchParams }: { searchParams: { q?
       </main>
     );
   }
+
+  // Con Legajos en "ver" la ficha se puede abrir pero no guardar: no se
+  // ofrece dar de alta, y el enlace dice "Ver" en vez de "Editar".
+  const quien = await permisosActuales();
+  const puedeGestionar = !!quien && (quien.esAdmin || quien.permisos?.legajos === "gestionar");
 
   const q = searchParams.q?.trim();
   const esNumero = q && /^\d+$/.test(q);
@@ -72,11 +78,13 @@ export default async function LegajosPage({ searchParams }: { searchParams: { q?
         )}
       </form>
 
-      <p>
-        <a href="/legajos/nuevo">
-          <button>+ Nuevo empleado</button>
-        </a>
-      </p>
+      {puedeGestionar && (
+        <p>
+          <a href="/legajos/nuevo">
+            <button>+ Nuevo empleado</button>
+          </a>
+        </p>
+      )}
 
       {legajos.length === 0 ? (
         <p style={{ opacity: 0.6 }}>
@@ -101,7 +109,7 @@ export default async function LegajosPage({ searchParams }: { searchParams: { q?
                 <td>{l.convenio.codigo}</td>
                 <td>{l.categoria.nombre}</td>
                 <td>
-                  <a href={`/legajos/${l.id}/editar`}>Editar</a>{" "}
+                  <a href={`/legajos/${l.id}/editar`}>{puedeGestionar ? "Editar" : "Ver"}</a>{" "}
                   <a href={`/legajos/${l.id}/biometria`} title="Ir directo al registro biométrico, sin pasar por el formulario grande">📷</a>
                 </td>
               </tr>
