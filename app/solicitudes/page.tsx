@@ -8,6 +8,7 @@ type Solicitud = {
   id: string; tipo: "vacaciones" | "permiso"; fechaDesde: string; fechaHasta: string; dias: number; motivo: string | null;
   estado: "pendiente" | "aprobada" | "rechazada" | "cancelada"; respuesta: string | null; resueltoPor: string | null; resueltoEn: string | null; createdAt: string;
   legajo: { numeroLegajo: number; apellido: string; nombre: string; centroCosto: { nombre: string } | null };
+  solicitadoPor: { numeroLegajo: number; apellido: string; nombre: string } | null;
   saldo: { anio: number; corresponden: number; registrados: number; enTramite: number; disponibles: number } | null;
 };
 
@@ -65,7 +66,8 @@ export default function SolicitudesPage() {
     <main>
       <h1>Solicitudes de vacaciones y permisos</h1>
       <p style={{ maxWidth: "820px" }}>
-        Pedidos que los empleados hacen desde el portal. Al <strong>aprobar vacaciones</strong>, quedan registradas en{" "}
+        Pedidos que llegan desde el portal: las <strong>vacaciones las pide el jefe</strong> de cada persona (quien no tiene jefe cargado pide las suyas)
+        y los permisos, cada empleado. Vos aprobás o rechazás. Al <strong>aprobar vacaciones</strong>, quedan registradas en{" "}
         <a href="/vacaciones">Vacaciones</a> (Gantt, pendientes y notificación en PDF) sin volver a cargarlas. Aprobar un <strong>permiso</strong> solo
         deja la constancia: el código que corresponda en la grilla lo cargás en <a href="/asistencia">Asistencia</a>.
       </p>
@@ -93,7 +95,9 @@ export default function SolicitudesPage() {
                         {excede ? " — este pedido lo excede" : ""}
                       </div>
                     )}
-                    <div style={{ fontSize: "0.78rem", color: "#6b727b", marginTop: "0.2rem" }}>Pedido el {momento(s.createdAt)}</div>
+                    <div style={{ fontSize: "0.78rem", color: "#6b727b", marginTop: "0.2rem" }}>
+                      Pedido el {momento(s.createdAt)} · {s.solicitadoPor ? <>por su jefe, <strong>{s.solicitadoPor.apellido}, {s.solicitadoPor.nombre}</strong></> : "por el propio empleado"}
+                    </div>
                   </div>
                   {!esta && (
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
@@ -112,7 +116,7 @@ export default function SolicitudesPage() {
                       </label>
                     )}
                     <label style={{ display: "block" }}>
-                      {abierta!.accion === "rechazar" ? "Motivo del rechazo (lo lee el empleado)" : "Comentario para el empleado (opcional)"}
+                      {abierta!.accion === "rechazar" ? `Motivo del rechazo (lo lee ${s.solicitadoPor ? "el jefe" : "el empleado"})` : "Comentario (opcional)"}
                       <textarea value={respuesta} onChange={(e) => setRespuesta(e.target.value)} rows={2} maxLength={500} style={{ display: "block", width: "100%", maxWidth: "560px", padding: "0.5rem", marginTop: "0.25rem" }} />
                     </label>
                     {error && <p style={{ color: "#B23A3A", margin: "0.5rem 0 0" }}>{error}</p>}
@@ -137,10 +141,10 @@ export default function SolicitudesPage() {
                   <tr key={s.id}>
                     <td>{s.legajo.numeroLegajo}</td>
                     <td>{s.legajo.apellido}, {s.legajo.nombre}</td>
-                    <td>{s.tipo === "vacaciones" ? "Vacaciones" : "Permiso"} · {s.dias} d.</td>
+                    <td>{s.tipo === "vacaciones" ? "Vacaciones" : "Permiso"} · {s.dias} d.{s.solicitadoPor && <div style={{ fontSize: "0.78rem", color: "#6b727b" }}>Pidió: {s.solicitadoPor.apellido}</div>}</td>
                     <td>{dia(s.fechaDesde)}{s.dias > 1 ? ` al ${dia(s.fechaHasta)}` : ""}</td>
                     <td>
-                      <span style={{ color: COLOR[s.estado], fontWeight: 600 }}>{s.estado === "cancelada" ? "Cancelada por el empleado" : s.estado.charAt(0).toUpperCase() + s.estado.slice(1)}</span>
+                      <span style={{ color: COLOR[s.estado], fontWeight: 600 }}>{s.estado === "cancelada" ? (s.solicitadoPor ? "Cancelada por el jefe" : "Cancelada por el empleado") : s.estado.charAt(0).toUpperCase() + s.estado.slice(1)}</span>
                       <div style={{ fontSize: "0.78rem", color: "#6b727b" }}>{momento(s.resueltoEn)}{s.resueltoPor ? ` · ${s.resueltoPor}` : ""}</div>
                     </td>
                     <td style={{ maxWidth: "300px" }}>{s.respuesta}</td>

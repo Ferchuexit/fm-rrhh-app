@@ -69,6 +69,7 @@ export function validarPedido(p: {
   hoy: Date;
   saldoDisponible: number;
   ocupados: { desde: Date; hasta: Date; descripcion: string }[];
+  paraOtro?: boolean; // lo carga el jefe para alguien de su equipo: cambia cómo se redactan los avisos
 }): string | null {
   if (!TIPOS_AUSENCIA.includes(p.tipo as TipoAusencia)) return "Elegí si pedís vacaciones o un permiso.";
   if (!p.desde || !p.hasta) return "Completá las dos fechas.";
@@ -76,10 +77,16 @@ export function validarPedido(p: {
   if (p.desde < p.hoy) return "No se puede pedir para una fecha que ya pasó. Si fue una ausencia, avisale a RR.HH.";
   const dias = diasCorridos(p.desde, p.hasta);
   if (dias > MAX_DIAS_PEDIDO) return `Un pedido no puede superar los ${MAX_DIAS_PEDIDO} días. Si necesitás más, hablalo con RR.HH.`;
+  if (p.paraOtro && p.tipo !== "vacaciones") return "Para el equipo solo se piden vacaciones. Los permisos los pide cada persona.";
   if (p.tipo === "permiso" && p.motivo.trim().length < 5) return "Contá en pocas palabras para qué es el permiso.";
   const choque = p.ocupados.find((o) => seSuperponen(p.desde!, p.hasta!, o.desde, o.hasta));
   if (choque) return `Esas fechas se pisan con ${choque.descripcion}.`;
   if (p.tipo === "vacaciones" && dias > p.saldoDisponible) {
+    if (p.paraOtro) {
+      return p.saldoDisponible === 0
+        ? "A esa persona no le quedan días de vacaciones disponibles para ese año."
+        : `Estás pidiendo ${dias} días y a esa persona le quedan ${p.saldoDisponible} disponibles para ese año.`;
+    }
     return p.saldoDisponible === 0
       ? "No te quedan días de vacaciones disponibles para ese año."
       : `Estás pidiendo ${dias} días y te quedan ${p.saldoDisponible} disponibles para ese año.`;

@@ -18,12 +18,15 @@ export default async function PortalVacaciones() {
 
   const hoy = hoyArgentina();
   const anio = hoy.getUTCFullYear();
-  const [saldo, saldoProximo, solicitudes, vacaciones] = await Promise.all([
+  const [yo, saldo, saldoProximo, solicitudes, vacaciones] = await Promise.all([
+    prisma.legajo.findUnique({ where: { id: sesion.legajoId }, select: { jefe: { select: { nombre: true, apellido: true } } } }),
     saldoVacaciones(sesion.legajoId, anio),
     saldoVacaciones(sesion.legajoId, anio + 1),
     prisma.solicitudAusencia.findMany({ where: { legajoId: sesion.legajoId }, orderBy: { createdAt: "desc" }, take: 30 }),
     prisma.vacacion.findMany({ where: { legajoId: sesion.legajoId, fechaHasta: { gte: hoy } }, orderBy: { fechaDesde: "asc" } }),
   ]);
+
+  const jefe = yo?.jefe ? `${yo.jefe.nombre} ${yo.jefe.apellido}` : undefined;
 
   return (
     <>
@@ -53,14 +56,15 @@ export default async function PortalVacaciones() {
         </>
       )}
 
-      <h2>Hacer un pedido</h2>
+      <h2>{jefe ? "Pedir un permiso" : "Hacer un pedido"}</h2>
       <PedidoForm
         hoy={hoy.toISOString().slice(0, 10)}
         saldos={{ [anio]: saldo.disponibles, [anio + 1]: saldoProximo.disponibles }}
+        jefe={jefe}
       />
 
       <h2>Mis pedidos</h2>
-      {solicitudes.length === 0 && <p className="p-sub">Todavía no hiciste ningún pedido.</p>}
+      {solicitudes.length === 0 && <p className="p-sub">Todavía no hay ningún pedido.</p>}
       {solicitudes.map((s) => (
         <div key={s.id} className="p-card">
           <div className="p-card-titulo">
@@ -69,9 +73,9 @@ export default async function PortalVacaciones() {
           <div className="p-card-dato">
             {s.dias} {s.dias === 1 ? "día" : "días"}{s.motivo ? ` · ${s.motivo}` : ""}
           </div>
-          <div className="p-card-dato"><span className={`p-chip ${s.estado}`}>{TEXTO_ESTADO[s.estado] ?? s.estado}</span></div>
+          <div className="p-card-dato"><span className={`p-chip ${s.estado}`}>{s.estado === "cancelada" && s.solicitadoPorId ? "Cancelado por tu jefe" : TEXTO_ESTADO[s.estado] ?? s.estado}</span>{s.solicitadoPorId ? " · Lo pidió tu jefe" : ""}</div>
           {s.respuesta && <div className="p-respuesta"><strong>RR.HH.:</strong> {s.respuesta}</div>}
-          {s.estado === "pendiente" && <CancelarPedido id={s.id} />}
+          {s.estado === "pendiente" && !s.solicitadoPorId && <CancelarPedido id={s.id} />}
         </div>
       ))}
     </>

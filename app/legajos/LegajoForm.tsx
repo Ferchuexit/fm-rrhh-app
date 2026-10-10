@@ -23,6 +23,7 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
   const [nuevoCentro, setNuevoCentro] = useState("");
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [nuevaSucursal, setNuevaSucursal] = useState("");
+  const [posiblesJefes, setPosiblesJefes] = useState<{ id: string; numero: number; apellido: string; nombre: string }[]>([]);
   const [error, setError] = useState("");
   const [guardado, setGuardado] = useState(false);
 
@@ -34,7 +35,7 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
     nivelEducativo: "", tituloObtenido: "", talleRopa: "", talleCalzado: "",
     domicilio: "", telefono: "", email: "", fotoBase64: "",
     localidad: "", provincia: "", partido: "",
-    centroCostoId: "", sucursalId: "", antiguedadReconocida: "",
+    centroCostoId: "", sucursalId: "", jefeId: "", antiguedadReconocida: "",
     modalidadContrato: "Tiempo completo", codigoArcaModalidad: "", artNombre: "", artPoliza: "",
   });
 
@@ -42,6 +43,7 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
     fetch("/api/convenios").then((r) => r.json()).then(setConvenios);
     fetch("/api/centros-costo").then((r) => r.json()).then(setCentros);
     fetch("/api/sucursales").then((r) => r.json()).then(setSucursales);
+    fetch("/api/legajos").then((r) => r.json()).then((d) => setPosiblesJefes(Array.isArray(d) ? d : []));
     if (!esEdicion) {
       fetch("/api/legajos?proximoNumero=1").then((r) => r.json()).then((d) => setF((prev: any) => ({ ...prev, numeroLegajo: d.proximoNumero })));
     } else {
@@ -61,7 +63,7 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
           talleRopa: d.talleRopa ?? "", talleCalzado: d.talleCalzado ?? "",
           localidad: d.localidad ?? "", provincia: d.provincia ?? "", partido: d.partido ?? "",
           telefono: d.telefono ?? "", email: d.email ?? "", fotoBase64: d.fotoBase64 ?? "",
-          centroCostoId: d.centroCostoId ?? "", sucursalId: d.sucursalId ?? "", modalidadContrato: d.modalidadContrato ?? "Tiempo completo",
+          centroCostoId: d.centroCostoId ?? "", sucursalId: d.sucursalId ?? "", jefeId: d.jefeId ?? "", modalidadContrato: d.modalidadContrato ?? "Tiempo completo",
           codigoArcaModalidad: d.codigoArcaModalidad ?? "", artNombre: d.artNombre ?? "", artPoliza: d.artPoliza ?? "",
         });
       });
@@ -291,6 +293,13 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
               <input placeholder="nueva..." value={nuevaSucursal} onChange={(e) => setNuevaSucursal(e.target.value)} style={{ flex: 1, fontSize: "0.8rem" }} />
               <button onClick={crearSucursal} style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}>+</button>
             </div>
+          </Campo>
+          <Campo label="Reporta a (jefe directo)" width="260px">
+            <select value={f.jefeId} onChange={(e) => set("jefeId", e.target.value)}>
+              <option value="">— Nadie —</option>
+              {posiblesJefes.filter((j) => j.id !== legajoId).map((j) => <option key={j.id} value={j.id}>#{j.numero} {j.apellido}, {j.nombre}</option>)}
+            </select>
+            <div style={{ fontSize: "0.72rem", color: "#6b727b", marginTop: "0.25rem" }}>Su jefe es quien pide sus vacaciones desde el portal.</div>
           </Campo>
         </div>
         <div style={filaStyle}>

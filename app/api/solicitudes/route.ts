@@ -14,7 +14,7 @@ export async function GET() {
 
   const solicitudes = await prisma.solicitudAusencia.findMany({
     where: { legajo: { empresaId: empresa.id } },
-    include: { legajo: { select: { numeroLegajo: true, apellido: true, nombre: true, centroCosto: { select: { nombre: true } } } } },
+    include: { legajo: { select: { numeroLegajo: true, apellido: true, nombre: true, centroCosto: { select: { nombre: true } } } }, solicitadoPor: { select: { numeroLegajo: true, apellido: true, nombre: true } } },
     orderBy: [{ createdAt: "desc" }],
     take: 300,
   });

@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual, obtenerEmpresasAutorizadas } from "@/lib/empresa-actual";
+import { validarJefe } from "@/lib/equipo";
 
 export async function GET(req: Request) {
   try {
@@ -64,6 +65,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Faltan campos obligatorios (legajo, CUIL, apellido, nombre, fecha de ingreso, convenio, categoría)." }, { status: 400 });
   }
 
+  if (body.jefeId) {
+    const motivo = await validarJefe(empresa.id, null, String(body.jefeId));
+    if (motivo) return NextResponse.json({ error: motivo }, { status: 400 });
+  }
+
   try {
     const legajo = await prisma.legajo.create({
       data: {
@@ -96,6 +102,7 @@ export async function POST(req: Request) {
         fotoBase64: body.fotoBase64 || null,
         centroCostoId: body.centroCostoId || null,
         sucursalId: body.sucursalId || null,
+        jefeId: body.jefeId || null,
         afiliadoSindicato: body.afiliadoSindicato !== undefined ? Boolean(body.afiliadoSindicato) : true,
         antiguedadReconocida: body.antiguedadReconocida ? new Date(body.antiguedadReconocida) : null,
         modalidadContrato: body.modalidadContrato || null,

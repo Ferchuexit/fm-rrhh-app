@@ -1,4 +1,5 @@
-// El empleado retira un pedido propio — solo mientras siga pendiente. Una
+// Retirar un pedido — solo quien lo cargó (el empleado el suyo, el jefe el
+// que hizo para su equipo) y solo mientras siga pendiente. Una
 // vez aprobado, para dar marcha atrás tiene que hablar con RR.HH. (ya hay
 // una vacación registrada y posiblemente notificada).
 import { NextResponse } from "next/server";
@@ -13,7 +14,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     if (!sesion) return NextResponse.json({ error: "Tu sesión venció. Volvé a ingresar." }, { status: 401 });
 
     const { count } = await prisma.solicitudAusencia.updateMany({
-      where: { id: params.id, legajoId: sesion.legajoId, estado: "pendiente" },
+      where: { id: params.id, estado: "pendiente", OR: [{ legajoId: sesion.legajoId, solicitadoPorId: null }, { solicitadoPorId: sesion.legajoId }] },
       data: { estado: "cancelada", resueltoEn: new Date() },
     });
     if (count === 0) return NextResponse.json({ error: "Ese pedido ya fue respondido o no existe." }, { status: 409 });

@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const comentario = String(respuesta ?? "").trim().slice(0, 500);
     if (accion !== "aprobar" && accion !== "rechazar") return NextResponse.json({ error: "Acción inválida." }, { status: 400 });
     if (accion === "rechazar" && comentario.length < 5) {
-      return NextResponse.json({ error: "Al rechazar, escribí el motivo: es lo que va a leer el empleado." }, { status: 400 });
+      return NextResponse.json({ error: "Al rechazar, escribí el motivo: es lo que va a leer quien hizo el pedido." }, { status: 400 });
     }
 
     const solicitud = await prisma.solicitudAusencia.findFirst({ where: { id: params.id, legajo: { empresaId: empresa.id } } });

@@ -13,7 +13,7 @@ export default async function PortalInicio() {
   const sesion = await obtenerSesionPortal();
   if (!sesion) redirect("/portal/login");
 
-  const [recibos, legajoDigital, noticiasNuevas, pedidosPendientes] = await Promise.all([
+  const [recibos, legajoDigital, noticiasNuevas, pedidosPendientes, genteACargo] = await Promise.all([
     recibosDelEmpleado(sesion.legajoId),
     // Si el legajo digital falla (por ejemplo, falta aplicar su migración),
     // el inicio del portal tiene que seguir abriendo: recibos y vacaciones
@@ -21,6 +21,8 @@ export default async function PortalInicio() {
     cargarLegajoDigital(sesion.legajoId).catch((e) => { console.error("Portal: no se pudo cargar el legajo digital:", e); return null; }),
     noticiasPendientes(sesion.legajoId).catch(() => 0),
     prisma.solicitudAusencia.count({ where: { legajoId: sesion.legajoId, estado: "pendiente" } }),
+    // .catch: si falta aplicar la migración de jefes, el inicio abre igual.
+    prisma.legajo.count({ where: { jefeId: sesion.legajoId, condicion: "activo" } }).catch(() => 0),
   ]);
   const sinFirmar = recibos.filter((r) => !r.reciboDigital?.firma).length;
   const pendientesLegajo = legajoDigital?.resumen.pendientesEmpleado ?? 0;
@@ -30,6 +32,8 @@ export default async function PortalInicio() {
     { href: "/portal/noticias", icono: "📣", label: "Noticias", globo: noticiasNuevas },
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
+    // Solo para quien tiene gente a cargo ("Reporta a" en el legajo).
+    ...(genteACargo > 0 ? [{ href: "/portal/equipo", icono: "👥", label: "Mi equipo", globo: 0 }] : []),
     { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: pendientesLegajo },
     { href: "/portal/cambiar-pin", icono: "🔑", label: "Mi PIN", globo: 0 },
   ];

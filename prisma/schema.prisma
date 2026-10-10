@@ -867,6 +867,11 @@ model Legajo {
 
   // ── Datos laborales ──
   centroCostoId        String?
+  // A quién reporta (otro legajo de la misma empresa). Es lo que define el
+  // "equipo" de un jefe en el portal: quien tiene gente a cargo pide las
+  // vacaciones de su gente. null = no reporta a nadie cargado (dirección,
+  // o empresas que no usan la jerarquía).
+  jefeId               String?
   sucursalId           String? // lugar físico de trabajo — distinto de centroCosto (que es más "sector/departamento"). Empresas con varias plantas/sucursales lo necesitan separado.
 
   // ── Datos de contratación / ART ──
@@ -880,6 +885,9 @@ model Legajo {
   categoria   Categoria    @relation(fields: [categoriaId], references: [id])
   centroCosto CentroCosto? @relation(fields: [centroCostoId], references: [id])
   sucursal    Sucursal?    @relation(fields: [sucursalId], references: [id])
+  jefe        Legajo?      @relation("Jefatura", fields: [jefeId], references: [id], onDelete: SetNull)
+  equipo      Legajo[]     @relation("Jefatura")
+  solicitudesCargadas SolicitudAusencia[] @relation("SolicitadoPor")
   liquidaciones Liquidacion[]
   novedades     Novedad[]
   vacaciones    Vacacion[]
@@ -904,6 +912,7 @@ model Legajo {
   recibosDigitales ReciboDigital[]
 
   @@unique([empresaId, numeroLegajo])
+  @@index([jefeId])
 }
 
 // Registro documental de dónde trabajó antes el empleado — para JUSTIFICAR
@@ -1309,9 +1318,13 @@ model SolicitudAusencia {
   resueltoPor String? // email del usuario que aprobó o rechazó
   resueltoEn  DateTime?
   vacacionId  String?   @unique // la Vacacion creada al aprobar (solo tipo 'vacaciones')
+  // El jefe que cargó el pedido para alguien de su equipo. null = lo pidió
+  // el propio empleado.
+  solicitadoPorId String?
   createdAt   DateTime  @default(now())
 
   legajo   Legajo    @relation(fields: [legajoId], references: [id])
+  solicitadoPor Legajo? @relation("SolicitadoPor", fields: [solicitadoPorId], references: [id], onDelete: SetNull)
   vacacion Vacacion? @relation(fields: [vacacionId], references: [id], onDelete: SetNull)
 
   @@index([legajoId, estado])
