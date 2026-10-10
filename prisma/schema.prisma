@@ -113,6 +113,7 @@ model Empresa {
   periodosAsistencia PeriodoAsistencia[]
   usuarios UsuarioEmpresa[]
   dispositivosAsistencia DispositivoAsistencia[]
+  noticias Noticia[]
 
   @@map("empresas")
 }
@@ -126,6 +127,7 @@ model CentroCosto {
 
   empresa Empresa  @relation(fields: [empresaId], references: [id])
   legajos Legajo[]
+  noticias Noticia[]
 }
 
 // Lugar FÍSICO de trabajo — planta, obra, oficina — distinto de
@@ -875,6 +877,7 @@ model Legajo {
   accesoPortal   AccesoPortal?
   solicitudesAusencia SolicitudAusencia[]
   constanciasFirmadas ConstanciaFirmada[]
+  lecturasNoticias    NoticiaLectura[]
   cambiosDatos        SolicitudCambioDatos[]
   recibosDigitales ReciboDigital[]
 
@@ -1332,4 +1335,52 @@ model SolicitudCambioDatos {
   legajo Legajo @relation(fields: [legajoId], references: [id])
 
   @@index([legajoId, estado])
+}
+
+// ──────────────────────────────────────────────────────────
+// COMUNICACIÓN INTERNA — Noticias (docs/79-noticias.md)
+// ──────────────────────────────────────────────────────────
+
+// Un comunicado de RR.HH. a los empleados, que se lee en el portal.
+// Una noticia publicada NO se edita: si requería acuse, la gente confirmó
+// haber leído ESE texto. Para corregir, se archiva y se publica otra.
+model Noticia {
+  id            String    @id @default(uuid())
+  empresaId     String
+  titulo        String
+  cuerpo        String // texto plano — se muestra respetando los saltos de línea, nunca como HTML
+  centroCostoId String? // null = toda la empresa; con valor = solo ese sector
+  requiereAcuse Boolean   @default(false) // true = el empleado tiene que tocar "Confirmo que leí"
+  estado        String    @default("publicada") // 'publicada' | 'archivada'
+  publicadaEn   DateTime  @default(now())
+  publicadaPor  String? // email del usuario que la publicó
+
+  // Adjunto opcional (una imagen o un PDF) — mismo almacenamiento privado
+  // que los documentos del legajo, ver lib/almacen-documentos.ts.
+  adjuntoNombre     String?
+  adjuntoMime       String?
+  adjuntoStorageKey String?
+  adjuntoBase64     String? // solo en desarrollo sin Blob
+
+  empresa     Empresa          @relation(fields: [empresaId], references: [id])
+  centroCosto CentroCosto?     @relation(fields: [centroCostoId], references: [id])
+  lecturas    NoticiaLectura[]
+
+  @@index([empresaId, estado, publicadaEn])
+}
+
+// Una fila por empleado que ABRIÓ la noticia. acuseEn se completa cuando
+// además confirma la lectura (solo tiene sentido si requiereAcuse).
+model NoticiaLectura {
+  id        String    @id @default(uuid())
+  noticiaId String
+  legajoId  String
+  leidaEn   DateTime  @default(now())
+  acuseEn   DateTime?
+  ipAcuse   String?
+
+  noticia Noticia @relation(fields: [noticiaId], references: [id], onDelete: Cascade)
+  legajo  Legajo  @relation(fields: [legajoId], references: [id])
+
+  @@unique([noticiaId, legajoId])
 }

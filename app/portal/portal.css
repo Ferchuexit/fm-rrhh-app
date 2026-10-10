@@ -106,3 +106,12 @@ input.p-pin { letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 .p-doc a { color: var(--azul-oscuro); font-weight: 600; overflow-wrap: anywhere; }
 .p-doc span { color: #6b727b; font-size: 0.78rem; white-space: nowrap; }
 .p-detalle-doc { display: block; width: 100%; margin-bottom: 0.5rem; padding: 0.6rem; font-size: 0.95rem; border: 1px solid #b9c4cd; border-radius: 8px; }
+
+/* Noticias */
+.p-noticia.nueva { border-left: 4px solid var(--azul-oscuro); }
+.p-punto { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--rojo); margin-right: 0.45rem; vertical-align: middle; }
+.p-noticia-cuerpo { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; font-size: 1rem; }
+.p-noticia-img { display: block; max-width: 100%; height: auto; border-radius: 8px; margin-top: 1rem; }
+.portal-barra a { position: relative; }
+.portal-barra .p-globo { top: 2px; right: calc(50% - 22px); min-width: 18px; height: 18px; font-size: 0.68rem; border-color: #fff; }
+@media (max-width: 360px) { .portal-barra a { font-size: 0.64rem; } }

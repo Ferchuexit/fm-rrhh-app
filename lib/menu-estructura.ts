@@ -127,6 +127,12 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
+    bloque: GESTION,
+    categoria: "Comunicación interna",
+    icono: "📣",
+    items: [{ href: "/noticias", label: "Noticias", icono: "📣", desc: "Comunicados a los empleados, con acuse de lectura" }],
+  },
+  {
     // Lo que RR.HH. gestiona con el empleado. Las tres últimas pantallas son
     // el lado RR.HH. del portal (docs/75 y 76); lo que ve el empleado vive
     // en /portal, con su propio login, y no aparece en este menú.

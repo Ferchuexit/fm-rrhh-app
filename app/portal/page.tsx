@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal, recibosDelEmpleado } from "@/lib/portal";
 import { cargarLegajoDigital } from "@/lib/legajo-digital";
+import { noticiasPendientes } from "@/lib/noticias";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,13 @@ export default async function PortalInicio() {
   const sesion = await obtenerSesionPortal();
   if (!sesion) redirect("/portal/login");
 
-  const [recibos, legajoDigital, pedidosPendientes] = await Promise.all([
+  const [recibos, legajoDigital, noticiasNuevas, pedidosPendientes] = await Promise.all([
     recibosDelEmpleado(sesion.legajoId),
     // Si el legajo digital falla (por ejemplo, falta aplicar su migración),
     // el inicio del portal tiene que seguir abriendo: recibos y vacaciones
     // no dependen de eso.
     cargarLegajoDigital(sesion.legajoId).catch((e) => { console.error("Portal: no se pudo cargar el legajo digital:", e); return null; }),
+    noticiasPendientes(sesion.legajoId).catch(() => 0),
     prisma.solicitudAusencia.count({ where: { legajoId: sesion.legajoId, estado: "pendiente" } }),
   ]);
   const sinFirmar = recibos.filter((r) => !r.reciboDigital?.firma).length;
@@ -25,6 +27,7 @@ export default async function PortalInicio() {
 
   // globo = cosas que esperan una acción DEL EMPLEADO (no de RR.HH.).
   const APPS = [
+    { href: "/portal/noticias", icono: "📣", label: "Noticias", globo: noticiasNuevas },
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
     { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: pendientesLegajo },
@@ -35,6 +38,11 @@ export default async function PortalInicio() {
     <>
       <h1>Hola, {sesion.nombre.split(" ")[0]}</h1>
 
+      {noticiasNuevas > 0 && (
+        <a href="/portal/noticias" className="p-aviso info" style={{ display: "block", textDecoration: "none" }}>
+          Hay <strong>{noticiasNuevas} {noticiasNuevas === 1 ? "noticia nueva" : "noticias nuevas"}</strong> ›
+        </a>
+      )}
       {sinFirmar > 0 ? (
         <a href="/portal/recibos" className="p-aviso pendiente" style={{ display: "block", textDecoration: "none" }}>
           Tenés <strong>{sinFirmar} {sinFirmar === 1 ? "recibo" : "recibos"}</strong> para firmar ›

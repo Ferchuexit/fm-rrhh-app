@@ -6,6 +6,7 @@ import "./portal.css";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
 import PortalBarra from "./PortalBarra";
+import { noticiasPendientes } from "@/lib/noticias";
 
 export const metadata: Metadata = { title: "Portal del empleado" };
 export const viewport: Viewport = { themeColor: "#163A5C", width: "device-width", initialScale: 1 };
@@ -16,6 +17,11 @@ export default async function PortalLayout({ children }: { children: React.React
   const empresa = sesion
     ? await prisma.empresa.findUnique({ where: { id: sesion.empresaId }, select: { razonSocial: true, nombreFantasia: true } })
     : null;
+
+  // Globito de noticias en la barra: es lo único que puede aparecer sin que
+  // el empleado haya hecho nada, así que se muestra en todas las pantallas.
+  // Si falla (por ejemplo, falta la migración), el portal abre igual.
+  const noticiasSinAtender = sesion && !sesion.debeCambiarPin ? await noticiasPendientes(sesion.legajoId).catch(() => 0) : 0;
 
   return (
     <div className="portal">
@@ -31,7 +37,7 @@ export default async function PortalLayout({ children }: { children: React.React
         </div>
       </header>
       <main className="portal-main">{children}</main>
-      {sesion && !sesion.debeCambiarPin && <PortalBarra />}
+      {sesion && !sesion.debeCambiarPin && <PortalBarra globos={{ noticias: noticiasSinAtender }} />}
     </div>
   );
 }

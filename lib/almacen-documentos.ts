@@ -5,11 +5,16 @@
 import { put, get } from "@vercel/blob";
 import { createHash } from "crypto";
 
-export async function guardarArchivo(legajoId: string, nombreArchivo: string, buffer: Buffer, tipoMime: string) {
+export function guardarArchivo(legajoId: string, nombreArchivo: string, buffer: Buffer, tipoMime: string) {
+  return guardarEnCarpeta(`legajos/${legajoId}`, nombreArchivo, buffer, tipoMime);
+}
+
+// Lo mismo, para archivos que no son de un legajo (el adjunto de una noticia).
+export async function guardarEnCarpeta(carpeta: string, nombreArchivo: string, buffer: Buffer, tipoMime: string) {
   const hash = createHash("sha256").update(buffer).digest("hex");
   const limpio = nombreArchivo.replace(/[^\w.\-]+/g, "_").slice(-80) || "archivo";
   try {
-    const blob = await put(`legajos/${legajoId}/${Date.now()}-${limpio}`, buffer, { access: "private", addRandomSuffix: true, contentType: tipoMime });
+    const blob = await put(`${carpeta}/${Date.now()}-${limpio}`, buffer, { access: "private", addRandomSuffix: true, contentType: tipoMime });
     return { storageKey: blob.url, contenidoBase64: null as string | null, hash };
   } catch (e) {
     // En PRODUCCIÓN, si Blob falla, la subida falla — nunca se guarda un
