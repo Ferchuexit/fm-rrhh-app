@@ -12,6 +12,7 @@ import PedidoForm from "../vacaciones/PedidoForm";
 import CancelarPedido from "../vacaciones/CancelarPedido";
 import TildarTarea from "../ingreso/TildarTarea";
 import { ponerAlDia } from "@/lib/ingresos";
+import { cubre } from "@/lib/capacitaciones-reglas";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,16 @@ export default async function PortalEquipo() {
     return prisma.ingreso.findMany({ where: { legajoId: { in: ids }, estado: "en_curso" }, include: { tareas: { where: { responsable: "jefe" }, orderBy: [{ vence: "asc" }, { orden: "asc" }] } }, orderBy: { fechaIngreso: "desc" } });
   })().catch((e) => { console.error("Portal equipo: no se pudieron cargar los ingresos:", e); return []; });
 
+  // Para qué está habilitado cada uno (autónomo o más, vigente): es lo que
+  // el jefe mira para cubrir un puesto.
+  const habilitados = new Map<string, string[]>();
+  try {
+    const celdas = await prisma.habilidadLegajo.findMany({ where: { legajoId: { in: ids } }, include: { habilidad: { select: { nombre: true } } }, orderBy: { habilidad: { nombre: "asc" } } });
+    for (const c of celdas) if (cubre(c, hoy)) habilitados.set(c.legajoId, [...(habilitados.get(c.legajoId) ?? []), c.habilidad.nombre]);
+  } catch (e) {
+    console.error("Portal equipo: no se pudieron cargar las habilidades:", e);
+  }
+
   const [saldos, vacaciones, pedidos] = await Promise.all([
     Promise.all(equipo.map(async (m) => ({ id: m.id, actual: await saldoVacaciones(m.id, anio), proximo: await saldoVacaciones(m.id, anio + 1) }))),
     prisma.vacacion.findMany({ where: { legajoId: { in: ids }, fechaHasta: { gte: hoy } }, orderBy: { fechaDesde: "asc" } }),
@@ -77,6 +88,7 @@ export default async function PortalEquipo() {
           <div key={m.id} className="p-card">
             <div className="p-card-titulo">{m.apellido}, {m.nombre}</div>
             {turnoDeHoy.has(m.id) && <div className="p-card-dato">🕒 {turnoDeHoy.get(m.id)}</div>}
+            {habilitados.has(m.id) && <div className="p-card-dato">🧩 Habilitado en: {habilitados.get(m.id)!.join(", ")}</div>}
             <div className="p-card-dato">
               Vacaciones {anio}: <strong>{s.disponibles}</strong> disponibles de {s.corresponden}
               {s.enTramite > 0 ? ` · ${s.enTramite} esperando a RR.HH.` : ""}

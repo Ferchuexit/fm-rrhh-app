@@ -150,6 +150,16 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
+    // Capacitar a la gente y saber quién está habilitado para qué.
+    bloque: GESTION,
+    categoria: "Desarrollo de talento",
+    icono: "🎓",
+    items: [
+      { href: "/capacitaciones", label: "Capacitaciones", icono: "🎓", desc: "Programar, tomar asistencia y constancia firmada por el empleado" },
+      { href: "/habilidades", label: "Matriz de habilidades", icono: "🧩", desc: "Quién está habilitado para cada puesto o máquina, y qué está por vencer" },
+    ],
+  },
+  {
     bloque: GESTION,
     categoria: "Operaciones",
     icono: "🕒",

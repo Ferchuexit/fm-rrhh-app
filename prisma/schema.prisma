@@ -154,6 +154,8 @@ model Empresa {
   horarios HorarioTrabajo[]
   plantillasIngreso PlantillaIngreso[]
   feriados Feriado[]
+  habilidades    Habilidad[]
+  capacitaciones Capacitacion[]
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -930,6 +932,8 @@ model Legajo {
   suscripcionesPush SuscripcionPush[]
   asignacionesHorario AsignacionHorario[]
   cambiosDeTurno      CambioDeTurno[]
+  habilidades         HabilidadLegajo[]
+  capacitaciones      AsistenteCapacitacion[]
   ingresos            Ingreso[]
   avisos            Aviso[]
 
@@ -1626,4 +1630,84 @@ model CambioDeTurno {
   legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 
   @@unique([legajoId, fecha])
+}
+
+// ── Desarrollo de talento: capacitaciones y matriz de habilidades ────
+// Algo que una persona puede saber hacer o estar habilitada para hacer:
+// operar una máquina, cubrir un puesto, una certificación.
+model Habilidad {
+  id            String  @id @default(uuid())
+  empresaId     String
+  nombre        String
+  grupo         String  @default("General") // para ordenar la matriz: "Máquinas", "Seguridad", "Puestos"…
+  // Cada cuántos meses hay que renovarla (autoelevador, trabajo en altura).
+  // null = no vence.
+  vigenciaMeses Int?
+
+  empresa        Empresa           @relation(fields: [empresaId], references: [id])
+  personas       HabilidadLegajo[]
+  capacitaciones Capacitacion[]
+
+  @@unique([empresaId, nombre])
+}
+
+// Una celda de la matriz: qué nivel tiene una persona en una habilidad.
+model HabilidadLegajo {
+  id          String    @id @default(uuid())
+  legajoId    String
+  habilidadId String
+  nivel       Int // 1 en formación · 2 con supervisión · 3 autónomo · 4 puede enseñar
+  desde       DateTime // desde cuándo tiene ese nivel (o la última renovación)
+  vence       DateTime? // null = no vence
+  origen      String    @default("manual") // 'manual' | 'capacitacion'
+  cargadoPor  String?
+  updatedAt   DateTime  @updatedAt
+
+  legajo    Legajo    @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  habilidad Habilidad @relation(fields: [habilidadId], references: [id], onDelete: Cascade)
+
+  @@unique([legajoId, habilidadId])
+}
+
+model Capacitacion {
+  id            String    @id @default(uuid())
+  empresaId     String
+  titulo        String
+  descripcion   String?
+  tipo          String    @default("tecnica") // 'seguridad' | 'tecnica' | 'induccion' | 'otra'
+  fecha         DateTime
+  horas         Float?
+  instructor    String?
+  lugar         String?
+  // Si la capacitación habilita para algo: al cerrarla, quienes asistieron
+  // quedan con ese nivel en la matriz (nunca baja el que ya tenían).
+  habilidadId   String?
+  nivelOtorgado Int?
+  estado        String    @default("programada") // 'programada' | 'realizada' | 'cancelada'
+  creadaPor     String?
+  cerradaPor    String?
+  cerradaEn     DateTime?
+  createdAt     DateTime  @default(now())
+
+  empresa    Empresa                 @relation(fields: [empresaId], references: [id])
+  habilidad  Habilidad?              @relation(fields: [habilidadId], references: [id], onDelete: SetNull)
+  asistentes AsistenteCapacitacion[]
+
+  @@index([empresaId, fecha])
+}
+
+model AsistenteCapacitacion {
+  id             String    @id @default(uuid())
+  capacitacionId String
+  legajoId       String
+  asistio        Boolean? // null = todavía no se tomó asistencia
+  // Constancia: el empleado confirma desde el portal que la recibió.
+  firmadoEn      DateTime?
+  firmaIp        String?
+
+  capacitacion Capacitacion @relation(fields: [capacitacionId], references: [id], onDelete: Cascade)
+  legajo       Legajo       @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@unique([capacitacionId, legajoId])
+  @@index([legajoId])
 }

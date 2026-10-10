@@ -52,6 +52,7 @@ export const MODULOS: DefModulo[] = [
   // /api/empresas/actual (el logo que muestra la terminal) cuelga de acá y
   // no de "empresas" (solo admin): lo usa la pantalla de Dispositivos.
   { clave: "dispositivos", nombre: "Dispositivos de fichada", bloque: "Gestión Humana", desc: "Terminales instaladas en la empresa y su PIN", rutas: ["/dispositivos", "/api/dispositivos", "/api/empresas/actual"] },
+  { clave: "capacitaciones", nombre: "Capacitaciones y habilidades", bloque: "Gestión Humana", desc: "Capacitaciones con constancia firmada y matriz de quién está habilitado para qué", rutas: ["/capacitaciones", "/habilidades", "/api/capacitaciones", "/api/habilidades"] },
   { clave: "accesos_portal", nombre: "Accesos al portal", bloque: "Gestión Humana", desc: "Generar y resetear el PIN de los empleados", rutas: ["/accesos-portal", "/api/accesos-portal"] },
 ];
 
@@ -178,7 +179,7 @@ export const ROLES_PREDEFINIDOS: { id: string; nombre: string; descripcion: stri
   },
   {
     id: "rol-supervisor", nombre: "Supervisor", descripcion: "Gestiona a la gente (asistencia, vacaciones, legajo digital, noticias) sin ver sueldos ni liquidaciones.",
-    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar" },
+    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar" },
   },
   { id: "rol-solo-lectura", nombre: "Solo lectura", descripcion: "Ve todo lo de la empresa (menos la configuración) sin poder modificar nada.", permisos: todo("ver", ["configuracion", "dispositivos"]) },
 ];

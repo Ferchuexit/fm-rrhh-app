@@ -66,6 +66,14 @@ export function avisoCambioDeUnDia(fecha: Date): TextoAviso {
   return { tipo: "horario", titulo: "Cambio en tu horario", cuerpo: `Hay un cambio para el ${dia(fecha)}. Entrá para verlo.`, url: "/portal/horario" };
 }
 
+export function avisoCapacitacionProgramada(titulo: string, fecha: Date): TextoAviso {
+  return { tipo: "capacitacion", titulo: "Tenés una capacitación", cuerpo: `${titulo.slice(0, 90)} — el ${dia(fecha)}.`, url: "/portal/capacitaciones" };
+}
+
+export function avisoConstanciaCapacitacion(titulo: string): TextoAviso {
+  return { tipo: "capacitacion", titulo: "Confirmá tu capacitación", cuerpo: `Entrá a confirmar que recibiste: ${titulo.slice(0, 100)}.`, url: "/portal/capacitaciones" };
+}
+
 export function avisoIngresoAlEmpleado(): TextoAviso {
   return { tipo: "ingreso", titulo: "Te damos la bienvenida", cuerpo: "Tenés algunos pasos para completar tu ingreso. Entrá para verlos.", url: "/portal/ingreso" };
 }
