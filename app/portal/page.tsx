@@ -20,6 +20,9 @@ export default async function PortalInicio() {
   // Capacitaciones que le falta confirmar (si falla, el inicio abre igual).
   const capacitacionesSinConfirmar = await prisma.asistenteCapacitacion.count({ where: { legajoId: sesion.legajoId, asistio: true, firmadoEn: null, capacitacion: { estado: "realizada" } } }).catch(() => 0);
 
+  // Evaluaciones: las de su equipo sin completar + las suyas sin firmar.
+  const evaluacionesPendientes = await prisma.evaluacion.count({ where: { OR: [{ evaluadorId: sesion.legajoId, estado: "pendiente", ciclo: { estado: "abierto" } }, { legajoId: sesion.legajoId, estado: "entregada" }] } }).catch(() => 0);
+
   const [recibos, legajoDigital, noticiasNuevas, pedidosPendientes, genteACargo] = await Promise.all([
     recibosDelEmpleado(sesion.legajoId),
     // Si el legajo digital falla (por ejemplo, falta aplicar su migración),
@@ -42,6 +45,7 @@ export default async function PortalInicio() {
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
     { href: "/portal/horario", icono: "🕒", label: "Mi horario", globo: 0 },
     { href: "/portal/capacitaciones", icono: "🎓", label: "Capacitaciones", globo: capacitacionesSinConfirmar },
+    { href: "/portal/evaluaciones", icono: "📊", label: "Evaluaciones", globo: evaluacionesPendientes },
     // Solo para quien tiene gente a cargo ("Reporta a" en el legajo).
     ...(genteACargo > 0 ? [{ href: "/portal/equipo", icono: "👥", label: "Mi equipo", globo: 0 }] : []),
     { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: pendientesLegajo },

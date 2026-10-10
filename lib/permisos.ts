@@ -53,6 +53,7 @@ export const MODULOS: DefModulo[] = [
   // no de "empresas" (solo admin): lo usa la pantalla de Dispositivos.
   { clave: "dispositivos", nombre: "Dispositivos de fichada", bloque: "Gestión Humana", desc: "Terminales instaladas en la empresa y su PIN", rutas: ["/dispositivos", "/api/dispositivos", "/api/empresas/actual"] },
   { clave: "capacitaciones", nombre: "Capacitaciones y habilidades", bloque: "Gestión Humana", desc: "Capacitaciones con constancia firmada y matriz de quién está habilitado para qué", rutas: ["/capacitaciones", "/habilidades", "/api/capacitaciones", "/api/habilidades"] },
+  { clave: "evaluaciones", nombre: "Evaluación de desempeño", bloque: "Gestión Humana", desc: "Ciclos de evaluación, resultados de cada persona y su entrega", rutas: ["/evaluaciones", "/api/evaluaciones"] },
   { clave: "accesos_portal", nombre: "Accesos al portal", bloque: "Gestión Humana", desc: "Generar y resetear el PIN de los empleados", rutas: ["/accesos-portal", "/api/accesos-portal"] },
 ];
 

@@ -156,6 +156,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     icono: "🎓",
     items: [
       { href: "/capacitaciones", label: "Capacitaciones", icono: "🎓", desc: "Programar, tomar asistencia y constancia firmada por el empleado" },
+      { href: "/evaluaciones", label: "Evaluación de desempeño", icono: "⭐", desc: "Ciclos de evaluación: el jefe evalúa, RR.HH. revisa y entrega, el empleado firma" },
       { href: "/habilidades", label: "Matriz de habilidades", icono: "🧩", desc: "Quién está habilitado para cada puesto o máquina, y qué está por vencer" },
     ],
   },

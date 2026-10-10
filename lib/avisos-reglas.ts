@@ -74,6 +74,15 @@ export function avisoConstanciaCapacitacion(titulo: string): TextoAviso {
   return { tipo: "capacitacion", titulo: "Confirmá tu capacitación", cuerpo: `Entrá a confirmar que recibiste: ${titulo.slice(0, 100)}.`, url: "/portal/capacitaciones" };
 }
 
+export function avisoEvaluacionesParaCompletar(cantidad: number, limite: Date): TextoAviso {
+  return { tipo: "evaluacion", titulo: cantidad === 1 ? "Tenés una evaluación para completar" : `Tenés ${cantidad} evaluaciones para completar`, cuerpo: `De tu equipo, hasta el ${dia(limite)}. Entrá a Evaluaciones.`, url: "/portal/evaluaciones" };
+}
+
+// Sin el resultado: se lee con el celular bloqueado.
+export function avisoEvaluacionEntregada(): TextoAviso {
+  return { tipo: "evaluacion", titulo: "Ya está tu evaluación de desempeño", cuerpo: "Entrá para verla y dejar constancia de que la leíste.", url: "/portal/evaluaciones" };
+}
+
 export function avisoIngresoAlEmpleado(): TextoAviso {
   return { tipo: "ingreso", titulo: "Te damos la bienvenida", cuerpo: "Tenés algunos pasos para completar tu ingreso. Entrá para verlos.", url: "/portal/ingreso" };
 }

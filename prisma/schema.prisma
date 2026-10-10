@@ -156,6 +156,8 @@ model Empresa {
   feriados Feriado[]
   habilidades    Habilidad[]
   capacitaciones Capacitacion[]
+  formulariosEvaluacion FormularioEvaluacion[]
+  ciclosEvaluacion      CicloEvaluacion[]
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -934,6 +936,8 @@ model Legajo {
   cambiosDeTurno      CambioDeTurno[]
   habilidades         HabilidadLegajo[]
   capacitaciones      AsistenteCapacitacion[]
+  evaluaciones        Evaluacion[]
+  evaluacionesACargo  Evaluacion[]            @relation("Evaluador")
   ingresos            Ingreso[]
   avisos            Aviso[]
 
@@ -1710,4 +1714,70 @@ model AsistenteCapacitacion {
 
   @@unique([capacitacionId, legajoId])
   @@index([legajoId])
+}
+
+// ── Evaluación de desempeño ──────────────────────────────────────────
+// Qué se evalúa: una lista de competencias, cada una puntuada de 1 a 5.
+model FormularioEvaluacion {
+  id           String   @id @default(uuid())
+  empresaId    String
+  nombre       String
+  competencias Json // [{ nombre, descripcion? }]
+  updatedAt    DateTime @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, nombre])
+}
+
+// Una ronda de evaluaciones: "Evaluación anual 2026", "Período de prueba".
+// Lleva su propia copia de las competencias: editar el formulario después
+// no cambia un ciclo ya abierto.
+model CicloEvaluacion {
+  id           String    @id @default(uuid())
+  empresaId    String
+  nombre       String
+  formulario   String // nombre del formulario del que salió (informativo)
+  competencias Json
+  fechaLimite  DateTime
+  estado       String    @default("abierto") // 'abierto' | 'cerrado'
+  creadoPor    String?
+  createdAt    DateTime  @default(now())
+  cerradoEn    DateTime?
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id])
+  evaluaciones Evaluacion[]
+
+  @@index([empresaId, estado])
+}
+
+// La evaluación de UNA persona en un ciclo. Camino:
+//   pendiente  → el evaluador (su jefe, o RR.HH.) todavía no la completó
+//   completada → la completó; la ve RR.HH., el empleado todavía NO
+//   entregada  → RR.HH. la revisó y se la entregó al empleado
+//   firmada    → el empleado tomó conocimiento (conforme o en disconformidad)
+model Evaluacion {
+  id                 String    @id @default(uuid())
+  cicloId            String
+  legajoId           String // a quién se evalúa
+  evaluadorId        String? // su jefe al abrir el ciclo; null = evalúa RR.HH. desde el panel
+  estado             String    @default("pendiente")
+  puntajes           Json? // { "0": 4, "1": 3, ... } — índice de la competencia → 1..5
+  fortalezas         String?
+  aMejorar           String?
+  promedio           Float?
+  completadaPor      String? // "jefe: Nombre" o el email de RR.HH.
+  completadaEn       DateTime?
+  entregadaEn        DateTime?
+  firma              String? // 'conforme' | 'disconforme'
+  comentarioEmpleado String?
+  firmadoEn          DateTime?
+  firmaIp            String?
+
+  ciclo     CicloEvaluacion @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  legajo    Legajo          @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  evaluador Legajo?         @relation("Evaluador", fields: [evaluadorId], references: [id], onDelete: SetNull)
+
+  @@unique([cicloId, legajoId])
+  @@index([evaluadorId, estado])
 }
