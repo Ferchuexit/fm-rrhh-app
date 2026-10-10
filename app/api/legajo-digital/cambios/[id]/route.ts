@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionActual } from "@/lib/auth";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
+import { avisar, avisoCambioDatosRespondido } from "@/lib/avisos";
 import { CAMPOS_EDITABLES, type Cambios, type CampoEditable } from "@/lib/legajo-digital";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       if (count === 0) throw new Error("YA_RESPONDIDA");
       if (accion === "aprobar") await tx.legajo.update({ where: { id: solicitud.legajoId }, data: datos });
     });
+    await avisar([solicitud.legajoId], avisoCambioDatosRespondido(accion === "aprobar"));
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     if (e.message === "YA_RESPONDIDA") return NextResponse.json({ error: "Ese pedido ya fue respondido." }, { status: 409 });

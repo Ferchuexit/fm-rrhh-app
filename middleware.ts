@@ -48,7 +48,10 @@ function siguienteConPathname(req: NextRequest) {
 // al revés — con sesion_portal no se pasa a ninguna otra ruta. Por eso se
 // resuelve acá arriba y retorna siempre: nada de /portal llega a las
 // reglas de roles de más abajo.
-const PORTAL_PUBLICAS = ["/portal/login", "/api/portal/login", "/api/portal/logout"];
+// Los cuatro archivos de abajo son lo que el celular necesita para instalar
+// el portal y recibir avisos: los pide el sistema operativo, a veces sin la
+// sesión del empleado, y no contienen ningún dato.
+const PORTAL_PUBLICAS = ["/portal/login", "/api/portal/login", "/api/portal/logout", "/portal/sw.js", "/portal/app.webmanifest", "/portal/icono-192.png", "/portal/icono-512.png", "/portal/icono-180.png"];
 const PORTAL_CON_PIN_TEMPORAL = ["/portal/cambiar-pin", "/api/portal/cambiar-pin"];
 
 async function middlewarePortal(req: NextRequest) {

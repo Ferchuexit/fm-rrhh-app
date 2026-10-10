@@ -41,7 +41,7 @@ function crearPrismaClient() {
   // repite el problema de tipos que cuenta el comentario de arriba.
   const alcance = extensionDeAlcance(base);
   sectoresDelPedidoActual = alcance.sectoresDelPedido;
-  return base.$extends(alcance.extension).$extends({
+  const conAlcance = base.$extends(alcance.extension).$extends({
     result: {
       escala: {
         basico: { needs: { basico: true }, compute: (e) => e.basico.toNumber() },
@@ -100,10 +100,18 @@ function crearPrismaClient() {
       },
     },
   });
+  return { conAlcance, base };
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: ReturnType<typeof crearPrismaClient> };
 
-export const prisma = globalForPrisma.prisma ?? crearPrismaClient();
+const cliente = globalForPrisma.prisma ?? crearPrismaClient();
+export const prisma = cliente.conAlcance;
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// SIN el filtro de alcance. Solo para tareas internas del sistema que no le
+// devuelven datos a quien hizo el pedido — por ejemplo, mandar un aviso al
+// jefe de alguien aunque el jefe sea de otro sector. Nunca para armar una
+// respuesta: para eso está `prisma`.
+export const prismaSistema = cliente.base;
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = cliente;

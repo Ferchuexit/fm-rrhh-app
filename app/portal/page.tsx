@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal, recibosDelEmpleado } from "@/lib/portal";
 import { cargarLegajoDigital } from "@/lib/legajo-digital";
 import { noticiasPendientes } from "@/lib/noticias";
+import AvisosCelular from "./AvisosCelular";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,7 @@ export default async function PortalInicio() {
           </a>
         ))}
       </div>
+      <AvisosCelular />
     </>
   );
 }

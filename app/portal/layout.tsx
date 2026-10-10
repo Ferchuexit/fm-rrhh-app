@@ -8,7 +8,14 @@ import { obtenerSesionPortal } from "@/lib/portal";
 import PortalBarra from "./PortalBarra";
 import { noticiasPendientes } from "@/lib/noticias";
 
-export const metadata: Metadata = { title: "Portal del empleado" };
+// manifest + íconos: lo que deja "instalar" el portal en el celular como
+// una app (y, en iPhone, lo que habilita las notificaciones).
+export const metadata: Metadata = {
+  title: "Portal del empleado",
+  manifest: "/portal/app.webmanifest",
+  icons: { icon: "/portal/icono-192.png", apple: "/portal/icono-180.png" },
+  appleWebApp: { capable: true, title: "Portal", statusBarStyle: "default" },
+};
 export const viewport: Viewport = { themeColor: "#163A5C", width: "device-width", initialScale: 1 };
 export const dynamic = "force-dynamic";
 

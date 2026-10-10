@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionActual } from "@/lib/auth";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
+import { avisar, avisoDocumentoRechazado } from "@/lib/avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: { estado: accion === "aceptar" ? "aceptado" : "rechazado", motivoRechazo: accion === "rechazar" ? texto : null, revisadoPor: sesion.email, revisadoEn: new Date() },
     });
     if (count === 0) return NextResponse.json({ error: "Ese documento ya fue revisado o no es de la empresa actual." }, { status: 409 });
+    // Solo el rechazo le pide algo al empleado: tiene que subirlo de nuevo.
+    if (accion === "rechazar") {
+      const doc = await prisma.documentoLegajo.findUnique({ where: { id: params.id }, select: { legajoId: true } });
+      if (doc) await avisar([doc.legajoId], avisoDocumentoRechazado());
+    }
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     console.error("Error en POST /api/legajo-digital/documentos/[id]:", e);

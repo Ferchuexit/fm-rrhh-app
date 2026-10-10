@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
 import { puedePedirParaSi } from "@/lib/equipo";
+import { avisar, avisarPedidoNuevoARRHH, avisoPedidoDelJefe } from "@/lib/avisos";
 import { fechaDesdeTexto, hoyArgentina, diasCorridos, validarPedido, saldoVacaciones, rangosOcupados } from "@/lib/ausencias";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,16 @@ export async function POST(req: Request) {
     const solicitud = await prisma.solicitudAusencia.create({
       data: { legajoId, solicitadoPorId: paraOtro ? sesion.legajoId : null, tipo: body.tipo, fechaDesde: desde!, fechaHasta: hasta!, dias: diasCorridos(desde!, hasta!), motivo: motivo || null },
     });
+    // Avisos: a RR.HH. que hay un pedido para responder, y al empleado si
+    // se lo cargó su jefe.
+    const persona = await prisma.legajo.findUnique({ where: { id: legajoId }, select: { nombre: true, apellido: true, empresaId: true, centroCostoId: true } });
+    if (persona) {
+      await avisarPedidoNuevoARRHH({
+        empresaId: persona.empresaId, centroCostoId: persona.centroCostoId, empleado: `${persona.nombre} ${persona.apellido}`,
+        tipo: solicitud.tipo, desde: solicitud.fechaDesde, hasta: solicitud.fechaHasta, pedidoPor: paraOtro ? sesion.nombre : null,
+      });
+      if (paraOtro) await avisar([legajoId], avisoPedidoDelJefe(solicitud.fechaDesde, solicitud.fechaHasta));
+    }
     return NextResponse.json({ ok: true, id: solicitud.id });
   } catch (e: any) {
     console.error("Error en POST /api/portal/solicitudes:", e);

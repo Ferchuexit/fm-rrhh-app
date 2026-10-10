@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerSesionActual } from "@/lib/auth";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { rangosOcupados } from "@/lib/ausencias";
+import { avisar, avisoSolicitudRespondida, avisoVacacionesConfirmadas } from "@/lib/avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -30,15 +31,28 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Al rechazar, escribí el motivo: es lo que va a leer quien hizo el pedido." }, { status: 400 });
     }
 
-    const solicitud = await prisma.solicitudAusencia.findFirst({ where: { id: params.id, legajo: { empresaId: empresa.id } } });
+    const solicitud = await prisma.solicitudAusencia.findFirst({ where: { id: params.id, legajo: { empresaId: empresa.id } }, include: { legajo: { select: { nombre: true, apellido: true } } } });
     if (!solicitud) return NextResponse.json({ error: "No se encontró ese pedido en la empresa actual." }, { status: 404 });
     if (solicitud.estado !== "pendiente") return NextResponse.json({ error: `Ese pedido ya está ${solicitud.estado}.` }, { status: 409 });
+
+    // La respuesta le llega a quien cargó el pedido (el jefe o el propio
+    // empleado). Si lo cargó el jefe y se aprueba, también al empleado.
+    const avisarRespuesta = async (estado: "aprobada" | "rechazada") => {
+      const base = { tipo: solicitud.tipo, estado, desde: solicitud.fechaDesde, hasta: solicitud.fechaHasta };
+      if (solicitud.solicitadoPorId) {
+        await avisar([solicitud.solicitadoPorId], avisoSolicitudRespondida({ ...base, paraOtro: `${solicitud.legajo.nombre} ${solicitud.legajo.apellido}` }));
+        if (estado === "aprobada") await avisar([solicitud.legajoId], avisoVacacionesConfirmadas(solicitud.fechaDesde, solicitud.fechaHasta));
+      } else {
+        await avisar([solicitud.legajoId], avisoSolicitudRespondida(base));
+      }
+    };
 
     const resuelto = { respuesta: comentario || null, resueltoPor: sesion.email, resueltoEn: new Date() };
 
     if (accion === "rechazar") {
       const { count } = await prisma.solicitudAusencia.updateMany({ where: { id: solicitud.id, estado: "pendiente" }, data: { estado: "rechazada", ...resuelto } });
       if (count === 0) return NextResponse.json({ error: "Ese pedido ya fue respondido." }, { status: 409 });
+      await avisarRespuesta("rechazada");
       return NextResponse.json({ ok: true, estado: "rechazada" });
     }
 
@@ -62,6 +76,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         await tx.solicitudAusencia.update({ where: { id: solicitud.id }, data: { vacacionId: vacacion.id } });
       }
     });
+    await avisarRespuesta("aprobada");
     return NextResponse.json({ ok: true, estado: "aprobada" });
   } catch (e: any) {
     if (e.message === "YA_RESPONDIDA") return NextResponse.json({ error: "Ese pedido ya fue respondido." }, { status: 409 });

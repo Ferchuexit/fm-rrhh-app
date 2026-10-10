@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionActual } from "@/lib/auth";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
-import { validarNoticia, estadisticas } from "@/lib/noticias";
+import { validarNoticia, estadisticas, filtroAudiencia } from "@/lib/noticias";
+import { avisar, avisoNoticia } from "@/lib/avisos";
 import { guardarEnCarpeta, bufferDesdeBase64, mimeReal } from "@/lib/almacen-documentos";
 import { TAMANIO_MAXIMO_BYTES } from "@/lib/legajo-digital-reglas";
 
@@ -74,9 +75,11 @@ export async function POST(req: Request) {
 
     const noticia = await prisma.noticia.create({
       data: { empresaId: empresa.id, titulo: String(body.titulo).trim(), cuerpo: String(body.cuerpo).trim(), centroCostoId, requiereAcuse: body.requiereAcuse === true, publicadaPor: sesion.email, ...adjunto },
-      select: { id: true },
+      select: { id: true, titulo: true, requiereAcuse: true },
     });
-    return NextResponse.json({ ok: true, id: noticia.id });
+    const destinatarios = await prisma.legajo.findMany({ where: filtroAudiencia({ empresaId: empresa.id, centroCostoId }), select: { id: true } });
+    const avisados = await avisar(destinatarios.map((l) => l.id), avisoNoticia(noticia.titulo, noticia.requiereAcuse));
+    return NextResponse.json({ ok: true, id: noticia.id, avisados });
   } catch (e: any) {
     console.error("Error en POST /api/noticias:", e);
     return NextResponse.json({ error: e.message ?? "No se pudo publicar la noticia." }, { status: 500 });

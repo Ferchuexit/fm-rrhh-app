@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerResultadoAuditoria } from "@/lib/auditoria-context";
 import { evaluarCierreConSalvedad } from "@/lib/motor/aprobacion-salvedad.mjs";
+import { avisar, avisoReciboDisponible } from "@/lib/avisos";
 
 export async function POST(req: Request) {
   const { periodoId, justificaciones = [] } = await req.json();
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ cerrado: false, ...evaluacion }, { status: 409 });
   }
 
+  const yaEstabaCerrado = (await prisma.periodo.findUnique({ where: { id: periodoId }, select: { estado: true } }))?.estado === "cerrada";
   await prisma.periodo.update({ where: { id: periodoId }, data: { estado: "cerrada", fechaCierre: new Date(), fueCerradaAlgunaVez: true } });
 
   if (evaluacion.salvedadesAplicadas?.length) {
@@ -47,6 +49,19 @@ export async function POST(req: Request) {
         motivo: s.motivo,
       })),
     });
+  }
+
+  // Al cerrar, los recibos pasan a verse en el portal: se le avisa a quien
+  // tiene uno sin firmar. (Si el período se reabre y se vuelve a cerrar,
+  // quien ya firmó no recibe otro aviso.) Un problema al avisar no deshace
+  // el cierre. Si el período ya estaba cerrado (doble clic, o se volvió a
+  // apretar "Cerrar"), no se avisa otra vez.
+  if (!yaEstabaCerrado) try {
+    const periodo = await prisma.periodo.findUnique({ where: { id: periodoId }, select: { nombre: true } });
+    const pendientes = await prisma.liquidacion.findMany({ where: { periodoId, vigente: true, OR: [{ reciboDigital: null }, { reciboDigital: { firma: null } }] }, select: { legajoId: true } });
+    if (periodo) await avisar(pendientes.map((l) => l.legajoId), avisoReciboDisponible(periodo.nombre));
+  } catch (e) {
+    console.error("Cerrar: no se pudo avisar de los recibos:", e);
   }
 
   return NextResponse.json({ cerrado: true, ...evaluacion });

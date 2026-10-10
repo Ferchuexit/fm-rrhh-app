@@ -924,6 +924,8 @@ model Legajo {
   lecturasNoticias    NoticiaLectura[]
   cambiosDatos        SolicitudCambioDatos[]
   recibosDigitales ReciboDigital[]
+  suscripcionesPush SuscripcionPush[]
+  avisos            Aviso[]
 
   @@unique([empresaId, numeroLegajo])
   @@index([jefeId])
@@ -1453,4 +1455,40 @@ model PresupuestoSalarial {
   centroCosto CentroCosto? @relation(fields: [centroCostoId], references: [id], onDelete: Cascade)
 
   @@index([empresaId, fechaDesde, fechaHasta])
+}
+
+// Un celular (o navegador) donde el empleado aceptó recibir avisos del
+// portal. Un empleado puede tener varios. Los datos los entrega el
+// navegador al suscribirse; con ellos se le manda la notificación.
+model SuscripcionPush {
+  id          String   @id @default(uuid())
+  legajoId    String
+  endpoint    String   @unique
+  p256dh      String
+  auth        String
+  dispositivo String? // "Android · Chrome", para que el empleado reconozca cuál es
+  createdAt   DateTime @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@index([legajoId])
+}
+
+// Registro de cada aviso que el sistema le mandó a un empleado: qué decía y
+// por dónde salió. Sirve para contestar "¿le avisaron?".
+model Aviso {
+  id            String   @id @default(uuid())
+  legajoId      String
+  tipo          String // 'recibo' | 'solicitud' | 'noticia' | 'legajo' | 'prueba'
+  titulo        String
+  cuerpo        String
+  url           String
+  pushEnviados  Int      @default(0) // a cuántos celulares llegó
+  pushFallidos  Int      @default(0)
+  emailEstado   String? // 'enviado' | 'error: …' | null = no se intentó (sin mail o mail no configurado)
+  createdAt     DateTime @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@index([legajoId, createdAt])
 }

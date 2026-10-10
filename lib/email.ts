@@ -71,3 +71,31 @@ export async function enviarEmail({
     return { ok: false, error: e.message ?? "No se pudo conectar con el servicio de mail." };
   }
 }
+
+// Muchos mails distintos de una sola vez (un aviso por empleado). Resend
+// acepta hasta 100 por llamada; en el plan gratuito, mandarlos de a uno
+// choca enseguida con el límite de pedidos por segundo.
+export async function enviarEmailsEnLote(mails: { destinatario: string; asunto: string; html: string }[]): Promise<{ configurado: boolean; resultados: (string | null)[] }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const remitente = process.env.EMAIL_REMITENTE || "onboarding@resend.dev";
+  // resultados[i]: null = enviado, texto = por qué no salió
+  if (!apiKey) return { configurado: false, resultados: mails.map(() => "mail no configurado") };
+
+  const resultados: (string | null)[] = [];
+  for (let i = 0; i < mails.length; i += 100) {
+    const tanda = mails.slice(i, i + 100);
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(tanda.map((m) => ({ from: `Portal del empleado <${remitente}>`, to: [m.destinatario], subject: m.asunto, html: m.html }))),
+      });
+      const data = await res.json().catch(() => ({}));
+      const error = res.ok ? null : String(data.message ?? `error ${res.status}`).slice(0, 120);
+      for (const _ of tanda) resultados.push(error);
+    } catch (e: any) {
+      for (const _ of tanda) resultados.push(String(e?.message ?? "sin conexión con el servicio de mail").slice(0, 120));
+    }
+  }
+  return { configurado: true, resultados };
+}
