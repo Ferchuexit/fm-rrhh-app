@@ -152,6 +152,7 @@ model Empresa {
   pctContribucionesEstimado Decimal? @db.Decimal(5, 2)
   presupuestos PresupuestoSalarial[]
   horarios HorarioTrabajo[]
+  plantillasIngreso PlantillaIngreso[]
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -927,6 +928,7 @@ model Legajo {
   recibosDigitales ReciboDigital[]
   suscripcionesPush SuscripcionPush[]
   asignacionesHorario AsignacionHorario[]
+  ingresos            Ingreso[]
   avisos            Aviso[]
 
   @@unique([empresaId, numeroLegajo])
@@ -1532,4 +1534,61 @@ model AsignacionHorario {
   legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 
   @@index([legajoId, desde])
+}
+
+// ── Onboarding (ingreso de personal) ─────────────────────────────────
+// La lista de pasos que la empresa sigue cada vez que entra alguien. Se
+// copia al iniciar un ingreso: cambiar la plantilla después no modifica los
+// ingresos que ya están en curso.
+model PlantillaIngreso {
+  id        String   @id @default(uuid())
+  empresaId String
+  nombre    String
+  // [{ titulo, detalle?, responsable: 'rrhh'|'jefe'|'empleado', dia, clave? }]
+  // dia = días desde la fecha de ingreso (negativo = antes de que entre).
+  tareas    Json
+  updatedAt DateTime @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, nombre])
+}
+
+// El ingreso de UNA persona: sus tareas y cómo vienen.
+model Ingreso {
+  id           String    @id @default(uuid())
+  legajoId     String
+  plantilla    String // nombre de la plantilla de la que salió (informativo)
+  fechaIngreso DateTime // contra esta fecha se calculan los vencimientos
+  estado       String    @default("en_curso") // 'en_curso' | 'completado' | 'cancelado'
+  iniciadoPor  String?
+  createdAt    DateTime  @default(now())
+  cerradoEn    DateTime?
+
+  legajo Legajo         @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  tareas TareaIngreso[]
+
+  @@index([legajoId, estado])
+}
+
+model TareaIngreso {
+  id          String    @id @default(uuid())
+  ingresoId   String
+  orden       Int
+  titulo      String
+  detalle     String?
+  responsable String // 'rrhh' | 'jefe' | 'empleado'
+  vence       DateTime
+  // Si la tarea es algo que el sistema puede comprobar solo (tiene acceso al
+  // portal, tiene horario, tiene jefe, legajo digital completo), se tilda
+  // sola. Ver CLAVES_AUTOMATICAS en lib/ingresos-reglas.ts.
+  clave       String?
+  estado      String    @default("pendiente") // 'pendiente' | 'hecha' | 'no_aplica'
+  hechaPor    String? // email del usuario, "jefe: Nombre", "empleado" o "sistema"
+  hechaEn     DateTime?
+  nota        String?
+
+  ingreso Ingreso @relation(fields: [ingresoId], references: [id], onDelete: Cascade)
+
+  @@index([ingresoId, orden])
 }

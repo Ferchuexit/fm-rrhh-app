@@ -62,6 +62,14 @@ export function avisoCambioDeHorario(desde: Date): TextoAviso {
   return { tipo: "horario", titulo: "Cambió tu horario de trabajo", cuerpo: `Tenés un horario nuevo desde el ${dia(desde)}. Entrá para verlo.`, url: "/portal/horario" };
 }
 
+export function avisoIngresoAlEmpleado(): TextoAviso {
+  return { tipo: "ingreso", titulo: "Te damos la bienvenida", cuerpo: "Tenés algunos pasos para completar tu ingreso. Entrá para verlos.", url: "/portal/ingreso" };
+}
+
+export function avisoIngresoAlJefe(nombre: string, fechaIngreso: Date): TextoAviso {
+  return { tipo: "ingreso", titulo: `Ingresa ${nombre.slice(0, 40)} a tu equipo`, cuerpo: `Empieza el ${dia(fechaIngreso)}. Tenés tareas para recibirlo: entrá a Mi equipo.`, url: "/portal/equipo" };
+}
+
 export const avisoDePrueba = (): TextoAviso => ({ tipo: "prueba", titulo: "Los avisos funcionan", cuerpo: "Así te va a llegar cuando haya un recibo, una respuesta o una noticia.", url: "/portal" });
 
 // "Android · Chrome" — para que el empleado reconozca su celular en la lista.

@@ -14,6 +14,9 @@ export default async function PortalInicio() {
   const sesion = await obtenerSesionPortal();
   if (!sesion) redirect("/portal/login");
 
+  // ¿Está en pleno ingreso? Mientras lo esté, "Mi ingreso" va primero.
+  const enIngreso = await prisma.ingreso.findFirst({ where: { legajoId: sesion.legajoId, estado: "en_curso" }, select: { tareas: { where: { responsable: "empleado", estado: "pendiente" }, select: { id: true } } } }).catch(() => null);
+
   const [recibos, legajoDigital, noticiasNuevas, pedidosPendientes, genteACargo] = await Promise.all([
     recibosDelEmpleado(sesion.legajoId),
     // Si el legajo digital falla (por ejemplo, falta aplicar su migración),
@@ -30,6 +33,7 @@ export default async function PortalInicio() {
 
   // globo = cosas que esperan una acción DEL EMPLEADO (no de RR.HH.).
   const APPS = [
+    ...(enIngreso ? [{ href: "/portal/ingreso", icono: "🚀", label: "Mi ingreso", globo: enIngreso.tareas.length }] : []),
     { href: "/portal/noticias", icono: "📣", label: "Noticias", globo: noticiasNuevas },
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },

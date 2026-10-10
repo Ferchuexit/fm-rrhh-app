@@ -142,6 +142,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     categoria: "Gestión de RR.HH.",
     icono: "🤝",
     items: [
+      { href: "/onboarding", label: "Onboarding", icono: "🚀", desc: "Pasos de ingreso de cada empleado nuevo: quién hace qué y cómo viene" },
       { href: "/legajo-digital", label: "Legajo digital", icono: "📁", desc: "Checklist de documentación de cada empleado y revisión" },
       { href: "/vacaciones", label: "Vacaciones", icono: "🏖️", desc: "Notificación, pendientes, Gantt" },
       { href: "/solicitudes", label: "Solicitudes", icono: "📨", desc: "Pedidos de vacaciones y permisos para aprobar" },

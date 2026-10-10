@@ -10,6 +10,8 @@ import { horariosDeEmpresa, jornadaDelDia, vistaDeJornada } from "@/lib/turnos";
 import { fechaPeriodo } from "../formato";
 import PedidoForm from "../vacaciones/PedidoForm";
 import CancelarPedido from "../vacaciones/CancelarPedido";
+import TildarTarea from "../ingreso/TildarTarea";
+import { ponerAlDia } from "@/lib/ingresos";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,14 @@ export default async function PortalEquipo() {
     console.error("Portal equipo: no se pudieron cargar los turnos:", e);
   }
 
+  // Gente del equipo que está ingresando: el jefe tiene tareas para
+  // recibirla. Si falla (falta la migración), la pantalla sigue sin esto.
+  const ingresos = await (async () => {
+    const enCurso = await prisma.ingreso.findMany({ where: { legajoId: { in: ids }, estado: "en_curso" }, select: { id: true } });
+    await ponerAlDia(enCurso.map((i) => i.id));
+    return prisma.ingreso.findMany({ where: { legajoId: { in: ids }, estado: "en_curso" }, include: { tareas: { where: { responsable: "jefe" }, orderBy: [{ vence: "asc" }, { orden: "asc" }] } }, orderBy: { fechaIngreso: "desc" } });
+  })().catch((e) => { console.error("Portal equipo: no se pudieron cargar los ingresos:", e); return []; });
+
   const [saldos, vacaciones, pedidos] = await Promise.all([
     Promise.all(equipo.map(async (m) => ({ id: m.id, actual: await saldoVacaciones(m.id, anio), proximo: await saldoVacaciones(m.id, anio + 1) }))),
     prisma.vacacion.findMany({ where: { legajoId: { in: ids }, fechaHasta: { gte: hoy } }, orderBy: { fechaDesde: "asc" } }),
@@ -76,6 +86,22 @@ export default async function PortalEquipo() {
           </div>
         );
       })}
+
+      {ingresos.map((ing) => (
+        <div key={ing.id}>
+          <h2>🚀 Ingreso de {nombre(ing.legajoId)}</h2>
+          <p className="p-sub" style={{ marginTop: "-0.3rem" }}>Empieza el {fechaPeriodo(ing.fechaIngreso)}. Estas son tus tareas para recibirlo:</p>
+          {ing.tareas.length === 0 && <p className="p-sub">No tenés tareas asignadas en este ingreso.</p>}
+          {ing.tareas.map((t) => (
+            <div key={t.id} className="p-card">
+              <div className="p-card-titulo">{t.estado !== "pendiente" ? "✅ " : ""}{t.titulo}</div>
+              {t.detalle && <div className="p-card-dato">{t.detalle}</div>}
+              {t.estado === "pendiente" && <div className="p-card-dato">Para el {fechaPeriodo(t.vence)}{t.vence < hoy ? " — está vencida" : ""}</div>}
+              {!t.clave && t.estado !== "no_aplica" && <div style={{ marginTop: "0.4rem" }}><TildarTarea id={t.id} hecha={t.estado === "hecha"} titulo={t.titulo} /></div>}
+            </div>
+          ))}
+        </div>
+      ))}
 
       <h2>Pedir vacaciones para alguien del equipo</h2>
       <PedidoForm

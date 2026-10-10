@@ -66,6 +66,10 @@ export default function LoginPage() {
         <button onClick={entrar} disabled={cargando} style={{ width: "100%" }}>
           {cargando ? "Entrando..." : "Entrar"}
         </button>
+        {/* Quien llega acá buscando sus recibos es un empleado: su entrada es otra. */}
+        <p style={{ fontSize: "0.82rem", textAlign: "center", margin: "1rem 0 0" }}>
+          ¿Sos empleado y querés ver tus recibos o vacaciones? <a href="/portal">Entrá al portal del empleado</a>
+        </p>
         {error && <p style={{ color: "#B23A3A", fontSize: "0.85rem" }}>{error}</p>}
       </div>
     </div>
