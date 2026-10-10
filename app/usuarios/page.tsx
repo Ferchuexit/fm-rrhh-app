@@ -3,9 +3,9 @@ import { useState, useEffect, Fragment } from "react";
 
 const ROLES = ["admin", "operador", "lectura"];
 const ROL_DESC: Record<string, string> = {
-  admin: "Acceso total, incluida esta pantalla y la configuración (conceptos, reglas, parámetros)",
-  operador: "Trabajo diario: legajos, novedades, liquidar, auditar, vacaciones, exportar — sin tocar la configuración",
-  lectura: "Solo puede ver — cualquier acción que modifique algo queda bloqueada",
+  admin: "Acceso total a todas las empresas, incluida esta pantalla, los roles y la configuración",
+  operador: "Usuario normal. Lo que puede hacer en cada empresa lo define el rol que le asignes en «Ver / asignar»; sin rol, hace el trabajo diario sin tocar la configuración",
+  lectura: "Igual que operador, pero en las empresas donde no tenga un rol asignado solo puede mirar",
 };
 
 export default function UsuariosPage() {
@@ -15,6 +15,7 @@ export default function UsuariosPage() {
   const [editando, setEditando] = useState<Record<string, { nombre: string; rol: string; password: string }>>({});
   const [empresasPanel, setEmpresasPanel] = useState<string | null>(null); // id del usuario cuyo panel de empresas está abierto
   const [empresasDelUsuario, setEmpresasDelUsuario] = useState<any[]>([]);
+  const [roles, setRoles] = useState<{ id: string; nombre: string }[]>([]);
 
   async function abrirPanelEmpresas(id: string) {
     if (empresasPanel === id) { setEmpresasPanel(null); return; }
@@ -23,17 +24,22 @@ export default function UsuariosPage() {
     setEmpresasPanel(id);
   }
 
+  function cambiarRol(empresaId: string, rolId: string) {
+    setEmpresasDelUsuario((prev) => prev.map((e) => (e.id === empresaId ? { ...e, rolId: rolId || null } : e)));
+  }
+
   function toggleEmpresa(empresaId: string) {
     setEmpresasDelUsuario((prev) => prev.map((e) => (e.id === empresaId ? { ...e, asignada: !e.asignada } : e)));
   }
 
   async function guardarEmpresas(id: string) {
-    const empresaIds = empresasDelUsuario.filter((e) => e.asignada).map((e) => e.id);
-    await fetch(`/api/usuarios/${id}/empresas`, {
+    const asignaciones = empresasDelUsuario.filter((e) => e.asignada).map((e) => ({ empresaId: e.id, rolId: e.rolId ?? null }));
+    const res = await fetch(`/api/usuarios/${id}/empresas`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ empresaIds }),
+      body: JSON.stringify({ asignaciones }),
     });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? "No se pudo guardar."); return; }
     setEmpresasPanel(null);
   }
 
@@ -44,6 +50,7 @@ export default function UsuariosPage() {
 
   useEffect(() => {
     cargar();
+    fetch("/api/roles").then((r) => r.json()).then((d) => setRoles(d.roles ?? [])).catch(() => {});
   }, []);
 
   async function crear() {
@@ -177,14 +184,24 @@ export default function UsuariosPage() {
             {empresasPanel === u.id && (
               <tr>
                 <td colSpan={6} style={{ background: "var(--gris-claro)", padding: "0.8rem" }}>
-                  <p style={{ margin: "0 0 0.5rem", fontSize: "0.8rem" }}>
-                    Empresas que <strong>{u.nombre}</strong> puede ver (sin marcar acá, no le aparecen en el selector aunque existan en el sistema):
+                  <p style={{ margin: "0 0 0.5rem", fontSize: "0.8rem", maxWidth: "760px" }}>
+                    Empresas a las que entra <strong>{u.nombre}</strong>, y con qué rol en cada una. Sin marcar, la empresa no le aparece. El rol define
+                    qué módulos ve y cuáles puede modificar — se arman en <a href="/roles">Roles y permisos</a>. El cambio le llega en unos minutos, sin
+                    que tenga que volver a entrar.
                   </p>
                   {empresasDelUsuario.map((e) => (
-                    <label key={e.id} style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>
-                      <input type="checkbox" checked={e.asignada} onChange={() => toggleEmpresa(e.id)} style={{ marginRight: "0.4rem" }} />
-                      {e.nombreFantasia || e.razonSocial}
-                    </label>
+                    <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.85rem", marginBottom: "0.3rem" }}>
+                      <label style={{ minWidth: "260px" }}>
+                        <input type="checkbox" checked={e.asignada} onChange={() => toggleEmpresa(e.id)} style={{ marginRight: "0.4rem" }} />
+                        {e.nombreFantasia || e.razonSocial}
+                      </label>
+                      {e.asignada && (
+                        <select value={e.rolId ?? ""} onChange={(ev) => cambiarRol(e.id, ev.target.value)} style={{ padding: "0.25rem" }}>
+                          <option value="">Sin rol — como antes ({u.rol === "lectura" ? "solo lectura" : "operador"})</option>
+                          {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                        </select>
+                      )}
+                    </div>
                   ))}
                   {empresasDelUsuario.length === 0 && <p style={{ fontSize: "0.8rem", opacity: 0.6 }}>No hay ninguna empresa cargada todavía.</p>}
                   <button onClick={() => guardarEmpresas(u.id)} style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>Guardar accesos</button>

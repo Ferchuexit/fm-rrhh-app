@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verificarPassword, firmarSesion, NOMBRE_COOKIE } from "@/lib/auth";
+import { verificarPassword } from "@/lib/auth";
+import { cookieDeSesion } from "@/lib/permisos-servidor";
 
 // FM RRHH — app/api/login/route.ts
 //
@@ -56,14 +57,8 @@ export async function POST(req: Request) {
       await prisma.usuario.update({ where: { id: usuario.id }, data: { intentosFallidos: 0, bloqueadoHasta: null } });
     }
 
-    const token = await firmarSesion(usuario);
     const res = NextResponse.json({ ok: true, nombre: usuario.nombre, rol: usuario.rol });
-    res.cookies.set(NOMBRE_COOKIE, token, {
-      httpOnly: true, // no accesible desde JS del navegador — reduce el riesgo de robo por XSS
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
-    });
+    res.cookies.set(await cookieDeSesion(usuario)); // el token lleva los permisos por empresa — ver lib/permisos-servidor.ts
     return res;
   } catch (e: any) {
     console.error("Error en POST /api/login:", e);

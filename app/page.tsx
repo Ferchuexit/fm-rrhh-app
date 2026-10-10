@@ -1,10 +1,12 @@
 import LogoFM from "./LogoFM";
 import { obtenerSesionActual } from "@/lib/auth";
-import { menuFiltradoPorRol } from "@/lib/menu-estructura";
+import { menuFiltrado } from "@/lib/menu-estructura";
+import { permisosActuales } from "@/lib/permisos-servidor";
 
 export default async function Home() {
   const sesion = await obtenerSesionActual();
-  const categorias = sesion ? menuFiltradoPorRol(sesion.rol) : [];
+  const acceso = sesion ? await permisosActuales() : null;
+  const categorias = acceso ? menuFiltrado(acceso.esAdmin, acceso.permisos) : [];
 
   return (
     <main>
@@ -16,6 +18,11 @@ export default async function Home() {
       </div>
 
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+        {sesion && categorias.length === 0 && (
+          <p style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", textAlign: "center" }}>
+            Tu usuario todavía no tiene ningún módulo habilitado en esta empresa. Pedile al administrador que te asigne un rol.
+          </p>
+        )}
         {categorias.map((cat, i) => (
           <div key={cat.categoria} style={{ marginBottom: "2rem" }}>
             {(i === 0 || categorias[i - 1].bloque !== cat.bloque) && (

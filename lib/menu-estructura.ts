@@ -40,12 +40,14 @@
 // el mercado: Gestión de RR.HH., Operaciones, Plataforma...). Sumar un área
 // nueva (Comunicación interna, Desarrollo de talento, Cultura) es agregar
 // una entrada acá; una categoría sin ítems visibles no se dibuja.
+import { puedeAcceder, type Permisos } from "./permisos";
+
 export interface ItemMenu {
   href: string;
   label: string;
   icono: string;
   desc: string;
-  soloAdmin?: boolean;
+  soloAdmin?: boolean; // usuarios, roles y empresas: no se delegan
 }
 
 export interface CategoriaMenu {
@@ -162,15 +164,19 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     icono: "🔐",
     items: [
       { href: "/accesos-portal", label: "Accesos al portal", icono: "🔑", desc: "PIN de cada empleado para entrar a /portal" },
-      { href: "/usuarios", label: "Usuarios", icono: "🔐", desc: "Altas, roles y permisos", soloAdmin: true },
+      { href: "/usuarios", label: "Usuarios", icono: "🔐", desc: "Altas y a qué empresas entra cada uno, con qué rol", soloAdmin: true },
+      { href: "/roles", label: "Roles y permisos", icono: "🛡️", desc: "Qué puede ver y gestionar cada rol, módulo por módulo", soloAdmin: true },
     ],
   },
 ];
 
-// Filtra por rol, y descarta categorías que quedan vacías después del filtro.
-export function menuFiltradoPorRol(rol: string | undefined): CategoriaMenu[] {
+// Un ítem se muestra si el usuario puede abrir esa pantalla. NO hay una
+// lista aparte de "qué ve cada rol": se le pregunta a la misma función que
+// usa el middleware (puedeAcceder), así el menú nunca ofrece un link que
+// después rebota, ni esconde uno que sí funcionaría.
+export function menuFiltrado(esAdmin: boolean, permisos: Permisos | null): CategoriaMenu[] {
   return ESTRUCTURA_MENU.map((cat) => ({
     ...cat,
-    items: cat.items.filter((i) => !i.soloAdmin || rol === "admin"),
+    items: cat.items.filter((i) => puedeAcceder(i.href, "GET", esAdmin, permisos)),
   })).filter((cat) => cat.items.length > 0);
 }

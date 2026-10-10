@@ -10,7 +10,8 @@
 import EmpresaSelector from "./EmpresaSelector";
 import MenuLateral from "./MenuLateral";
 import { obtenerSesionActual } from "@/lib/auth";
-import { menuFiltradoPorRol } from "@/lib/menu-estructura";
+import { menuFiltrado } from "@/lib/menu-estructura";
+import { permisosActuales } from "@/lib/permisos-servidor";
 import { headers } from "next/headers";
 
 // Dónde NO va el menú del sistema: /terminal (kiosco de fichadas, corre sin
@@ -27,8 +28,11 @@ export default async function Nav() {
   const sesion = await obtenerSesionActual();
   if (!sesion) return null; // sin sesión solo se llega a /login, que trae su propio logo
 
+  const acceso = await permisosActuales();
+  if (!acceso) return null; // el usuario fue eliminado: el middleware le cierra la sesión en la próxima navegación
+
   return (
-    <MenuLateral categorias={menuFiltradoPorRol(sesion.rol)} usuario={{ nombre: sesion.nombre, rol: sesion.rol }}>
+    <MenuLateral categorias={menuFiltrado(acceso.esAdmin, acceso.permisos)} usuario={{ nombre: sesion.nombre, rol: acceso.esAdmin ? "admin" : sesion.rol }}>
       <EmpresaSelector />
     </MenuLateral>
   );

@@ -19,15 +19,22 @@ const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET || "clave-de-desarrollo-NO-USAR-fuera-de-localhost-cambiar-en-env-local"
 );
 
+import type { PermisosToken } from "./permisos";
+
 export interface SesionPayload {
   id: string;
   email: string;
   nombre: string;
   rol: string;
+  // Permisos por empresa (lib/permisos.ts) y cuándo se calcularon. Viajan
+  // en el token porque el middleware no puede consultar la base. Un token
+  // emitido antes de que existieran los roles no los trae (undefined).
+  pt?: PermisosToken;
+  pa?: number; // segundos desde 1970
 }
 
-export async function firmarSesion(usuario: { id: string; email: string; nombre: string; rol: string }): Promise<string> {
-  return new SignJWT({ email: usuario.email, nombre: usuario.nombre, rol: usuario.rol })
+export async function firmarSesion(usuario: { id: string; email: string; nombre: string; rol: string }, pt?: PermisosToken): Promise<string> {
+  return new SignJWT({ email: usuario.email, nombre: usuario.nombre, rol: usuario.rol, ...(pt ? { pt, pa: Math.floor(Date.now() / 1000) } : {}) })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(usuario.id)
     .setIssuedAt()
@@ -38,7 +45,10 @@ export async function firmarSesion(usuario: { id: string; email: string; nombre:
 export async function verificarSesion(token: string): Promise<SesionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, secret);
-    return { id: payload.sub as string, email: payload.email as string, nombre: payload.nombre as string, rol: payload.rol as string };
+    return {
+      id: payload.sub as string, email: payload.email as string, nombre: payload.nombre as string, rol: payload.rol as string,
+      pt: payload.pt as PermisosToken | undefined, pa: typeof payload.pa === "number" ? payload.pa : undefined,
+    };
   } catch {
     return null; // token vencido, manipulado, o firmado con otro secreto
   }

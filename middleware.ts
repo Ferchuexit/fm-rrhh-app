@@ -17,28 +17,20 @@ import type { NextRequest } from "next/server";
 import { NOMBRE_COOKIE, verificarSesion } from "@/lib/auth-edge";
 import { NOMBRE_COOKIE_PORTAL, verificarSesionPortal } from "@/lib/portal-edge";
 
-const RUTAS_PUBLICAS = [
-  "/login",
-  "/api/login",
-  // Control de Asistencia — la terminal instalada en el cliente no tiene
-  // sesión de usuario, se identifica con su dispositivoId (código de
-  // vinculación de un solo uso, después el id del dispositivo). Ver la
-  // nota de diseño en prisma/schema.prisma, modelo DispositivoAsistencia.
-  "/api/dispositivos/vincular",
-  "/api/dispositivos/heartbeat",
-  "/api/fichadas/terminal",
-  "/api/dispositivos/legajos",
-  "/api/dispositivos/biometria",
-  "/api/dispositivos/biometria/enrolar",
-  "/api/dispositivos/verificar-pin",
-  "/terminal", // la pantalla de kiosco en sí — Fase 2
-];
+import { RUTAS_PUBLICAS, puedeAcceder, permisosEnEmpresa, permisosHeredados } from "@/lib/permisos";
 
-// Configuración del sistema — solo admin. Si un rol no-admin entra a
-// legajos, novedades, vacaciones, etc. (el trabajo del día a día), pasa
-// normal — esto es solo para lo que puede romper el cálculo de todos si se
-// toca mal (reglas, conceptos, parámetros, usuarios).
-const RUTAS_ADMIN = ["/usuarios", "/api/usuarios", "/empresas", "/api/empresas", "/conceptos", "/api/conceptos", "/reglas", "/api/reglas", "/parametros", "/api/parametros", "/api/rangos", "/convenios", "/categorias", "/escalas", "/estado-implementacion", "/api/estado-implementacion", "/actualizaciones-normativas", "/api/actualizaciones-normativas", "/dispositivos", "/api/dispositivos"];
+// Qué rutas son públicas, cuáles son solo de admin y qué módulo protege
+// cada una está en lib/permisos.ts — un solo lugar, que también leen el
+// menú y la pantalla de roles. Acá solo se aplica.
+
+// Los permisos viajan en el token (el middleware corre en Edge y no puede
+// consultar la base). Para que un cambio de rol no tarde en verse:
+//   - al navegar a una pantalla, si tienen más de 5 minutos se renuevan
+//     pasando por /api/sesion/renovar (un redirect que no se nota);
+//   - una llamada de API con permisos de más de 8 horas se rechaza — es el
+//     caso de una pestaña que quedó abierta todo el día sin navegar.
+const REFRESCO_SEG = 5 * 60;
+const TOPE_API_SEG = 8 * 60 * 60;
 
 // Le pasamos el pathname a los Server Components vía header — Nav.tsx lo
 // lee para no renderizarse en /terminal (pantalla de kiosco, sin el menú
@@ -104,20 +96,30 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── Autorización: rutas de configuración, solo admin ──
-  const esRutaAdmin = RUTAS_ADMIN.some((p) => pathname === p || pathname.startsWith(p + "/"));
-  if (esRutaAdmin && sesion.rol !== "admin") {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Esta acción requiere rol de administrador." }, { status: 403 });
-    }
-    return NextResponse.redirect(new URL("/", req.url));
+  // ── ¿Los permisos del token están al día? ──
+  const esApi = pathname.startsWith("/api/");
+  const esRenovacion = pathname === "/api/sesion/renovar";
+  const edad = sesion.pa ? Math.floor(Date.now() / 1000) - sesion.pa : Infinity;
+  const esNavegacion = !esApi && req.method === "GET" && !req.headers.has("rsc") && !req.headers.has("next-router-prefetch");
+  if (!esRenovacion && esNavegacion && edad > REFRESCO_SEG && !req.cookies.has("sesion_renovada")) {
+    const url = new URL("/api/sesion/renovar", req.url);
+    url.searchParams.set("volver", pathname + req.nextUrl.search);
+    return NextResponse.redirect(url);
+  }
+  if (esApi && !esRenovacion && sesion.pa && edad > TOPE_API_SEG) {
+    return NextResponse.json({ error: "Esta pestaña quedó abierta mucho tiempo. Recargá la página (F5) para seguir." }, { status: 401 });
   }
 
-  // ── Autorización: rol "lectura" no puede modificar nada, en ningún lado.
-  // Las páginas siempre se piden por GET (navegar no escribe nada) — lo que
-  // hay que bloquear son los métodos que sí escriben, sin importar la ruta.
-  if (sesion.rol === "lectura" && !["GET", "HEAD"].includes(req.method)) {
-    return NextResponse.json({ error: "Tu usuario tiene permiso de solo lectura — esta acción está bloqueada." }, { status: 403 });
+  // ── Autorización: por módulo, según el rol del usuario en la empresa actual ──
+  // Un token de antes de los roles no trae permisos: se evalúa con lo que
+  // ese usuario podía entonces (operador / lectura), hasta que se renueve.
+  const esAdmin = sesion.rol === "admin";
+  const permisos = esAdmin ? null : sesion.pt ? permisosEnEmpresa(sesion.pt, req.cookies.get("empresaActual")?.value) : permisosHeredados(sesion.rol);
+  if (!puedeAcceder(pathname, req.method, esAdmin, permisos)) {
+    if (esApi) {
+      return NextResponse.json({ error: "Tu rol no tiene permiso para esta acción en la empresa actual. Si lo necesitás, pedíselo al administrador." }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   return siguienteConPathname(req);

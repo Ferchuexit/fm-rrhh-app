@@ -91,10 +91,32 @@ model UsuarioEmpresa {
   usuarioId String
   empresaId String
 
+  // Qué puede hacer este usuario EN ESTA empresa. null = conserva lo que
+  // podía antes de que existieran los roles (según Usuario.rol: operador o
+  // lectura) — ver permisosHeredados() en lib/permisos.ts.
+  rolId     String?
+
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   empresa Empresa @relation(fields: [empresaId], references: [id])
+  rol     Rol?    @relation(fields: [rolId], references: [id], onDelete: SetNull)
 
   @@unique([usuarioId, empresaId])
+}
+
+// Un rol configurable: una grilla módulo → nivel. Los módulos y los niveles
+// válidos están en lib/permisos.ts (MODULOS); acá solo se guarda la grilla.
+// Es global (no de una empresa): el mismo rol "Liquidador" sirve para
+// todos los clientes, y a cada usuario se le asigna por empresa.
+model Rol {
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  descripcion String?
+  permisos    Json // { modulo: 'ver' | 'gestionar' } — ausente = sin acceso
+  predefinido Boolean  @default(false) // los 4 que vienen armados: se pueden editar, no borrar
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  asignaciones UsuarioEmpresa[]
 }
 
 model Empresa {
