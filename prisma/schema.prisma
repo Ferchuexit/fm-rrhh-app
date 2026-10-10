@@ -318,6 +318,7 @@ model Vacacion {
   fechaNotificacion  DateTime  @default(now())
   createdAt          DateTime  @default(now())
 
+  constancias ConstanciaFirmada[] // la notificación de esta vacación, firmada por el empleado en el portal
   solicitud SolicitudAusencia? // si esta vacación nació de un pedido del empleado en el portal
   legajo Legajo @relation(fields: [legajoId], references: [id])
 }
@@ -599,6 +600,21 @@ model DocumentoLegajo {
   fechaSubida           DateTime @default(now())
   subidoPor             String?
 
+  // ── Legajo digital (docs/78-legajo-digital.md) ──
+  // tipo: a qué ítem del checklist del legajo corresponde ('dni', 'cuil',
+  // 'alta_temprana', 'cert_estudios', 'cert_medico', 'otro'). null = documento
+  // cargado antes de que existiera el checklist (se sigue viendo en la
+  // ficha, pero no tilda ningún ítem).
+  // estado: lo que sube RR.HH. entra 'aceptado'; lo que sube el empleado
+  // desde el portal entra 'pendiente' y no cuenta para el checklist hasta
+  // que RR.HH. lo acepta (para que una foto ilegible no valga como DNI).
+  tipo          String?
+  estado        String    @default("aceptado") // 'pendiente' | 'aceptado' | 'rechazado'
+  origen        String    @default("rrhh") // 'rrhh' | 'empleado'
+  motivoRechazo String?
+  revisadoPor   String?
+  revisadoEn    DateTime?
+
   legajo Legajo @relation(fields: [legajoId], references: [id])
   embargosComoNotificacion Embargo[]
   descargas DescargaDocumento[]
@@ -858,6 +874,8 @@ model Legajo {
   embargos Embargo[]
   accesoPortal   AccesoPortal?
   solicitudesAusencia SolicitudAusencia[]
+  constanciasFirmadas ConstanciaFirmada[]
+  cambiosDatos        SolicitudCambioDatos[]
   recibosDigitales ReciboDigital[]
 
   @@unique([empresaId, numeroLegajo])
@@ -1270,6 +1288,48 @@ model SolicitudAusencia {
 
   legajo   Legajo    @relation(fields: [legajoId], references: [id])
   vacacion Vacacion? @relation(fields: [vacacionId], references: [id], onDelete: SetNull)
+
+  @@index([legajoId, estado])
+}
+
+// Documento que GENERA el sistema y el empleado firma con su PIN en el
+// portal: la ficha de datos personales, la DD.JJ. de domicilio y la
+// notificación de vacaciones. No se guarda un PDF: se guarda la FOTO de los
+// datos que firmó (contenido) y su huella. El PDF se arma a pedido desde
+// esa foto, así siempre dice exactamente lo que el empleado vio al firmar,
+// aunque después cambie la ficha.
+model ConstanciaFirmada {
+  id             String   @id @default(uuid())
+  legajoId       String
+  tipo           String // 'ficha' | 'ddjj_domicilio' | 'notif_vacaciones'
+  vacacionId     String? // solo para 'notif_vacaciones'
+  contenido      Json // los datos tal cual se firmaron
+  hashContenido  String // SHA-256 de `contenido` — si coincide con el de los datos actuales, la firma sigue vigente
+  firmadoEn      DateTime @default(now())
+  ipFirma        String?
+  userAgentFirma String?
+
+  legajo   Legajo    @relation(fields: [legajoId], references: [id])
+  vacacion Vacacion? @relation(fields: [vacacionId], references: [id], onDelete: SetNull)
+
+  @@index([legajoId, tipo])
+}
+
+// El empleado no edita su ficha directo: PROPONE un cambio (domicilio,
+// teléfono, estado civil...) y RR.HH. lo aprueba. Recién ahí se toca el
+// Legajo. `cambios` guarda antes y después de cada campo, para que quede
+// el rastro de qué decía la ficha cuando se pidió.
+model SolicitudCambioDatos {
+  id          String    @id @default(uuid())
+  legajoId    String
+  cambios     Json // { campo: { antes, despues } }
+  estado      String    @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada'
+  respuesta   String?
+  resueltoPor String?
+  resueltoEn  DateTime?
+  createdAt   DateTime  @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id])
 
   @@index([legajoId, estado])
 }

@@ -6,12 +6,14 @@ const ICONOS: Record<string, React.ReactNode> = {
   inicio: <path d="M3 11.5 12 4l9 7.5M5.5 10v9.5h13V10" />,
   recibos: <><path d="M6 3h9l4 4v14H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>,
   vacaciones: <><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>,
+  legajo: <><path d="M4 6.5h6l2 2.5h8v10.5H4z" /><path d="M9 14.5h6" /></>,
 };
 
 const ITEMS = [
   { href: "/portal", label: "Inicio", ico: "inicio", activa: (p: string) => p === "/portal" },
   { href: "/portal/recibos", label: "Recibos", ico: "recibos", activa: (p: string) => p.startsWith("/portal/recibos") },
   { href: "/portal/vacaciones", label: "Vacaciones", ico: "vacaciones", activa: (p: string) => p.startsWith("/portal/vacaciones") },
+  { href: "/portal/legajo", label: "Legajo", ico: "legajo", activa: (p: string) => p.startsWith("/portal/legajo") },
 ];
 
 export default function PortalBarra() {

@@ -4,6 +4,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal, recibosDelEmpleado } from "@/lib/portal";
+import { cargarLegajoDigital } from "@/lib/legajo-digital";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,9 @@ export default async function PortalInicio() {
   const sesion = await obtenerSesionPortal();
   if (!sesion) redirect("/portal/login");
 
-  const [recibos, pedidosPendientes] = await Promise.all([
+  const [recibos, legajoDigital, pedidosPendientes] = await Promise.all([
     recibosDelEmpleado(sesion.legajoId),
+    cargarLegajoDigital(sesion.legajoId),
     prisma.solicitudAusencia.count({ where: { legajoId: sesion.legajoId, estado: "pendiente" } }),
   ]);
   const sinFirmar = recibos.filter((r) => !r.reciboDigital?.firma).length;
@@ -21,6 +23,7 @@ export default async function PortalInicio() {
   const APPS = [
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
+    { href: "/portal/legajo", icono: "📁", label: "Mi legajo", globo: legajoDigital.resumen.pendientesEmpleado },
     { href: "/portal/cambiar-pin", icono: "🔑", label: "Mi PIN", globo: 0 },
   ];
 
@@ -31,6 +34,10 @@ export default async function PortalInicio() {
       {sinFirmar > 0 ? (
         <a href="/portal/recibos" className="p-aviso pendiente" style={{ display: "block", textDecoration: "none" }}>
           Tenés <strong>{sinFirmar} {sinFirmar === 1 ? "recibo" : "recibos"}</strong> para firmar ›
+        </a>
+      ) : legajoDigital.resumen.pendientesEmpleado > 0 ? (
+        <a href="/portal/legajo" className="p-aviso pendiente" style={{ display: "block", textDecoration: "none" }}>
+          A tu legajo le {legajoDigital.resumen.pendientesEmpleado === 1 ? "falta 1 cosa" : `faltan ${legajoDigital.resumen.pendientesEmpleado} cosas`} que dependen de vos ›
         </a>
       ) : pedidosPendientes > 0 ? (
         <a href="/portal/vacaciones" className="p-aviso info" style={{ display: "block", textDecoration: "none" }}>
