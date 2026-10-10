@@ -83,6 +83,19 @@ export function avisoEvaluacionEntregada(): TextoAviso {
   return { tipo: "evaluacion", titulo: "Ya está tu evaluación de desempeño", cuerpo: "Entrá para verla y dejar constancia de que la leíste.", url: "/portal/evaluaciones" };
 }
 
+export function avisoAutoevaluacion(limite: Date): TextoAviso {
+  return { tipo: "evaluacion", titulo: "Tenés tu autoevaluación para completar", cuerpo: `Hasta el ${dia(limite)}. Entrá a Evaluaciones.`, url: "/portal/evaluaciones" };
+}
+
+// Sin el texto del objetivo: se lee con el celular bloqueado.
+export function avisoObjetivoNuevo(limite: Date): TextoAviso {
+  return { tipo: "objetivo", titulo: "Tenés un objetivo nuevo", cuerpo: `Para el ${dia(limite)}. Entrá a Objetivos para verlo.`, url: "/portal/objetivos" };
+}
+
+export function avisoObjetivoCerrado(cumplido: boolean): TextoAviso {
+  return { tipo: "objetivo", titulo: cumplido ? "Objetivo cumplido" : "Se cerró uno de tus objetivos", cuerpo: "Entrá a Objetivos para ver el detalle.", url: "/portal/objetivos" };
+}
+
 export function avisoIngresoAlEmpleado(): TextoAviso {
   return { tipo: "ingreso", titulo: "Te damos la bienvenida", cuerpo: "Tenés algunos pasos para completar tu ingreso. Entrá para verlos.", url: "/portal/ingreso" };
 }

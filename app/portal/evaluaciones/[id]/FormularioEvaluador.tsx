@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { ESCALA, type Competencia } from "@/lib/evaluaciones-reglas";
 
-export default function FormularioEvaluador({ id, competencias, inicial, completada }: { id: string; competencias: Competencia[]; inicial: { puntajes: Record<string, number>; fortalezas: string; aMejorar: string }; completada: boolean }) {
+export default function FormularioEvaluador({ id, competencias, inicial, completada, auto, autoComentario, esperaAuto }: { id: string; competencias: Competencia[]; inicial: { puntajes: Record<string, number>; fortalezas: string; aMejorar: string }; completada: boolean; auto?: Record<string, number> | null; autoComentario?: string | null; esperaAuto?: boolean }) {
   const [f, setF] = useState(inicial);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -29,6 +29,8 @@ export default function FormularioEvaluador({ id, competencias, inicial, complet
   return (
     <>
       {completada && <div className="p-aviso ok">Ya la completaste. La podés corregir hasta que RR.HH. se la entregue.</div>}
+      {esperaAuto && <div className="p-aviso info">Todavía no hizo su autoevaluación. Podés completar la tuya igual.</div>}
+      {auto && autoComentario && <div className="p-card"><div className="p-card-titulo">Lo que escribió en su autoevaluación</div><div className="p-card-dato" style={{ whiteSpace: "pre-wrap" }}>{autoComentario}</div></div>}
       {competencias.map((c, i) => (
         <div key={i} className="p-card">
           <div className="p-card-titulo">{c.nombre}</div>
@@ -39,7 +41,7 @@ export default function FormularioEvaluador({ id, competencias, inicial, complet
               return <button key={n} type="button" role="radio" aria-checked={elegido} onClick={() => setF({ ...f, puntajes: { ...f.puntajes, [i]: n } })} style={{ flex: 1, minHeight: 46, fontSize: "1.1rem", fontWeight: 700, borderRadius: 8, cursor: "pointer", border: elegido ? "2px solid #12202e" : "1px solid #b9c4cd", background: elegido ? ESCALA[n].color : "#fff", color: elegido && n === 5 ? "#fff" : "#12202e" }}>{n}</button>;
             })}
           </div>
-          <div className="p-card-dato" style={{ minHeight: "1.2em", color: "#6b727b" }}>{f.puntajes[i] ? ESCALA[f.puntajes[i]].nombre : "1 = no cumple · 5 = sobresaliente"}</div>
+          <div className="p-card-dato" style={{ minHeight: "1.2em", color: "#6b727b" }}>{f.puntajes[i] ? ESCALA[f.puntajes[i]].nombre : "1 = no cumple · 5 = sobresaliente"}{auto?.[i] && <span style={{ color: "#163A5C" }}> · se puso {auto[i]}</span>}</div>
         </div>
       ))}
       <label className="p-campo">Fortalezas<textarea rows={3} maxLength={1500} value={f.fortalezas} onChange={(e) => setF({ ...f, fortalezas: e.target.value })} placeholder="Lo que hace bien y conviene que siga haciendo" /></label>

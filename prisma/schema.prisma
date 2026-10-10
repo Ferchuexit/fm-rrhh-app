@@ -73,10 +73,10 @@ model Usuario {
   intentosFallidos Int       @default(0)
   bloqueadoHasta   DateTime?
 
-  empresas UsuarioEmpresa[]
+  empresas                    UsuarioEmpresa[]
   edicionesLiquidacionDetalle LiquidacionDetalleEdicion[]
-  fichadasCorregidas Fichada[] @relation("FichadaCorregidoPor")
-  fichadasAnuladas   Fichada[] @relation("FichadaAnuladoPor")
+  fichadasCorregidas          Fichada[]                   @relation("FichadaCorregidoPor")
+  fichadasAnuladas            Fichada[]                   @relation("FichadaAnuladoPor")
 }
 
 // Qué empresas puede ver cada usuario — el hueco de seguridad real que
@@ -94,13 +94,13 @@ model UsuarioEmpresa {
   // Qué puede hacer este usuario EN ESTA empresa. null = conserva lo que
   // podía antes de que existieran los roles (según Usuario.rol: operador o
   // lectura) — ver permisosHeredados() en lib/permisos.ts.
-  rolId     String?
+  rolId String?
 
   // Alcance por sector: ids de CentroCosto a los que está limitado en esta
   // empresa. Vacío = ve toda la empresa. Con sectores, solo ve y gestiona
   // gente de esos centros de costo (lib/alcance.ts) y su rol tiene que ser
   // de Gestión Humana (rolAdmiteSectores en lib/permisos.ts).
-  sectores  String[] @default([])
+  sectores String[] @default([])
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   empresa Empresa @relation(fields: [empresaId], references: [id])
@@ -134,30 +134,30 @@ model Empresa {
   logoUrl        String? // logo para la terminal de fichadas (y a futuro, recibos) — sube a Vercel Blob público
   createdAt      DateTime @default(now())
 
-  legajos      Legajo[]
-  periodos     Periodo[]
-  centrosCosto CentroCosto[]
-  sucursales   Sucursal[]
-  periodosAsistencia PeriodoAsistencia[]
-  usuarios UsuarioEmpresa[]
+  legajos                Legajo[]
+  periodos               Periodo[]
+  centrosCosto           CentroCosto[]
+  sucursales             Sucursal[]
+  periodosAsistencia     PeriodoAsistencia[]
+  usuarios               UsuarioEmpresa[]
   dispositivosAsistencia DispositivoAsistencia[]
-  noticias Noticia[]
-
-  @@map("empresas")
+  noticias               Noticia[]
 
   // Para estimar el costo laboral cuando las liquidaciones todavía no
   // calculan contribuciones patronales (reglas sin cargar): % sobre el
   // bruto. null = no estimar. Si las liquidaciones SÍ las traen, se usan
   // esas y este campo se ignora. Ver 82-planificacion-vacaciones.md.
-  pctContribucionesEstimado Decimal? @db.Decimal(5, 2)
-  presupuestos PresupuestoSalarial[]
-  horarios HorarioTrabajo[]
-  plantillasIngreso PlantillaIngreso[]
-  feriados Feriado[]
-  habilidades    Habilidad[]
-  capacitaciones Capacitacion[]
-  formulariosEvaluacion FormularioEvaluacion[]
-  ciclosEvaluacion      CicloEvaluacion[]
+  pctContribucionesEstimado Decimal?               @db.Decimal(5, 2)
+  presupuestos              PresupuestoSalarial[]
+  horarios                  HorarioTrabajo[]
+  plantillasIngreso         PlantillaIngreso[]
+  feriados                  Feriado[]
+  habilidades               Habilidad[]
+  capacitaciones            Capacitacion[]
+  formulariosEvaluacion     FormularioEvaluacion[]
+  ciclosEvaluacion          CicloEvaluacion[]
+
+  @@map("empresas")
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -167,9 +167,9 @@ model CentroCosto {
   empresaId String
   nombre    String
 
-  empresa Empresa  @relation(fields: [empresaId], references: [id])
-  legajos Legajo[]
-  noticias Noticia[]
+  empresa      Empresa               @relation(fields: [empresaId], references: [id])
+  legajos      Legajo[]
+  noticias     Noticia[]
   presupuestos PresupuestoSalarial[]
 }
 
@@ -195,14 +195,14 @@ model Sucursal {
 // reconstruirlo de memoria o de un comentario perdido en un script.
 model ActualizacionNormativa {
   id               String    @id @default(uuid())
-  norma            String    // "Resolución 9/2025", "Acta paritaria Comercio julio 2026", "Ley 27.743", etc.
-  fecha            DateTime  // fecha de la norma en sí
+  norma            String // "Resolución 9/2025", "Acta paritaria Comercio julio 2026", "Ley 27.743", etc.
+  fecha            DateTime // fecha de la norma en sí
   vigenciaDesde    DateTime?
-  fuente           String?   // link o cita del documento oficial
-  queModifica      String    // descripción libre de qué cambia
-  convenios        String?   // texto libre: "Comercio, Camioneros" o "General" — informativo, no una relación estricta
+  fuente           String? // link o cita del documento oficial
+  queModifica      String // descripción libre de qué cambia
+  convenios        String? // texto libre: "Comercio, Camioneros" o "General" — informativo, no una relación estricta
   estadoValidacion String    @default("pendiente") // 'pendiente' | 'validada' | 'aplicada'
-  aplicadaPor      String?   // usuario que la aplicó en el sistema
+  aplicadaPor      String? // usuario que la aplicó en el sistema
   fechaAplicacion  DateTime?
   createdAt        DateTime  @default(now())
 }
@@ -221,17 +221,17 @@ model Convenio {
   actividad         String?
   jurisdiccion      String? // "Nacional" | una provincia puntual
   vigenciaDesde     DateTime?
-  fuentesNormativas String?   // texto libre: número de CCT, decretos, actas paritarias relevantes — para poder citar de dónde salió cada cosa
+  fuentesNormativas String? // texto libre: número de CCT, decretos, actas paritarias relevantes — para poder citar de dónde salió cada cosa
 
-  categorias Categoria[]
-  escalas    Escala[]
-  reglas     ReglaConcepto[]
-  legajos    Legajo[]
-  periodos   Periodo[]
+  categorias          Categoria[]
+  escalas             Escala[]
+  reglas              ReglaConcepto[]
+  legajos             Legajo[]
+  periodos            Periodo[]
   relacionesLaborales RelacionLaboral[]
-  turnos     Turno[]
-  turnoExcepciones TurnoExcepcion[]
-  liquidaciones Liquidacion[]
+  turnos              Turno[]
+  turnoExcepciones    TurnoExcepcion[]
+  liquidaciones       Liquidacion[]
 }
 
 model Categoria {
@@ -240,10 +240,10 @@ model Categoria {
   codigo     String
   nombre     String
 
-  convenio Convenio @relation(fields: [convenioId], references: [id])
-  escalas  Escala[]
-  legajos  Legajo[]
-  valoresConceptos ValorConceptoCategoria[]
+  convenio            Convenio                 @relation(fields: [convenioId], references: [id])
+  escalas             Escala[]
+  legajos             Legajo[]
+  valoresConceptos    ValorConceptoCategoria[]
   relacionesLaborales RelacionLaboral[]
 }
 
@@ -281,21 +281,21 @@ model ValorConceptoCategoria {
 }
 
 model Concepto {
-  id     String @id @default(uuid())
-  codigo String @unique
-  numero Int?   @unique
-  nombre String
-  tipo   String // 'remunerativo' | 'no_remunerativo' | 'descuento' | 'contribucion_patronal'
-  unidad String // 'monto' | 'horas' | 'porcentaje'
+  id               String  @id @default(uuid())
+  codigo           String  @unique
+  numero           Int?    @unique
+  nombre           String
+  tipo             String // 'remunerativo' | 'no_remunerativo' | 'descuento' | 'contribucion_patronal'
+  unidad           String // 'monto' | 'horas' | 'porcentaje'
   categoriaNovedad String? // "Horas", "Licencias y Ausencias", "Préstamos y Adelantos", "Premios y Comisiones"... solo para agrupar la UI de carga de novedades, no afecta el cálculo
-  rubro String? // solo para tipo='contribucion_patronal': agrupa la torta del recibo (Ley 27.802) — 'seguridad_social' | 'obra_social' | 'art' | 'otros'
-  codigoArca String? // el código OFICIAL de ARCA para el LSD (ej. "110000" = Sueldo) — DISTINTO de "numero", que es nuestra numeración interna propia. Sin este código, el concepto no puede ir en el LSD. Ver 72-lsd-codigos-arca.md.
+  rubro            String? // solo para tipo='contribucion_patronal': agrupa la torta del recibo (Ley 27.802) — 'seguridad_social' | 'obra_social' | 'art' | 'otros'
+  codigoArca       String? // el código OFICIAL de ARCA para el LSD (ej. "110000" = Sueldo) — DISTINTO de "numero", que es nuestra numeración interna propia. Sin este código, el concepto no puede ir en el LSD. Ver 72-lsd-codigos-arca.md.
 
-  reglas  ReglaConcepto[]
-  detalle LiquidacionDetalle[]
-  novedades Novedad[]
+  reglas              ReglaConcepto[]
+  detalle             LiquidacionDetalle[]
+  novedades           Novedad[]
   valoresPorCategoria ValorConceptoCategoria[]
-  edicionesDetalle LiquidacionDetalleEdicion[]
+  edicionesDetalle    LiquidacionDetalleEdicion[]
 }
 
 // Rango numérico válido por tipo de concepto — configurable, no hardcodeado.
@@ -343,8 +343,8 @@ model Novedad {
   estado     String   @default("pendiente") // 'pendiente' | 'valida' | 'con_error'
   createdAt  DateTime @default(now())
 
-  legajo   Legajo   @relation(fields: [legajoId], references: [id])
-  concepto Concepto @relation(fields: [conceptoId], references: [id])
+  legajo                   Legajo               @relation(fields: [legajoId], references: [id])
+  concepto                 Concepto             @relation(fields: [conceptoId], references: [id])
   liquidacionesQueLaUsaron LiquidacionNovedad[]
 }
 
@@ -353,19 +353,19 @@ model Novedad {
 // pendientes: comparar "días que corresponden por antigüedad" contra "días
 // ya registrados" para cada año.
 model Vacacion {
-  id                 String    @id @default(uuid())
-  legajoId           String
-  anioCorresponde     Int       // año al que corresponden los días (no necesariamente el año en que se toman)
-  diasCorresponden   Int       // calculado por antigüedad al momento de otorgar — ver 27-vacaciones.md
-  fechaDesde         DateTime
-  fechaHasta         DateTime
-  estado             String    @default("notificada") // 'notificada' | 'tomada'
-  fechaNotificacion  DateTime  @default(now())
-  createdAt          DateTime  @default(now())
+  id                String   @id @default(uuid())
+  legajoId          String
+  anioCorresponde   Int // año al que corresponden los días (no necesariamente el año en que se toman)
+  diasCorresponden  Int // calculado por antigüedad al momento de otorgar — ver 27-vacaciones.md
+  fechaDesde        DateTime
+  fechaHasta        DateTime
+  estado            String   @default("notificada") // 'notificada' | 'tomada'
+  fechaNotificacion DateTime @default(now())
+  createdAt         DateTime @default(now())
 
   constancias ConstanciaFirmada[] // la notificación de esta vacación, firmada por el empleado en el portal
-  solicitud SolicitudAusencia? // si esta vacación nació de un pedido del empleado en el portal
-  legajo Legajo @relation(fields: [legajoId], references: [id])
+  solicitud   SolicitudAusencia? // si esta vacación nació de un pedido del empleado en el portal
+  legajo      Legajo              @relation(fields: [legajoId], references: [id])
 }
 
 // Historial de convenio/categoría del empleado a lo largo del tiempo.
@@ -389,7 +389,7 @@ model RelacionLaboral {
   categoriaId   String
   vigenciaDesde DateTime
   vigenciaHasta DateTime? // null = vigente
-  motivo        String?   // "ingreso", "ascenso", "cambio de convenio", "reencasillamiento"...
+  motivo        String? // "ingreso", "ascenso", "cambio de convenio", "reencasillamiento"...
   createdAt     DateTime  @default(now())
 
   legajo    Legajo    @relation(fields: [legajoId], references: [id])
@@ -523,8 +523,8 @@ model DispositivoAsistencia {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  empresa  Empresa   @relation(fields: [empresaId], references: [id])
-  fichadas Fichada[]
+  empresa          Empresa             @relation(fields: [empresaId], references: [id])
+  fichadas         Fichada[]
   altasBiometricas BiometriaEmpleado[]
 }
 
@@ -660,9 +660,9 @@ model DocumentoLegajo {
   revisadoPor   String?
   revisadoEn    DateTime?
 
-  legajo Legajo @relation(fields: [legajoId], references: [id])
+  legajo                   Legajo              @relation(fields: [legajoId], references: [id])
   embargosComoNotificacion Embargo[]
-  descargas DescargaDocumento[]
+  descargas                DescargaDocumento[]
 }
 
 // Auditoría de descargas (documento de mejora) — un registro por cada vez
@@ -672,10 +672,10 @@ model DocumentoLegajo {
 // registro de auditoría de que ALGUIEN lo vio en su momento sigue
 // existiendo, referenciando un documentoId que ya no resuelve a nada).
 model DescargaDocumento {
-  id           String   @id @default(uuid())
-  documentoId  String?
-  usuario      String?
-  fecha        DateTime @default(now())
+  id          String   @id @default(uuid())
+  documentoId String?
+  usuario     String?
+  fecha       DateTime @default(now())
 
   documento DocumentoLegajo? @relation(fields: [documentoId], references: [id], onDelete: SetNull)
 }
@@ -697,8 +697,8 @@ model DescargaDocumento {
 model CargaFamiliarGanancias {
   id            String    @id @default(uuid())
   legajoId      String
-  tipo          String    // 'conyuge' | 'hijo' | 'hijo_incapacitado'
-  descripcion   String?   // nombre del familiar — para que el legajo sea auditable por un humano, no solo un conteo
+  tipo          String // 'conyuge' | 'hijo' | 'hijo_incapacitado'
+  descripcion   String? // nombre del familiar — para que el legajo sea auditable por un humano, no solo un conteo
   vigenciaDesde DateTime
   vigenciaHasta DateTime?
 
@@ -710,13 +710,13 @@ model CargaFamiliarGanancias {
 // tiene su propio tope legal, que se aplica en el CÁLCULO, no acá — acá
 // solo se guarda lo que el empleado declaró.
 model DeduccionSiradig {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   legajoId    String
   anio        Int
-  tipo        String   // 'alquiler_vivienda' | 'servicio_domestico' | 'seguro_vida' | 'gastos_medicos' | 'donaciones' | 'intereses_hipotecarios' | 'cuota_medico_asistencial' | 'otro'
+  tipo        String // 'alquiler_vivienda' | 'servicio_domestico' | 'seguro_vida' | 'gastos_medicos' | 'donaciones' | 'intereses_hipotecarios' | 'cuota_medico_asistencial' | 'otro'
   descripcion String?
-  montoAnual  Decimal  @db.Decimal(16, 2) // monto total declarado para el año — el prorrateo mensual lo hace el motor de cálculo
-  vigente     Boolean  @default(true) // false = declaración vieja, reemplazada por una actualización durante el año (F.572 se puede volver a presentar)
+  montoAnual  Decimal @db.Decimal(16, 2) // monto total declarado para el año — el prorrateo mensual lo hace el motor de cálculo
+  vigente     Boolean @default(true) // false = declaración vieja, reemplazada por una actualización durante el año (F.572 se puede volver a presentar)
 
   legajo Legajo @relation(fields: [legajoId], references: [id])
 }
@@ -725,15 +725,15 @@ model DeduccionSiradig {
 // que los montos van acumulando progresivamente dentro de cada semestre.
 // Ver R.G. 4003 y sus actualizaciones semestrales (Ley 27.743).
 model TablaGananciasMensual {
-  id                     String   @id @default(uuid())
+  id                     String  @id @default(uuid())
   anio                   Int
-  mes                    Int      // 1-12
-  ganNoImponibleAcum     Decimal  @db.Decimal(16, 2) // "ganancia no imponible" acumulada hasta este mes
-  deduccionEspecialAcum  Decimal  @db.Decimal(16, 2) // deducción especial (incrementada, trabajadores en relación de dependencia) acumulada
-  deduccionConyugeAcum   Decimal  @db.Decimal(16, 2)
-  deduccionHijoAcum      Decimal  @db.Decimal(16, 2)
-  deduccionHijoIncapAcum Decimal  @db.Decimal(16, 2)
-  fuente                 String?  // link o cita de la publicación oficial — para poder auditar el dato después, no solo confiar en que "estaba bien cuando lo cargué"
+  mes                    Int // 1-12
+  ganNoImponibleAcum     Decimal @db.Decimal(16, 2) // "ganancia no imponible" acumulada hasta este mes
+  deduccionEspecialAcum  Decimal @db.Decimal(16, 2) // deducción especial (incrementada, trabajadores en relación de dependencia) acumulada
+  deduccionConyugeAcum   Decimal @db.Decimal(16, 2)
+  deduccionHijoAcum      Decimal @db.Decimal(16, 2)
+  deduccionHijoIncapAcum Decimal @db.Decimal(16, 2)
+  fuente                 String? // link o cita de la publicación oficial — para poder auditar el dato después, no solo confiar en que "estaba bien cuando lo cargué"
 
   tramos TramoGananciasMensual[]
 
@@ -743,13 +743,13 @@ model TablaGananciasMensual {
 // Escala progresiva (art. 94) para ese mes — un tramo por fila. El último
 // tramo tiene hasta=null (sin techo).
 model TramoGananciasMensual {
-  id               String  @id @default(uuid())
+  id               String   @id @default(uuid())
   tablaId          String
-  desde            Decimal @db.Decimal(16, 2)
+  desde            Decimal  @db.Decimal(16, 2)
   hasta            Decimal? @db.Decimal(16, 2)
-  montoFijo        Decimal @db.Decimal(16, 2)
-  alicuota         Decimal @db.Decimal(6, 4)  // 0.05 a 0.35
-  sobreExcedenteDe Decimal @db.Decimal(16, 2)
+  montoFijo        Decimal  @db.Decimal(16, 2)
+  alicuota         Decimal  @db.Decimal(6, 4) // 0.05 a 0.35
+  sobreExcedenteDe Decimal  @db.Decimal(16, 2)
 
   tabla TablaGananciasMensual @relation(fields: [tablaId], references: [id])
 }
@@ -768,10 +768,10 @@ model TramoGananciasMensual {
 // nuevo acá, al aplicar la tabla del mes actual. Guardando bruto y aportes
 // crudos, todo se resta una sola vez, correctamente.
 model SaldoInicialGanancias {
-  id                       String @id @default(uuid())
+  id                       String  @id @default(uuid())
   legajoId                 String
   anio                     Int
-  ultimoMesConDatos        Int    // último mes YA CUBIERTO por este saldo (ej. si entra en agosto, esto va hasta julio=7)
+  ultimoMesConDatos        Int // último mes YA CUBIERTO por este saldo (ej. si entra en agosto, esto va hasta julio=7)
   brutoAcumuladoPrevio     Decimal @db.Decimal(16, 2) // bruto remunerativo+no remunerativo de los meses NO liquidados acá, SIN deducir nada todavía
   aportesAcumuladoPrevio   Decimal @db.Decimal(16, 2) // jubilación+obra social+ley 19.032 de esos mismos meses, sin deducir nada todavía
   retencionAcumuladaPrevia Decimal @db.Decimal(16, 2) // lo ya retenido en esos meses, en el otro sistema — esto sí es un monto final, no se toca
@@ -801,16 +801,16 @@ model SaldoInicialGanancias {
 model Embargo {
   id          String    @id @default(uuid())
   legajoId    String
-  tipo        String    // 'judicial' | 'comercial'
-  descripcion String    // "Cuota alimentaria — Juzgado de Familia N°3, Expte. 12.345", "Deuda tarjeta Visa — Estudio Pérez"
+  tipo        String // 'judicial' | 'comercial'
+  descripcion String // "Cuota alimentaria — Juzgado de Familia N°3, Expte. 12.345", "Deuda tarjeta Visa — Estudio Pérez"
   fechaInicio DateTime
   fechaFin    DateTime? // null = sigue vigente (típico en alimentos, hasta nueva orden judicial)
   activo      Boolean   @default(true)
 
-  porcentaje  Decimal?  @db.Decimal(6, 2)  // SOLO 'judicial' — % dictado por el juez, aplicado sobre el neto
-  montoTotal  Decimal?  @db.Decimal(16, 2) // SOLO 'comercial' — deuda total a saldar con las cuotas de abajo
+  porcentaje Decimal? @db.Decimal(6, 2) // SOLO 'judicial' — % dictado por el juez, aplicado sobre el neto
+  montoTotal Decimal? @db.Decimal(16, 2) // SOLO 'comercial' — deuda total a saldar con las cuotas de abajo
 
-  documentoId String?   // opcional — link a la notificación legal ya subida en Documentos del legajo
+  documentoId String? // opcional — link a la notificación legal ya subida en Documentos del legajo
 
   legajo    Legajo           @relation(fields: [legajoId], references: [id])
   documento DocumentoLegajo? @relation(fields: [documentoId], references: [id])
@@ -834,36 +834,36 @@ model CuotaEmbargo {
 }
 
 model Legajo {
-  id           String    @id @default(uuid())
-  empresaId    String
-  numeroLegajo Int
-  cuil         String
-  apellido     String
-  nombre       String
-  fechaIngreso DateTime
-  fechaEgreso  DateTime?
-  motivoBaja   String? // por qué se dio de baja/inactivo — separado de fechaEgreso porque una fecha sola no explica el motivo
+  id                   String                     @id @default(uuid())
+  empresaId            String
+  numeroLegajo         Int
+  cuil                 String
+  apellido             String
+  nombre               String
+  fechaIngreso         DateTime
+  fechaEgreso          DateTime?
+  motivoBaja           String? // por qué se dio de baja/inactivo — separado de fechaEgreso porque una fecha sola no explica el motivo
   antiguedadReconocida DateTime? // puede diferir de fechaIngreso (antigüedad reconocida por convenio/acuerdo) — ESTE es el campo que realmente maneja el cálculo de antigüedad en liquidación y vacaciones. periodosAnteriores es solo la documentación de POR QUÉ se reconoce, no algo que el sistema sume automáticamente.
-  periodosAnteriores PeriodoAnteriorTrabajado[]
-  fichadaObligatoria Boolean @default(true) // false = personal de obra: arranca directo en el sitio de trabajo, ficha solo eventualmente. El motor de asistencia NO los marca ausentes por falta de fichada — ver motor-asistencia.mjs.
-  afiliadoSindicato  Boolean @default(true) // false = paga cuota solidaria (más baja) en vez de cuota sindical plena — la diferencia de % la define cada ReglaConcepto de SINDICATO por convenio, este campo solo dice de qué lado está el legajo. Default true = mantiene el comportamiento de antes de este campo para los legajos ya cargados (Comercio, con su 2% fijo, no lee este campo todavía).
-  convenioId   String
-  categoriaId  String
-  condicion    String    @default("activo")
-  obraSocialId String? // huérfano de nombre (nunca se conectó a un modelo ObraSocial real) pero YA se usa como texto libre desde el formulario de legajo — el recibo (Ley 27.802) lo reutiliza tal cual, ver 54-recibo-ley27802.md
-  cbu          String?
-  bancoId      String? // mismo caso que obraSocialId — texto libre en la práctica
+  periodosAnteriores   PeriodoAnteriorTrabajado[]
+  fichadaObligatoria   Boolean                    @default(true) // false = personal de obra: arranca directo en el sitio de trabajo, ficha solo eventualmente. El motor de asistencia NO los marca ausentes por falta de fichada — ver motor-asistencia.mjs.
+  afiliadoSindicato    Boolean                    @default(true) // false = paga cuota solidaria (más baja) en vez de cuota sindical plena — la diferencia de % la define cada ReglaConcepto de SINDICATO por convenio, este campo solo dice de qué lado está el legajo. Default true = mantiene el comportamiento de antes de este campo para los legajos ya cargados (Comercio, con su 2% fijo, no lee este campo todavía).
+  convenioId           String
+  categoriaId          String
+  condicion            String                     @default("activo")
+  obraSocialId         String? // huérfano de nombre (nunca se conectó a un modelo ObraSocial real) pero YA se usa como texto libre desde el formulario de legajo — el recibo (Ley 27.802) lo reutiliza tal cual, ver 54-recibo-ley27802.md
+  cbu                  String?
+  bancoId              String? // mismo caso que obraSocialId — texto libre en la práctica
 
   // ── Datos personales ──
-  tipoDocumento    String? // DNI, LC, LE, Pasaporte...
-  numeroDocumento  String?
-  fechaNacimiento  DateTime?
-  sexo             String?
-  estadoCivil      String?
-  nivelEducativo   String? // "Primario" | "Secundario" | "Terciario" | "Universitario" | "Posgrado" — texto libre, no un enum cerrado
-  tituloObtenido   String? // "Técnico Mecánico", "Licenciado en..." — lo que corresponda, texto libre
-  talleRopa        String? // para la entrega de EPP/uniforme — remera, campera
-  talleCalzado     String?
+  tipoDocumento   String? // DNI, LC, LE, Pasaporte...
+  numeroDocumento String?
+  fechaNacimiento DateTime?
+  sexo            String?
+  estadoCivil     String?
+  nivelEducativo  String? // "Primario" | "Secundario" | "Terciario" | "Universitario" | "Posgrado" — texto libre, no un enum cerrado
+  tituloObtenido  String? // "Técnico Mecánico", "Licenciado en..." — lo que corresponda, texto libre
+  talleRopa       String? // para la entrega de EPP/uniforme — remera, campera
+  talleCalzado    String?
 
   // ── Códigos de clasificación ARCA/AFIP para el Registro '04' del LSD ──
   // (Guía N°18 y N°28 LSD) — tablas oficiales de "Declaración en Línea",
@@ -875,25 +875,25 @@ model Legajo {
   // falla fuerte si faltan, en vez de adivinar.
   codigoSituacionRevista  String  @default("01") // "01" = Activo (tabla "Situación de Revista")
   codigoCondicion         String  @default("01") // "01" = relación de dependencia (tabla "Código de Condición")
-  codigoModalidadContrato String  @default("1")  // "1" = tiempo indeterminado (tabla "Modalidades de Contratación")
+  codigoModalidadContrato String  @default("1") // "1" = tiempo indeterminado (tabla "Modalidades de Contratación")
   codigoActividad         String? // tabla "Actividades" (CLAE) — sin default, obligatorio para LSD real
   codigoLocalidad         String? // tabla "Localidades Geográficas" de ARCA — sin default, obligatorio para LSD real
-  domicilio        String?
-  localidad        String?
-  provincia        String?
-  partido          String?
-  telefono         String?
-  email            String?
-  fotoBase64       String? // guardado como data URL — simplificación local, sin storage de archivos aparte
+  domicilio               String?
+  localidad               String?
+  provincia               String?
+  partido                 String?
+  telefono                String?
+  email                   String?
+  fotoBase64              String? // guardado como data URL — simplificación local, sin storage de archivos aparte
 
   // ── Datos laborales ──
-  centroCostoId        String?
+  centroCostoId String?
   // A quién reporta (otro legajo de la misma empresa). Es lo que define el
   // "equipo" de un jefe en el portal: quien tiene gente a cargo pide las
   // vacaciones de su gente. null = no reporta a nadie cargado (dirección,
   // o empresas que no usan la jerarquía).
-  jefeId               String?
-  sucursalId           String? // lugar físico de trabajo — distinto de centroCosto (que es más "sector/departamento"). Empresas con varias plantas/sucursales lo necesitan separado.
+  jefeId        String?
+  sucursalId    String? // lugar físico de trabajo — distinto de centroCosto (que es más "sector/departamento"). Empresas con varias plantas/sucursales lo necesitan separado.
 
   // ── Datos de contratación / ART ──
   modalidadContrato   String? // "Tiempo completo", "Tiempo parcial", "Plazo fijo"...
@@ -901,45 +901,47 @@ model Legajo {
   artNombre           String?
   artPoliza           String?
 
-  empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  convenio    Convenio     @relation(fields: [convenioId], references: [id])
-  categoria   Categoria    @relation(fields: [categoriaId], references: [id])
-  centroCosto CentroCosto? @relation(fields: [centroCostoId], references: [id])
-  sucursal    Sucursal?    @relation(fields: [sucursalId], references: [id])
-  jefe        Legajo?      @relation("Jefatura", fields: [jefeId], references: [id], onDelete: SetNull)
-  equipo      Legajo[]     @relation("Jefatura")
-  solicitudesCargadas SolicitudAusencia[] @relation("SolicitadoPor")
-  liquidaciones Liquidacion[]
-  novedades     Novedad[]
-  vacaciones    Vacacion[]
-  relacionesLaborales RelacionLaboral[]
-  turnos        Turno[]
-  turnoExcepciones TurnoExcepcion[]
-  fichadas      Fichada[]
-  biometria     BiometriaEmpleado?
-  perfilDocente DocPerfilDocente? // solo existe si este legajo es de Docentes PBA — un legajo puede tener perfilDocente Y categoriaId de otro convenio al mismo tiempo si hiciera falta (caso raro, pero no lo bloqueamos)
-  docLiquidaciones DocLiquidacion[]
-  asistencias   AsistenciaDia[]
-  documentos    DocumentoLegajo[]
-  cargasFamiliaGanancias CargaFamiliarGanancias[]
-  deduccionesSiradig     DeduccionSiradig[]
+  empresa                  Empresa                  @relation(fields: [empresaId], references: [id])
+  convenio                 Convenio                 @relation(fields: [convenioId], references: [id])
+  categoria                Categoria                @relation(fields: [categoriaId], references: [id])
+  centroCosto              CentroCosto?             @relation(fields: [centroCostoId], references: [id])
+  sucursal                 Sucursal?                @relation(fields: [sucursalId], references: [id])
+  jefe                     Legajo?                  @relation("Jefatura", fields: [jefeId], references: [id], onDelete: SetNull)
+  equipo                   Legajo[]                 @relation("Jefatura")
+  solicitudesCargadas      SolicitudAusencia[]      @relation("SolicitadoPor")
+  liquidaciones            Liquidacion[]
+  novedades                Novedad[]
+  vacaciones               Vacacion[]
+  relacionesLaborales      RelacionLaboral[]
+  turnos                   Turno[]
+  turnoExcepciones         TurnoExcepcion[]
+  fichadas                 Fichada[]
+  biometria                BiometriaEmpleado?
+  perfilDocente            DocPerfilDocente? // solo existe si este legajo es de Docentes PBA — un legajo puede tener perfilDocente Y categoriaId de otro convenio al mismo tiempo si hiciera falta (caso raro, pero no lo bloqueamos)
+  docLiquidaciones         DocLiquidacion[]
+  asistencias              AsistenciaDia[]
+  documentos               DocumentoLegajo[]
+  cargasFamiliaGanancias   CargaFamiliarGanancias[]
+  deduccionesSiradig       DeduccionSiradig[]
   saldosInicialesGanancias SaldoInicialGanancias[]
-  embargos Embargo[]
-  accesoPortal   AccesoPortal?
-  solicitudesAusencia SolicitudAusencia[]
-  constanciasFirmadas ConstanciaFirmada[]
-  lecturasNoticias    NoticiaLectura[]
-  cambiosDatos        SolicitudCambioDatos[]
-  recibosDigitales ReciboDigital[]
-  suscripcionesPush SuscripcionPush[]
-  asignacionesHorario AsignacionHorario[]
-  cambiosDeTurno      CambioDeTurno[]
-  habilidades         HabilidadLegajo[]
-  capacitaciones      AsistenteCapacitacion[]
-  evaluaciones        Evaluacion[]
-  evaluacionesACargo  Evaluacion[]            @relation("Evaluador")
-  ingresos            Ingreso[]
-  avisos            Aviso[]
+  embargos                 Embargo[]
+  accesoPortal             AccesoPortal?
+  solicitudesAusencia      SolicitudAusencia[]
+  constanciasFirmadas      ConstanciaFirmada[]
+  lecturasNoticias         NoticiaLectura[]
+  cambiosDatos             SolicitudCambioDatos[]
+  recibosDigitales         ReciboDigital[]
+  suscripcionesPush        SuscripcionPush[]
+  asignacionesHorario      AsignacionHorario[]
+  cambiosDeTurno           CambioDeTurno[]
+  habilidades              HabilidadLegajo[]
+  capacitaciones           AsistenteCapacitacion[]
+  evaluaciones             Evaluacion[]
+  evaluacionesACargo       Evaluacion[]             @relation("Evaluador")
+  ingresos                 Ingreso[]
+  avisos                   Aviso[]
+  objetivos                Objetivo[]
+  planCarrera              PlanCarrera?
 
   @@unique([empresaId, numeroLegajo])
   @@index([jefeId])
@@ -962,19 +964,19 @@ model PeriodoAnteriorTrabajado {
 }
 
 model Periodo {
-  id          String    @id @default(uuid())
-  empresaId   String
-  nombre      String    // "1ra. Quincena Agosto 2026", "Julio 2026", etc. — a mano, no derivado
-  fechaDesde  DateTime
-  fechaHasta  DateTime
-  fechaPago   DateTime? // para el recibo (Ley 27.802) — si no se carga, se muestra fechaHasta
-  convenioId  String?   // opcional: si se carga, este período es SOLO para ese convenio — "Todos" en /liquidar respeta esto automáticamente, para que no se cuele otro convenio por accidente (ej. Comercio en una quincena pensada solo para Madera)
-  estado      String    @default("borrador")
-  fechaCierre DateTime?
-  fueCerradaAlgunaVez Boolean @default(false) // a diferencia de fechaCierre (que se borra al reabrir), esto NUNCA se vuelve a false — es la señal permanente de "esto fue una liquidación oficial alguna vez", para saber si una nueva liquidación necesita motivo (versionado) o es solo iteración normal sobre un borrador que nunca se cerró
+  id                  String    @id @default(uuid())
+  empresaId           String
+  nombre              String // "1ra. Quincena Agosto 2026", "Julio 2026", etc. — a mano, no derivado
+  fechaDesde          DateTime
+  fechaHasta          DateTime
+  fechaPago           DateTime? // para el recibo (Ley 27.802) — si no se carga, se muestra fechaHasta
+  convenioId          String? // opcional: si se carga, este período es SOLO para ese convenio — "Todos" en /liquidar respeta esto automáticamente, para que no se cuele otro convenio por accidente (ej. Comercio en una quincena pensada solo para Madera)
+  estado              String    @default("borrador")
+  fechaCierre         DateTime?
+  fueCerradaAlgunaVez Boolean   @default(false) // a diferencia de fechaCierre (que se borra al reabrir), esto NUNCA se vuelve a false — es la señal permanente de "esto fue una liquidación oficial alguna vez", para saber si una nueva liquidación necesita motivo (versionado) o es solo iteración normal sobre un borrador que nunca se cerró
 
-  empresa       Empresa       @relation(fields: [empresaId], references: [id])
-  convenio      Convenio?     @relation(fields: [convenioId], references: [id])
+  empresa       Empresa             @relation(fields: [empresaId], references: [id])
+  convenio      Convenio?           @relation(fields: [convenioId], references: [id])
   liquidaciones Liquidacion[]
   salvedades    Salvedad[]
   aprobaciones  AprobacionPeriodo[]
@@ -992,7 +994,7 @@ model Periodo {
 model AprobacionPeriodo {
   id            String   @id @default(uuid())
   periodoId     String
-  estado        String   // 'aprobado' | 'aprobado_con_observaciones' | 'rechazado'
+  estado        String // 'aprobado' | 'aprobado_con_observaciones' | 'rechazado'
   observaciones String?
   usuario       String?
   fecha         DateTime @default(now())
@@ -1026,22 +1028,22 @@ model Liquidacion {
   id           String   @id @default(uuid())
   periodoId    String
   legajoId     String
-  convenioId   String?  // qué convenio tenía el legajo AL MOMENTO de este cálculo — si el legajo cambia de convenio después, esto no se mueve (a diferencia de leer legajo.convenioId hoy, que solo te da el ACTUAL)
+  convenioId   String? // qué convenio tenía el legajo AL MOMENTO de este cálculo — si el legajo cambia de convenio después, esto no se mueve (a diferencia de leer legajo.convenioId hoy, que solo te da el ACTUAL)
   version      Int      @default(1)
   vigente      Boolean  @default(true) // solo UNA vigente=true por periodoId+legajoId a la vez
-  motivo       String?  // por qué se creó esta versión — obligatorio a partir de la versión 2 (ej. "Corrección de horas extra mal cargadas")
+  motivo       String? // por qué se creó esta versión — obligatorio a partir de la versión 2 (ej. "Corrección de horas extra mal cargadas")
   fechaCalculo DateTime @default(now())
-  calculadoPor String?  // email de quien ejecutó /liquidar
+  calculadoPor String? // email de quien ejecutó /liquidar
   motorVersion String   @default("1.0.0") // por si el motor cambia de comportamiento en el futuro y hace falta saber con qué versión se calculó esto
   bruto        Decimal  @db.Decimal(16, 2)
   neto         Decimal  @db.Decimal(16, 2)
 
-  periodo  Periodo              @relation(fields: [periodoId], references: [id])
-  legajo   Legajo               @relation(fields: [legajoId], references: [id])
-  convenio Convenio?            @relation(fields: [convenioId], references: [id])
-  detalle  LiquidacionDetalle[]
+  periodo             Periodo              @relation(fields: [periodoId], references: [id])
+  legajo              Legajo               @relation(fields: [legajoId], references: [id])
+  convenio            Convenio?            @relation(fields: [convenioId], references: [id])
+  detalle             LiquidacionDetalle[]
   novedadesUtilizadas LiquidacionNovedad[]
-  reciboDigital ReciboDigital?
+  reciboDigital       ReciboDigital?
 
   @@unique([periodoId, legajoId, version])
 }
@@ -1082,8 +1084,8 @@ model LiquidacionDetalle {
   importeCalculado Decimal? @db.Decimal(16, 2) // lo que dio la fórmula ANTES de forzar — solo se completa cuando forzado=true, para poder mostrar "Fórmula normal: $X / Forzado: $Y" (punto 4)
   excluido         Boolean  @default(false) // true = un usuario lo sacó de ESTE recibo puntual desde Liquidación Individual (punto 3). No se borra la fila (trazabilidad) — se fuerza a 0 y se oculta del recibo/preliquidación, así lo que dependa de este concepto sigue viendo un valor numérico válido en vez de romperse
 
-  liquidacion Liquidacion                @relation(fields: [liquidacionId], references: [id])
-  concepto    Concepto                   @relation(fields: [conceptoId], references: [id])
+  liquidacion Liquidacion                 @relation(fields: [liquidacionId], references: [id])
+  concepto    Concepto                    @relation(fields: [conceptoId], references: [id])
   ediciones   LiquidacionDetalleEdicion[]
 }
 
@@ -1129,12 +1131,12 @@ model LiquidacionDetalleEdicion {
 // y modalidad en dos ejes cruzados — se agrega si hace falta más adelante.
 model DocCargo {
   id                 String   @id @default(uuid())
-  nombre             String   // "Maestro de Grado", "Preceptor", "Profesor"...
-  nivel              String   // "Primaria", "Secundaria"...
-  modalidad          String?  // "Jornada Completa - 8 hs", "Jornada Extendida...", null = estándar
+  nombre             String // "Maestro de Grado", "Preceptor", "Profesor"...
+  nivel              String // "Primaria", "Secundaria"...
+  modalidad          String? // "Jornada Completa - 8 hs", "Jornada Extendida...", null = estándar
   indice             Decimal  @db.Decimal(10, 4) // sin uso real para tipo='hora_catedra' (ver divisorHoraCatedra)
   tipo               String   @default("cargo") // 'cargo' | 'hora_catedra'
-  unidades           Decimal  @db.Decimal(6, 4) @default(1) // solo aplica a tipo='cargo'
+  unidades           Decimal  @default(1) @db.Decimal(6, 4) // solo aplica a tipo='cargo'
   // Solo para tipo='hora_catedra' — BASICO = (valorPorIndice / divisorHoraCatedra) × cantidadModulos de la designación.
   // Confirmado: Profesor usa 15 (índice "1/15 por hora cátedra" del nomenclador, pero
   // guardado como divisor entero para no perder precisión — 1/15 redondeado a 4
@@ -1171,22 +1173,22 @@ model DocTramoAntiguedad {
 // funcionan las fórmulas de Comercio/Madera. IPS (16%) e IOMA (4,8%) NO
 // están acá — se calculan directo en el motor, como Ganancias/Embargos.
 model DocConcepto {
-  id           String  @id @default(uuid())
-  codigo       String  @unique // "438", "455", "624"...
-  nombre       String
+  id                 String  @id @default(uuid())
+  codigo             String  @unique // "438", "455", "624"...
+  nombre             String
   // 'fijo_por_unidad'  → monto fijo × cantidadModulos de la designación
   //                      (NO por la modalidad de jornada — ver nota en
   //                      DocDesignacion.cantidadModulos)
   // 'porcentaje_basico' → % sobre el BASICO ya calculado (que sí incluye
   //                      el ajuste por modalidad de jornada)
   // 'fijo_total'        → monto fijo, sin multiplicar por nada
-  modoCalculo  String
-  aplicaANivel String? // null = todos los niveles
+  modoCalculo        String
+  aplicaANivel       String? // null = todos los niveles
   aplicaACargoNombre String? // null = todos los cargos de ese nivel — necesario porque, por ejemplo, 438 aplica a Maestro de Grado pero NO a Preceptor dentro de la misma Primaria
   // false = no entra en la base de IPS/IOMA — confirmado al centavo que
   // 2575 (FONID/Conectividad) queda afuera; todo lo demás sí aporta.
-  aportaAportes Boolean @default(true)
-  activo       Boolean @default(true)
+  aportaAportes      Boolean @default(true)
+  activo             Boolean @default(true)
 
   valores DocValorConcepto[]
 }
@@ -1224,11 +1226,12 @@ model DocTramoZona {
   nivel      Int     @unique
   porcentaje Decimal @db.Decimal(6, 2)
 }
+
 model DocDesignacion {
-  id              String    @id @default(uuid())
-  perfilDocenteId String
-  docCargoId      String
-  establecimiento String?
+  id                   String    @id @default(uuid())
+  perfilDocenteId      String
+  docCargoId           String
+  establecimiento      String?
   // null = sin zona desfavorable. 1 a 5 = nivel (ver DocTramoZona).
   zonaDesfavorabilidad Int?
   // Solo tiene sentido para docCargo.tipo='hora_catedra' (ej: Profesor).
@@ -1239,10 +1242,10 @@ model DocDesignacion {
   // Profesor con 8hs cátedra (2 módulos) SÍ paga el doble de 455/641/2575,
   // porque ahí son dos designaciones reales combinadas, no una sola con
   // otra modalidad.
-  cantidadModulos Int       @default(1)
-  fechaAlta       DateTime
-  fechaBaja       DateTime?
-  activa          Boolean   @default(true)
+  cantidadModulos      Int       @default(1)
+  fechaAlta            DateTime
+  fechaBaja            DateTime?
+  activa               Boolean   @default(true)
 
   perfilDocente DocPerfilDocente        @relation(fields: [perfilDocenteId], references: [id])
   docCargo      DocCargo                @relation(fields: [docCargoId], references: [id])
@@ -1254,7 +1257,7 @@ model DocDesignacion {
 model DocLiquidacion {
   id        String   @id @default(uuid())
   legajoId  String
-  periodo   String   // "2026-08"
+  periodo   String // "2026-08"
   estado    String   @default("abierta") // 'abierta' | 'cerrada', igual que Periodo
   createdAt DateTime @default(now())
 
@@ -1271,10 +1274,10 @@ model DocLiquidacionDetalle {
   id               String   @id @default(uuid())
   docLiquidacionId String
   docDesignacionId String
-  conceptoCodigo   String  // "110" (BASICO), "220" (ANTIGUEDAD), "641"...
+  conceptoCodigo   String // "110" (BASICO), "220" (ANTIGUEDAD), "641"...
   nombre           String
   importe          Decimal  @db.Decimal(14, 2)
-  tipo             String  // 'haber' | 'descuento'
+  tipo             String // 'haber' | 'descuento'
   createdAt        DateTime @default(now()) // para ordenar el recibo tal cual se generó (haberes primero, descuentos al final) — ordenar por conceptoCodigo como texto daba un orden sin sentido ("1060" antes que "110")
 
   docLiquidacion DocLiquidacion @relation(fields: [docLiquidacionId], references: [id])
@@ -1336,26 +1339,26 @@ model ReciboDigital {
 // pendientes y la notificación en PDF). Así /vacaciones sigue siendo la
 // única fuente de verdad y esto es solo la bandeja de entrada.
 model SolicitudAusencia {
-  id          String    @id @default(uuid())
-  legajoId    String
-  tipo        String // 'vacaciones' | 'permiso'
-  fechaDesde  DateTime
-  fechaHasta  DateTime
-  dias        Int // días corridos, ambos extremos incluidos
-  motivo      String? // obligatorio en permisos
-  estado      String    @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada'
-  respuesta   String? // comentario de RR.HH. — obligatorio al rechazar
-  resueltoPor String? // email del usuario que aprobó o rechazó
-  resueltoEn  DateTime?
-  vacacionId  String?   @unique // la Vacacion creada al aprobar (solo tipo 'vacaciones')
+  id              String    @id @default(uuid())
+  legajoId        String
+  tipo            String // 'vacaciones' | 'permiso'
+  fechaDesde      DateTime
+  fechaHasta      DateTime
+  dias            Int // días corridos, ambos extremos incluidos
+  motivo          String? // obligatorio en permisos
+  estado          String    @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada'
+  respuesta       String? // comentario de RR.HH. — obligatorio al rechazar
+  resueltoPor     String? // email del usuario que aprobó o rechazó
+  resueltoEn      DateTime?
+  vacacionId      String?   @unique // la Vacacion creada al aprobar (solo tipo 'vacaciones')
   // El jefe que cargó el pedido para alguien de su equipo. null = lo pidió
   // el propio empleado.
   solicitadoPorId String?
-  createdAt   DateTime  @default(now())
+  createdAt       DateTime  @default(now())
 
-  legajo   Legajo    @relation(fields: [legajoId], references: [id])
-  solicitadoPor Legajo? @relation("SolicitadoPor", fields: [solicitadoPorId], references: [id], onDelete: SetNull)
-  vacacion Vacacion? @relation(fields: [vacacionId], references: [id], onDelete: SetNull)
+  legajo        Legajo    @relation(fields: [legajoId], references: [id])
+  solicitadoPor Legajo?   @relation("SolicitadoPor", fields: [solicitadoPorId], references: [id], onDelete: SetNull)
+  vacacion      Vacacion? @relation(fields: [vacacionId], references: [id], onDelete: SetNull)
 
   @@index([legajoId, estado])
 }
@@ -1410,14 +1413,14 @@ model SolicitudCambioDatos {
 // Una noticia publicada NO se edita: si requería acuse, la gente confirmó
 // haber leído ESE texto. Para corregir, se archiva y se publica otra.
 model Noticia {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   empresaId     String
   titulo        String
   cuerpo        String // texto plano — se muestra respetando los saltos de línea, nunca como HTML
   centroCostoId String? // null = toda la empresa; con valor = solo ese sector
-  requiereAcuse Boolean   @default(false) // true = el empleado tiene que tocar "Confirmo que leí"
-  estado        String    @default("publicada") // 'publicada' | 'archivada'
-  publicadaEn   DateTime  @default(now())
+  requiereAcuse Boolean  @default(false) // true = el empleado tiene que tocar "Confirmo que leí"
+  estado        String   @default("publicada") // 'publicada' | 'archivada'
+  publicadaEn   DateTime @default(now())
   publicadaPor  String? // email del usuario que la publicó
 
   // Adjunto opcional (una imagen o un PDF) — mismo almacenamiento privado
@@ -1491,16 +1494,16 @@ model SuscripcionPush {
 // Registro de cada aviso que el sistema le mandó a un empleado: qué decía y
 // por dónde salió. Sirve para contestar "¿le avisaron?".
 model Aviso {
-  id            String   @id @default(uuid())
-  legajoId      String
-  tipo          String // 'recibo' | 'solicitud' | 'noticia' | 'legajo' | 'prueba'
-  titulo        String
-  cuerpo        String
-  url           String
-  pushEnviados  Int      @default(0) // a cuántos celulares llegó
-  pushFallidos  Int      @default(0)
-  emailEstado   String? // 'enviado' | 'error: …' | null = no se intentó (sin mail o mail no configurado)
-  createdAt     DateTime @default(now())
+  id           String   @id @default(uuid())
+  legajoId     String
+  tipo         String // 'recibo' | 'solicitud' | 'noticia' | 'legajo' | 'prueba'
+  titulo       String
+  cuerpo       String
+  url          String
+  pushEnviados Int      @default(0) // a cuántos celulares llegó
+  pushFallidos Int      @default(0)
+  emailEstado  String? // 'enviado' | 'error: …' | null = no se intentó (sin mail o mail no configurado)
+  createdAt    DateTime @default(now())
 
   legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 
@@ -1640,10 +1643,10 @@ model CambioDeTurno {
 // Algo que una persona puede saber hacer o estar habilitada para hacer:
 // operar una máquina, cubrir un puesto, una certificación.
 model Habilidad {
-  id            String  @id @default(uuid())
+  id            String @id @default(uuid())
   empresaId     String
   nombre        String
-  grupo         String  @default("General") // para ordenar la matriz: "Máquinas", "Seguridad", "Puestos"…
+  grupo         String @default("General") // para ordenar la matriz: "Máquinas", "Seguridad", "Puestos"…
   // Cada cuántos meses hay que renovarla (autoelevador, trabajo en altura).
   // null = no vence.
   vigenciaMeses Int?
@@ -1734,16 +1737,19 @@ model FormularioEvaluacion {
 // Lleva su propia copia de las competencias: editar el formulario después
 // no cambia un ciclo ya abierto.
 model CicloEvaluacion {
-  id           String    @id @default(uuid())
-  empresaId    String
-  nombre       String
-  formulario   String // nombre del formulario del que salió (informativo)
-  competencias Json
-  fechaLimite  DateTime
-  estado       String    @default("abierto") // 'abierto' | 'cerrado'
-  creadoPor    String?
-  createdAt    DateTime  @default(now())
-  cerradoEn    DateTime?
+  id                String    @id @default(uuid())
+  empresaId         String
+  nombre            String
+  formulario        String // nombre del formulario del que salió (informativo)
+  competencias      Json
+  fechaLimite       DateTime
+  estado            String    @default("abierto") // 'abierto' | 'cerrado'
+  creadoPor         String?
+  createdAt         DateTime  @default(now())
+  cerradoEn         DateTime?
+  // Si el ciclo pide que cada uno se evalúe a sí mismo antes (mismas
+  // competencias). El jefe ve esa autoevaluación al completar la suya.
+  conAutoevaluacion Boolean   @default(false)
 
   empresa      Empresa      @relation(fields: [empresaId], references: [id])
   evaluaciones Evaluacion[]
@@ -1773,6 +1779,9 @@ model Evaluacion {
   comentarioEmpleado String?
   firmadoEn          DateTime?
   firmaIp            String?
+  autoPuntajes       Json? // la autoevaluación del empleado, mismo formato que puntajes
+  autoComentario     String?
+  autoCompletadaEn   DateTime?
 
   ciclo     CicloEvaluacion @relation(fields: [cicloId], references: [id], onDelete: Cascade)
   legajo    Legajo          @relation(fields: [legajoId], references: [id], onDelete: Cascade)
@@ -1780,4 +1789,46 @@ model Evaluacion {
 
   @@unique([cicloId, legajoId])
   @@index([evaluadorId, estado])
+}
+
+// ── Objetivos y plan de carrera ──
+// Objetivo: algo concreto que se espera de una persona para una fecha. Lo
+// carga RR.HH. o su jefe; el empleado informa cómo viene; lo cierra (se
+// cumplió / no se cumplió) el jefe o RR.HH.
+model Objetivo {
+  id               String    @id @default(uuid())
+  legajoId         String
+  titulo           String
+  descripcion      String?
+  fechaLimite      DateTime
+  avance           Int       @default(0) // 0..100
+  estado           String    @default("en_curso") // 'en_curso' | 'cumplido' | 'no_cumplido' | 'cancelado'
+  nota             String? // el último comentario de avance
+  notaPor          String? // "empleado", "jefe: Nombre" o el email de RR.HH.
+  actualizadoEn    DateTime?
+  comentarioCierre String?
+  creadoPor        String
+  cerradoPor       String?
+  cerradoEn        DateTime?
+  createdAt        DateTime  @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@index([legajoId, estado])
+}
+
+// Plan de carrera: a qué puesto apunta la persona y qué habilidades de la
+// matriz necesita para llegar. La brecha se calcula sola contra lo que
+// tiene hoy en la matriz.
+model PlanCarrera {
+  id             String    @id @default(uuid())
+  legajoId       String    @unique
+  puestoObjetivo String
+  fechaObjetivo  DateTime?
+  notas          String?
+  requisitos     Json // [{ habilidadId, nivel }]
+  actualizadoPor String?
+  updatedAt      DateTime  @updatedAt
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 }

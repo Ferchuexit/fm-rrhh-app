@@ -8,6 +8,7 @@ import { ESCALA, type Competencia } from "@/lib/evaluaciones-reglas";
 import { fechaPeriodo, fechaHora } from "../../formato";
 import FormularioEvaluador from "./FormularioEvaluador";
 import FirmarEvaluacion from "./FirmarEvaluacion";
+import FormularioAuto from "./FormularioAuto";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +16,28 @@ export default async function PortalEvaluacion({ params }: { params: { id: strin
   const sesion = await obtenerSesionPortal();
   if (!sesion) redirect("/portal/login");
   const e = await prisma.evaluacion.findFirst({
-    where: { id: params.id, OR: [{ evaluadorId: sesion.legajoId }, { legajoId: sesion.legajoId, estado: { in: ["entregada", "firmada"] } }] },
+    where: { id: params.id, OR: [{ evaluadorId: sesion.legajoId }, { legajoId: sesion.legajoId, estado: { in: ["entregada", "firmada"] } }, { legajoId: sesion.legajoId, ciclo: { conAutoevaluacion: true } }] },
     include: { ciclo: true, legajo: { select: { apellido: true, nombre: true } } },
   });
   if (!e) notFound();
   const competencias = e.ciclo.competencias as unknown as Competencia[];
   const puntajes = (e.puntajes ?? {}) as Record<string, number>;
   const esMia = e.legajoId === sesion.legajoId;
+  const auto = (e.autoPuntajes ?? null) as Record<string, number> | null;
+  // Todavía no me la entregaron: lo único que veo es mi autoevaluación,
+  // nunca lo que cargó mi jefe.
+  if (esMia && e.estado !== "entregada" && e.estado !== "firmada") {
+    return (
+      <>
+        <a href="/portal/evaluaciones" className="p-link">‹ Evaluaciones</a>
+        <h1>Mi autoevaluación</h1>
+        <p className="p-sub">{e.ciclo.nombre} · hasta el {fechaPeriodo(e.ciclo.fechaLimite)}</p>
+        {e.ciclo.estado === "abierto"
+          ? <FormularioAuto id={e.id} competencias={competencias} inicial={{ puntajes: auto ?? {}, comentario: e.autoComentario ?? "" }} completada={!!e.autoCompletadaEn} />
+          : <div className="p-aviso info">RR.HH. cerró este ciclo: ya no se puede completar.</div>}
+      </>
+    );
+  }
   const editable = !esMia && e.ciclo.estado === "abierto" && (e.estado === "pendiente" || e.estado === "completada");
 
   return (
@@ -31,14 +47,14 @@ export default async function PortalEvaluacion({ params }: { params: { id: strin
       <p className="p-sub">{esMia ? `Entregada el ${fechaPeriodo(e.entregadaEn!)}` : `${e.ciclo.nombre} · hasta el ${fechaPeriodo(e.ciclo.fechaLimite)}`}</p>
 
       {editable ? (
-        <FormularioEvaluador id={e.id} competencias={competencias} inicial={{ puntajes, fortalezas: e.fortalezas ?? "", aMejorar: e.aMejorar ?? "" }} completada={e.estado === "completada"} />
+        <FormularioEvaluador id={e.id} competencias={competencias} inicial={{ puntajes, fortalezas: e.fortalezas ?? "", aMejorar: e.aMejorar ?? "" }} completada={e.estado === "completada"} auto={e.autoCompletadaEn ? auto : null} autoComentario={e.autoComentario} esperaAuto={e.ciclo.conAutoevaluacion && !e.autoCompletadaEn} />
       ) : (
         <>
           {!esMia && <div className="p-aviso info">{e.estado === "pendiente" ? "RR.HH. cerró este ciclo: ya no se puede completar." : "Ya se le entregó al empleado: no se modifica."}</div>}
           <div className="p-card" style={{ padding: 0 }}>
             {competencias.map((c, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", padding: "0.65rem 0.9rem", borderBottom: "1px solid var(--gris-claro)" }}>
-                <span>{c.nombre}{c.descripcion && <span style={{ display: "block", fontSize: "0.78rem", color: "#6b727b" }}>{c.descripcion}</span>}</span>
+                <span>{c.nombre}{c.descripcion && <span style={{ display: "block", fontSize: "0.78rem", color: "#6b727b" }}>{c.descripcion}</span>}{auto?.[i] && <span style={{ display: "block", fontSize: "0.78rem", color: "#163A5C" }}>{esMia ? "Vos te pusiste" : "Se puso"}: {auto[i]} · {ESCALA[auto[i]].nombre}</span>}</span>
                 {puntajes[i] ? <span className="p-chip" style={{ background: ESCALA[puntajes[i]].color, color: puntajes[i] === 5 ? "white" : "#12202e", alignSelf: "center" }}>{puntajes[i]} · {ESCALA[puntajes[i]].nombre}</span> : <span className="p-chip cancelada" style={{ alignSelf: "center" }}>—</span>}
               </div>
             ))}

@@ -3,18 +3,19 @@
 // Evaluación de desempeño: abrir un ciclo, seguir el avance, revisar lo que
 // cargó cada jefe, entregarle la evaluación al empleado y ver quién firmó.
 import { useEffect, useMemo, useState } from "react";
-import { ESCALA, ESTADOS, type Competencia } from "@/lib/evaluaciones-reglas";
+import { ESCALA, ESTADOS, promedio as promedioDe, type Competencia } from "@/lib/evaluaciones-reglas";
 
 type Resumen = { total: number; pendientes: number; completadas: number; entregadas: number; firmadas: number; promedioGeneral: number | null; porCompetencia: { nombre: string; promedio: number | null }[] };
-type Ciclo = { id: string; nombre: string; formulario: string; fechaLimite: string; estado: "abierto" | "cerrado"; resumen: Resumen };
+type Ciclo = { id: string; nombre: string; formulario: string; fechaLimite: string; estado: "abierto" | "cerrado"; conAutoevaluacion: boolean; resumen: Resumen };
 type Formulario = { id: string; nombre: string; competencias: Competencia[] };
 type Legajo = { id: string; numero: number; apellido: string; nombre: string; centroCostoId: string | null; sector: string; conJefe: boolean };
 type Evaluacion = {
   id: string; estado: keyof typeof ESTADOS; evaluadorId: string | null; puntajes: Record<string, number> | null; fortalezas: string | null; aMejorar: string | null; promedio: number | null;
+  autoPuntajes: Record<string, number> | null; autoComentario: string | null; autoCompletadaEn: string | null; anterior: { promedio: number; ciclo: string } | null;
   completadaPor: string | null; firma: string | null; comentarioEmpleado: string | null; firmadoEn: string | null;
   legajo: { numeroLegajo: number; apellido: string; nombre: string; centroCosto: { nombre: string } | null }; evaluador: { apellido: string; nombre: string } | null;
 };
-type Detalle = { ciclo: { id: string; competencias: Competencia[]; estado: string }; evaluaciones: Evaluacion[]; resumen: Resumen };
+type Detalle = { ciclo: { id: string; competencias: Competencia[]; estado: string; conAutoevaluacion: boolean }; evaluaciones: Evaluacion[]; resumen: Resumen };
 
 const dia = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 const nota = (n: number | null) => (n === null ? "—" : n.toFixed(2).replace(".", ","));
@@ -33,7 +34,7 @@ async function enviar(url: string, cuerpo: unknown) {
 export default function EvaluacionesPage() {
   const [datos, setDatos] = useState<{ hoy: string; ciclos: Ciclo[]; formularios: Formulario[]; legajos: Legajo[] } | null>(null);
   const [error, setError] = useState("");
-  const [nuevo, setNuevo] = useState<{ nombre: string; formularioId: string; fechaLimite: string; legajoIds: string[] } | null>(null);
+  const [nuevo, setNuevo] = useState<{ nombre: string; formularioId: string; fechaLimite: string; conAutoevaluacion: boolean; legajoIds: string[] } | null>(null);
   const [errorNuevo, setErrorNuevo] = useState("");
   const [abierto, setAbierto] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<Detalle | null>(null);
@@ -120,6 +121,7 @@ export default function EvaluacionesPage() {
                     ? [1, 2, 3, 4, 5].map((n) => <button key={n} title={ESCALA[n].nombre} onClick={() => setEdicion({ ...edicion!, puntajes: { ...edicion!.puntajes, [i]: n } })} style={{ ...chico, marginRight: 3, minWidth: 30, background: p[i] === n ? ESCALA[n].color : "white", color: p[i] === n && n === 5 ? "white" : "#12202e", border: "1px solid #b9c4cd" }}>{n}</button>)
                     : p[i] ? <span style={{ background: ESCALA[p[i]].color, color: p[i] === 5 ? "white" : "#12202e", padding: "0.1rem 0.5rem", fontWeight: 700 }}>{p[i]} · {ESCALA[p[i]].nombre}</span> : <span style={{ color: "#9aa5b1" }}>sin puntuar</span>}
                 </td>
+                {e.autoPuntajes && <td style={{ border: 0, padding: "0.2rem 0 0.2rem 0.75rem", whiteSpace: "nowrap", color: p[i] && Math.abs(p[i] - e.autoPuntajes[i]) >= 2 ? "#B23A3A" : "#4A4F58" }}>se puso <strong>{e.autoPuntajes[i] ?? "—"}</strong></td>}
               </tr>
             ))}
           </tbody>
@@ -136,6 +138,8 @@ export default function EvaluacionesPage() {
           </>
         ) : (
           <>
+            {e.autoComentario && <p style={{ margin: "0 0 0.4rem", whiteSpace: "pre-wrap" }}><strong>En su autoevaluación escribió:</strong> {e.autoComentario}</p>}
+            {e.anterior && <p style={{ margin: "0 0 0.4rem", color: "#4A4F58" }}>Evaluación anterior ({e.anterior.ciclo}): <strong>{nota(e.anterior.promedio)}</strong></p>}
             {e.fortalezas && <p style={{ margin: "0 0 0.4rem", whiteSpace: "pre-wrap" }}><strong>Fortalezas:</strong> {e.fortalezas}</p>}
             {e.aMejorar && <p style={{ margin: "0 0 0.4rem", whiteSpace: "pre-wrap" }}><strong>A mejorar:</strong> {e.aMejorar}</p>}
             {e.completadaPor && <p style={{ margin: "0 0 0.4rem", color: "#6b727b" }}>La completó {e.completadaPor.replace(/^jefe: /, "su jefe, ")}.</p>}
@@ -165,7 +169,7 @@ export default function EvaluacionesPage() {
 
       {datos && (
         <>
-          {!nuevo && <p><button onClick={() => { setNuevo({ nombre: "", formularioId: datos.formularios[0]?.id ?? "", fechaLimite: "", legajoIds: [] }); setErrorNuevo(""); }}>+ Abrir ciclo de evaluación</button></p>}
+          {!nuevo && <p><button onClick={() => { setNuevo({ nombre: "", formularioId: datos.formularios[0]?.id ?? "", fechaLimite: "", conAutoevaluacion: false, legajoIds: [] }); setErrorNuevo(""); }}>+ Abrir ciclo de evaluación</button></p>}
           {nuevo && (
             <div style={caja}>
               <strong style={{ color: "#163A5C" }}>Nuevo ciclo</strong>
@@ -174,6 +178,7 @@ export default function EvaluacionesPage() {
                 <label>Formulario<br /><select value={nuevo.formularioId} onChange={(e) => setNuevo({ ...nuevo, formularioId: e.target.value })}>{datos.formularios.map((f) => <option key={f.id} value={f.id}>{f.nombre} ({f.competencias.length} competencias)</option>)}</select></label>
                 <label>Los jefes tienen hasta el<br /><input type="date" min={datos.hoy.slice(0, 10)} value={nuevo.fechaLimite} onChange={(e) => setNuevo({ ...nuevo, fechaLimite: e.target.value })} /></label>
               </div>
+              <label style={{ display: "block", marginTop: "0.6rem" }}><input type="checkbox" checked={nuevo.conAutoevaluacion} onChange={(e) => setNuevo({ ...nuevo, conAutoevaluacion: e.target.checked })} style={{ marginRight: 6 }} />Pedir <strong>autoevaluación</strong>: cada uno se puntúa primero desde el portal, y su jefe la ve al evaluarlo</label>
               <div style={{ marginTop: "0.8rem" }}>
                 <strong>A quién se evalúa ({nuevo.legajoIds.length})</strong>{" "}
                 <button onClick={() => sumar("")} style={{ ...btnSec, ...chico }}>+ Todos</button>{" "}
@@ -203,7 +208,7 @@ export default function EvaluacionesPage() {
               <div key={c.id} style={{ ...caja, borderLeft: `4px solid ${c.estado === "cerrado" ? "#9aa5b1" : vencido ? "#B23A3A" : "#7FA8C6"}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                   <div>
-                    <strong style={{ color: "#163A5C" }}>{c.nombre}</strong> <span style={{ color: "#6b727b" }}>· {c.formulario}{c.estado === "cerrado" && " · cerrado"}</span>
+                    <strong style={{ color: "#163A5C" }}>{c.nombre}</strong> <span style={{ color: "#6b727b" }}>· {c.formulario}{c.conAutoevaluacion && " · con autoevaluación"}{c.estado === "cerrado" && " · cerrado"}</span>
                     <div style={{ fontSize: "0.85rem", color: vencido ? "#B23A3A" : "#4A4F58" }}>{c.estado === "abierto" ? `Los jefes tienen hasta el ${dia(c.fechaLimite)}${vencido ? " — ya venció" : ""}` : `Límite: ${dia(c.fechaLimite)}`}</div>
                   </div>
                   <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
@@ -232,10 +237,10 @@ export default function EvaluacionesPage() {
                     </div>
                     {aviso && <p style={{ color: aviso.ok ? "#2F6F5E" : "#B23A3A", margin: "0 0 0.6rem" }}>{aviso.texto}</p>}
                     <table>
-                      <thead><tr><th>Legajo</th><th>Empleado</th><th>Sector</th><th>Evalúa</th><th>Estado</th><th>Promedio</th><th></th></tr></thead>
+                      <thead><tr><th>Legajo</th><th>Empleado</th><th>Sector</th><th>Evalúa</th><th>Estado</th><th>Promedio</th>{detalle.ciclo.conAutoevaluacion && <th>Auto</th>}<th>Anterior</th><th></th></tr></thead>
                       <tbody>
                         {detalle.evaluaciones.map((e) => (
-                          <FilaEvaluacion key={e.id} e={e} abierta={fila === e.id} alAbrir={() => { setFila(fila === e.id ? null : e.id); setEdicion(null); }}>{puntos(detalle.ciclo.competencias, e)}</FilaEvaluacion>
+                          <FilaEvaluacion key={e.id} e={e} conAuto={detalle.ciclo.conAutoevaluacion} abierta={fila === e.id} alAbrir={() => { setFila(fila === e.id ? null : e.id); setEdicion(null); }}>{puntos(detalle.ciclo.competencias, e)}</FilaEvaluacion>
                         ))}
                       </tbody>
                     </table>
@@ -287,7 +292,7 @@ export default function EvaluacionesPage() {
   );
 }
 
-function FilaEvaluacion({ e, abierta, alAbrir, children }: { e: Evaluacion; abierta: boolean; alAbrir: () => void; children: React.ReactNode }) {
+function FilaEvaluacion({ e, conAuto, abierta, alAbrir, children }: { e: Evaluacion; conAuto: boolean; abierta: boolean; alAbrir: () => void; children: React.ReactNode }) {
   return (
     <>
       <tr>
@@ -297,9 +302,18 @@ function FilaEvaluacion({ e, abierta, alAbrir, children }: { e: Evaluacion; abie
         <td>{e.evaluador ? `${e.evaluador.apellido}, ${e.evaluador.nombre}` : <span style={{ color: "#8a5413" }}>RR.HH. (sin jefe)</span>}</td>
         <td><span style={{ color: COLOR_ESTADO[e.estado], fontWeight: 700 }}>{ESTADOS[e.estado]}</span>{e.firma === "disconforme" && <span style={{ color: "#B23A3A" }}> · en disconformidad</span>}</td>
         <td><strong style={{ borderBottom: `3px solid ${colorNota(e.promedio)}` }}>{nota(e.promedio)}</strong></td>
+        {conAuto && <td>{e.autoCompletadaEn ? nota(promedioDe(e.autoPuntajes)) : <span style={{ color: "#8a5413" }}>falta</span>}</td>}
+        <td>{e.anterior ? <span title={e.anterior.ciclo}>{nota(e.anterior.promedio)}{e.promedio !== null && <Tendencia d={e.promedio - e.anterior.promedio} />}</span> : <span style={{ color: "#9aa5b1" }}>—</span>}</td>
         <td><button onClick={alAbrir} style={{ background: "white", color: "#163A5C", border: "1px solid #163A5C", padding: "0.2rem 0.6rem", fontSize: "0.8rem" }}>{abierta ? "Ocultar" : "Ver"}</button></td>
       </tr>
-      {abierta && <tr><td colSpan={7} style={{ padding: 0 }}>{children}</td></tr>}
+      {abierta && <tr><td colSpan={conAuto ? 9 : 8} style={{ padding: 0 }}>{children}</td></tr>}
     </>
   );
+}
+
+// Sube o baja respecto de la evaluación anterior. Menos de 0,1 no se
+// marca: es ruido.
+function Tendencia({ d }: { d: number }) {
+  if (Math.abs(d) < 0.1) return <span style={{ color: "#6b727b" }}> =</span>;
+  return <span style={{ color: d > 0 ? "#2F6F5E" : "#B23A3A", fontWeight: 700 }}> {d > 0 ? "▲" : "▼"} {Math.abs(d).toFixed(2).replace(".", ",")}</span>;
 }

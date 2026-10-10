@@ -6,7 +6,7 @@ import { obtenerSesionActual } from "@/lib/auth";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { fechaDesdeTexto, hoyArgentina } from "@/lib/ausencias-reglas";
 import { formulariosDe, resumenCiclo, type Competencia } from "@/lib/evaluaciones";
-import { avisar, avisoEvaluacionesParaCompletar } from "@/lib/avisos";
+import { avisar, avisoEvaluacionesParaCompletar, avisoAutoevaluacion } from "@/lib/avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function GET() {
     const evaluaciones = await prisma.evaluacion.findMany({ where: { cicloId: { in: ciclos.map((c) => c.id) } }, select: { cicloId: true, estado: true, puntajes: true, promedio: true } });
     return NextResponse.json({
       hoy: hoyArgentina(),
-      ciclos: ciclos.map((c) => ({ id: c.id, nombre: c.nombre, formulario: c.formulario, fechaLimite: c.fechaLimite, estado: c.estado, resumen: resumenCiclo(c.competencias as unknown as Competencia[], evaluaciones.filter((e) => e.cicloId === c.id)) })),
+      ciclos: ciclos.map((c) => ({ id: c.id, nombre: c.nombre, formulario: c.formulario, fechaLimite: c.fechaLimite, estado: c.estado, conAutoevaluacion: c.conAutoevaluacion, resumen: resumenCiclo(c.competencias as unknown as Competencia[], evaluaciones.filter((e) => e.cicloId === c.id)) })),
       formularios,
       legajos: legajos.map((l) => ({ id: l.id, numero: l.numeroLegajo, apellido: l.apellido, nombre: l.nombre, centroCostoId: l.centroCostoId, sector: l.centroCosto?.nombre ?? "Sin asignar", conJefe: !!l.jefeId })),
     });
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
     // Las competencias se COPIAN al ciclo: si después se edita el
     // formulario, las evaluaciones ya abiertas no cambian a mitad de camino.
-    const ciclo = await prisma.cicloEvaluacion.create({ data: { empresaId: empresa.id, nombre, formulario: formulario.nombre, competencias: formulario.competencias as any, fechaLimite, creadoPor: sesion.email } });
+    const ciclo = await prisma.cicloEvaluacion.create({ data: { empresaId: empresa.id, nombre, formulario: formulario.nombre, competencias: formulario.competencias as any, fechaLimite, creadoPor: sesion.email, conAutoevaluacion: body.conAutoevaluacion === true } });
     // Evalúa el jefe directo de hoy. Sin jefe (o con jefe dado de baja),
     // queda para que la complete RR.HH. desde el panel.
     const filas = legajos.map((l) => ({ cicloId: ciclo.id, legajoId: l.id, evaluadorId: l.jefe?.condicion === "activo" ? l.jefe.id : null }));
@@ -68,6 +68,8 @@ export async function POST(req: Request) {
     const porJefe = new Map<string, number>();
     for (const f of filas) if (f.evaluadorId) porJefe.set(f.evaluadorId, (porJefe.get(f.evaluadorId) ?? 0) + 1);
     for (const [jefeId, cantidad] of porJefe) await avisar([jefeId], avisoEvaluacionesParaCompletar(cantidad, fechaLimite));
+
+    if (ciclo.conAutoevaluacion) await avisar(filas.map((f) => f.legajoId), avisoAutoevaluacion(fechaLimite));
 
     return NextResponse.json({ ok: true, id: ciclo.id, evaluaciones: filas.length, jefes: porJefe.size, sinJefe: filas.filter((f) => !f.evaluadorId).length });
   } catch (e: any) {

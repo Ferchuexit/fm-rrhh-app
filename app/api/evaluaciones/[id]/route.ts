@@ -30,7 +30,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       include: { legajo: { select: { numeroLegajo: true, apellido: true, nombre: true, centroCosto: { select: { nombre: true } } } }, evaluador: { select: { apellido: true, nombre: true } } },
       orderBy: [{ legajo: { apellido: "asc" } }, { legajo: { nombre: "asc" } }],
     });
-    return NextResponse.json({ ciclo, evaluaciones: evaluaciones.map(({ firmaIp, ...e }) => e), resumen: resumenCiclo(ciclo.competencias as unknown as Competencia[], evaluaciones) });
+    // Cómo le fue a cada uno en su evaluación anterior (la más reciente de
+    // un ciclo abierto antes que este), para ver si mejoró o empeoró.
+    const previas = await prisma.evaluacion.findMany({
+      where: { legajoId: { in: evaluaciones.map((e) => e.legajoId) }, promedio: { not: null }, ciclo: { empresaId: empresa.id, createdAt: { lt: ciclo.createdAt } } },
+      select: { legajoId: true, promedio: true, ciclo: { select: { nombre: true, createdAt: true } } },
+      orderBy: { ciclo: { createdAt: "desc" } },
+    });
+    const anterior = new Map<string, { promedio: number; ciclo: string }>();
+    for (const p of previas) if (!anterior.has(p.legajoId)) anterior.set(p.legajoId, { promedio: p.promedio!, ciclo: p.ciclo.nombre });
+    return NextResponse.json({ ciclo, evaluaciones: evaluaciones.map(({ firmaIp, ...e }) => ({ ...e, anterior: anterior.get(e.legajoId) ?? null })), resumen: resumenCiclo(ciclo.competencias as unknown as Competencia[], evaluaciones) });
   } catch (e) {
     return fuera(e, "GET /api/evaluaciones/[id]");
   }

@@ -2,13 +2,16 @@
 // Desde el portal, sobre UNA evaluación:
 //   guardar / completar → el JEFE que la tiene asignada, mientras el ciclo
 //       esté abierto y RR.HH. no la haya entregado.
+//   autoevaluar → el EMPLEADO evaluado, si el ciclo lo pide: se puntúa a
+//       sí mismo en las mismas competencias. La puede corregir hasta que
+//       le entreguen la evaluación.
 //   firmar → el EMPLEADO evaluado, una vez entregada: conforme o en
 //       disconformidad (con comentario). Queda fecha, hora y desde dónde.
 // Quién puede qué sale de la sesión, nunca de lo que manda el formulario.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal, ipDelPedido } from "@/lib/portal";
-import { datosDeEvaluacion, type Competencia } from "@/lib/evaluaciones";
+import { datosDeEvaluacion, limpiarPuntajes, type Competencia } from "@/lib/evaluaciones";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +31,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         data: { estado: "firmada", firma, comentarioEmpleado: comentario || null, firmadoEn: new Date(), firmaIp: ipDelPedido() },
       });
       if (count === 0) return NextResponse.json({ error: "Esa evaluación ya la firmaste, o todavía no te la entregaron." }, { status: 409 });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.accion === "autoevaluar") {
+      const ev = await prisma.evaluacion.findFirst({ where: { id: params.id, legajoId: sesion.legajoId, ciclo: { conAutoevaluacion: true } }, include: { ciclo: { select: { competencias: true, estado: true } } } });
+      if (!ev) return NextResponse.json({ error: "No se encontró esa autoevaluación." }, { status: 404 });
+      if (ev.ciclo.estado !== "abierto" || ev.estado === "entregada" || ev.estado === "firmada") return NextResponse.json({ error: "Ya pasó el momento de la autoevaluación." }, { status: 409 });
+      const competencias = ev.ciclo.competencias as unknown as Competencia[];
+      const autoPuntajes = limpiarPuntajes(body.puntajes, competencias.length);
+      const falta = competencias.find((_, i) => !(String(i) in autoPuntajes));
+      if (falta) return NextResponse.json({ error: `Te falta puntuar "${falta.nombre}".` }, { status: 400 });
+      const { count } = await prisma.evaluacion.updateMany({
+        where: { id: ev.id, legajoId: sesion.legajoId, estado: { in: ["pendiente", "completada"] } },
+        data: { autoPuntajes, autoComentario: String(body.comentario ?? "").trim().slice(0, 1500) || null, autoCompletadaEn: new Date() },
+      });
+      if (count === 0) return NextResponse.json({ error: "Ya pasó el momento de la autoevaluación." }, { status: 409 });
       return NextResponse.json({ ok: true });
     }
 

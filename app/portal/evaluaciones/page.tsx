@@ -15,9 +15,12 @@ export default async function PortalEvaluaciones() {
   if (!sesion) redirect("/portal/login");
   const hoy = hoyArgentina();
 
-  const [aCargo, mias] = await Promise.all([
+  const [aCargo, mias, autos] = await Promise.all([
     prisma.evaluacion.findMany({ where: { evaluadorId: sesion.legajoId, ciclo: { estado: "abierto" }, estado: { in: ["pendiente", "completada"] } }, include: { ciclo: { select: { nombre: true, fechaLimite: true } }, legajo: { select: { apellido: true, nombre: true } } }, orderBy: [{ ciclo: { fechaLimite: "asc" } }, { legajo: { apellido: "asc" } }] }),
     prisma.evaluacion.findMany({ where: { legajoId: sesion.legajoId, estado: { in: ["entregada", "firmada"] } }, include: { ciclo: { select: { nombre: true } } }, orderBy: { entregadaEn: "desc" }, take: 30 }),
+    // Mi autoevaluación, mientras el ciclo esté abierto y no me hayan
+    // entregado el resultado.
+    prisma.evaluacion.findMany({ where: { legajoId: sesion.legajoId, estado: { in: ["pendiente", "completada"] }, ciclo: { estado: "abierto", conAutoevaluacion: true } }, select: { id: true, autoCompletadaEn: true, ciclo: { select: { nombre: true, fechaLimite: true } } } }),
   ]);
   const pendientes = aCargo.filter((e) => e.estado === "pendiente");
 
@@ -45,6 +48,17 @@ export default async function PortalEvaluaciones() {
           })}
         </>
       )}
+
+      {autos.length > 0 && <h2>Mi autoevaluación</h2>}
+      {autos.map((e) => (
+        <a key={e.id} href={`/portal/evaluaciones/${e.id}`} className="p-card">
+          <div className="p-card-cuerpo">
+            <div className="p-card-titulo">{e.ciclo.nombre}</div>
+            <div className="p-card-dato">{e.autoCompletadaEn ? "La podés corregir hasta que te entreguen tu evaluación" : `Evaluate vos primero · hasta el ${fechaPeriodo(e.ciclo.fechaLimite)}`}</div>
+          </div>
+          <span className={`p-chip ${e.autoCompletadaEn ? "conforme" : "pendiente"}`}>{e.autoCompletadaEn ? "Completada" : "Para completar"}</span>
+        </a>
+      ))}
 
       <h2>Mis evaluaciones</h2>
       {mias.length === 0 && <p className="p-sub">Todavía no tenés evaluaciones. Cuando RR.HH. te entregue una, la vas a ver acá.</p>}

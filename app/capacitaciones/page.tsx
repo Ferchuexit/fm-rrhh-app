@@ -91,6 +91,7 @@ export default function CapacitacionesPage() {
               {c.estado === "realizada" && <><strong>{presentes}</strong> de {c.asistentes.length} presentes<div style={{ color: firmaron === presentes ? "#2F6F5E" : "#8a5413" }}>{firmaron} de {presentes} confirmaron</div></>}
               {c.estado === "cancelada" && <strong>Cancelada</strong>}
             </div>
+            <a href={`/api/capacitaciones/${c.id}/planilla`} target="_blank" rel="noreferrer" style={{ fontSize: "0.8rem" }} title={c.estado === "programada" ? "Planilla para firmar en papel" : "Planilla con asistencia y confirmaciones"}>Planilla PDF</a>
             <button onClick={() => abrir(c)} style={{ ...btnSec, ...chico }}>{esta ? "Cerrar" : c.estado === "programada" ? "Asistencia" : "Ver"}</button>
           </div>
         </div>
