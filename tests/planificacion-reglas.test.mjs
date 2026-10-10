@@ -1,6 +1,6 @@
 // Planificación de vacaciones: gente afuera a la vez y costo de un rango (lib/planificacion-reglas.ts).
 import { describe, it, expect } from "vitest";
-import { diasEnRango, ausentesPorDia, pico, picoPorSemana, brutoMensualReferencia, costoEnRango } from "../lib/planificacion-reglas.ts";
+import { diasEnRango, ausentesPorDia, pico, picoPorSemana, referenciaMensual, costoEnRango, presupuestoAplica } from "../lib/planificacion-reglas.ts";
 
 const f = (t) => new Date(t + "T00:00:00Z");
 const r = (a, b) => ({ desde: f(a), hasta: f(b) });
@@ -53,9 +53,25 @@ describe("Gente afuera a la vez", () => {
 
 describe("Costo", () => {
   it("el sueldo de referencia es el mismo con un mes o con dos quincenas", () => {
-    expect(brutoMensualReferencia([{ bruto: 900000, dias: 30 }])).toBeCloseTo(900000);
-    expect(brutoMensualReferencia([{ bruto: 450000, dias: 15 }, { bruto: 450000, dias: 15 }])).toBeCloseTo(900000);
-    expect(brutoMensualReferencia([])).toBeNull(); // sin liquidaciones no se inventa un sueldo
+    expect(referenciaMensual([{ bruto: 900000, contribuciones: 0, dias: 30 }], null).bruto).toBeCloseTo(900000);
+    expect(referenciaMensual([{ bruto: 450000, contribuciones: 0, dias: 15 }, { bruto: 450000, contribuciones: 0, dias: 15 }], null).bruto).toBeCloseTo(900000);
+    expect(referenciaMensual([], 25)).toBeNull(); // sin liquidaciones no se inventa un sueldo
+  });
+  it("contribuciones: primero las liquidadas, después el % de la empresa, y si no hay nada lo dice", () => {
+    const conContrib = [{ bruto: 900000, contribuciones: 234000, dias: 30 }];
+    const sinContrib = [{ bruto: 900000, contribuciones: 0, dias: 30 }];
+    expect(referenciaMensual(conContrib, 30)).toMatchObject({ contribuciones: 234000, origen: "liquidadas" }); // el % no pisa lo liquidado
+    expect(referenciaMensual(sinContrib, 26)).toMatchObject({ contribuciones: 234000, origen: "estimadas" });
+    expect(referenciaMensual(sinContrib, null)).toMatchObject({ contribuciones: 0, origen: "sin" });
+    expect(referenciaMensual(sinContrib, 0)).toMatchObject({ contribuciones: 0, origen: "sin" });
+  });
+  it("un presupuesto aplica por fechas y por sector", () => {
+    const p = { centroCostoId: null, desde: f("2027-01-01"), hasta: f("2027-01-31") };
+    expect(presupuestoAplica(p, "taller", r("2027-01-25", "2027-02-05"))).toBe(true); // toda la empresa, se pisa
+    expect(presupuestoAplica(p, null, r("2027-02-01", "2027-02-05"))).toBe(false); // otras fechas
+    expect(presupuestoAplica({ ...p, centroCostoId: "taller" }, "taller", r("2027-01-10", "2027-01-12"))).toBe(true);
+    expect(presupuestoAplica({ ...p, centroCostoId: "taller" }, "ventas", r("2027-01-10", "2027-01-12"))).toBe(false);
+    expect(presupuestoAplica({ ...p, centroCostoId: "taller" }, null, r("2027-01-10", "2027-01-12"))).toBe(false);
   });
   it("vacaciones a valor día/25; el adicional es la diferencia con día/30", () => {
     const c = costoEnRango(900000, 30, 14);

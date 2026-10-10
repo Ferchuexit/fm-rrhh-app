@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { saldoVacaciones } from "@/lib/ausencias";
-import { ausenciasDelRango, ausentesPorDia, pico } from "@/lib/planificacion";
+import { ausenciasDelRango, ausentesPorDia, pico, impactoEnPresupuestos, type PlanCalculado } from "@/lib/planificacion";
+import { puedeVerCostos } from "@/lib/permisos-servidor";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +39,18 @@ export async function GET() {
       otrosPendientes: new Set(ausencias.filter((a) => a.pendiente && a.legajoId !== s.legajoId).map((a) => a.legajoId)).size,
     };
   }
+  // Presupuestos guardados que tocan cada pedido — solo para quien puede
+  // ver importes.
+  const conCostos = await puedeVerCostos();
+  const cachePlanes = new Map<string, Promise<PlanCalculado>>();
+  const presupuestosDe = (s: (typeof solicitudes)[number]) =>
+    conCostos
+      ? impactoEnPresupuestos(empresa!.id, { legajoId: s.legajoId, centroCostoId: s.legajo.centroCostoId, desde: s.fechaDesde, hasta: s.fechaHasta }, cachePlanes).catch((e) => { console.error("Solicitudes: no se pudo evaluar el presupuesto:", e); return []; })
+      : [];
   const conSaldo = await Promise.all(
     solicitudes.map(async (s) => {
       const decide = s.estado === "pendiente" && s.tipo === "vacaciones";
-      return { ...s, saldo: decide ? await saldoVacaciones(s.legajoId, s.fechaDesde.getUTCFullYear(), s.id) : null, contexto: decide ? await contexto(s) : null };
+      return { ...s, saldo: decide ? await saldoVacaciones(s.legajoId, s.fechaDesde.getUTCFullYear(), s.id) : null, contexto: decide ? await contexto(s) : null, presupuestos: decide ? await presupuestosDe(s) : [] };
     })
   );
   return NextResponse.json({ solicitudes: conSaldo });

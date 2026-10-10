@@ -41,3 +41,10 @@ export async function permisosActuales(): Promise<{ esAdmin: boolean; permisos: 
   if (usuario.rol === "admin") return { esAdmin: true, permisos: null };
   return { esAdmin: false, permisos: permisosEnEmpresa(await permisosDeUsuario(usuario), cookies().get(NOMBRE_COOKIE_EMPRESA)?.value) };
 }
+
+// Importes de sueldos fuera del módulo Liquidaciones (planificación de
+// vacaciones, presupuestos): solo para quien igual podría verlos ahí.
+export async function puedeVerCostos(): Promise<boolean> {
+  const quien = await permisosActuales();
+  return !!quien && (quien.esAdmin || !!quien.permisos?.liquidaciones);
+}

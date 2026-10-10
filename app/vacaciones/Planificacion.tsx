@@ -10,7 +10,6 @@ const dia = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2
 const caja: React.CSSProperties = { background: "#F5F7F9", border: "1px solid #dfe4e8", padding: "0.7rem 0.9rem", minWidth: "170px", flex: 1 };
 const rotulo: React.CSSProperties = { fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "#6b727b" };
 const numero: React.CSSProperties = { fontSize: "1.5rem", fontWeight: 700, color: "#163A5C", fontVariantNumeric: "tabular-nums" };
-const CLAVE_PRESUPUESTO = "fm-presupuesto-planificacion";
 
 export default function Planificacion({ centros }: { centros: { id: string; nombre: string }[] }) {
   const [desde, setDesde] = useState("");
@@ -21,6 +20,21 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
   const [datos, setDatos] = useState<any>(null);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  // Presupuestos guardados de la empresa (null = este usuario no ve importes)
+  const [guardados, setGuardados] = useState<any[] | null>(null);
+  const [pct, setPct] = useState("");
+  const [aviso, setAviso] = useState("");
+
+  async function cargarPresupuestos() {
+    const res = await fetch("/api/vacaciones/presupuestos");
+    if (!res.ok) { setGuardados(null); return [] as any[]; }
+    const d = await res.json();
+    setGuardados(d.presupuestos);
+    setPct(d.pctContribucionesEstimado != null ? String(d.pctContribucionesEstimado) : "");
+    return d.presupuestos as any[];
+  }
+  const delRango = (lista: any[] | null, d: string, h: string, c: string) =>
+    (lista ?? []).find((p) => p.fechaDesde.slice(0, 10) === d && p.fechaHasta.slice(0, 10) === h && (p.centroCostoId ?? "") === c);
 
   async function calcular(d = desde, h = hasta, c = centro) {
     if (!d || !h) { setError("Completá las dos fechas."); return; }
@@ -30,6 +44,7 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
       const res = await fetch(`/api/vacaciones/planificacion?desde=${d}&hasta=${h}${c ? `&centroCostoId=${c}` : ""}`);
       const data = await res.json().catch(() => ({ error: "El servidor no devolvió una respuesta válida." }));
       if (!res.ok) { setError(data.error ?? "No se pudo calcular."); setDatos(null); } else setDatos(data);
+      setAviso("");
     } catch {
       setError("No hay conexión. Probá de nuevo.");
     }
@@ -45,14 +60,31 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
     const h = q.get("hasta") ?? new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth() + 2, 0)).toISOString().slice(0, 10);
     setDesde(d);
     setHasta(h);
-    try { setPresupuesto(localStorage.getItem(CLAVE_PRESUPUESTO) ?? ""); } catch {}
+    cargarPresupuestos().then((lista) => { const p = delRango(lista, d, h, ""); if (p) setPresupuesto(String(p.importe)); });
     calcular(d, h, "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function cambiarPresupuesto(v: string) {
-    setPresupuesto(v);
-    try { localStorage.setItem(CLAVE_PRESUPUESTO, v); } catch {}
+  async function enviar(cuerpo: any, metodo = "POST", query = "") {
+    const res = await fetch(`/api/vacaciones/presupuestos${query}`, { method: metodo, headers: { "Content-Type": "application/json" }, body: metodo === "POST" ? JSON.stringify(cuerpo) : undefined });
+    const data = await res.json().catch(() => ({ error: "El servidor no devolvió una respuesta válida." }));
+    if (!res.ok) { setAviso(data.error ?? "No se pudo guardar."); return false; }
+    return true;
+  }
+  async function guardarPresupuesto() {
+    if (await enviar({ desde, hasta, centroCostoId: centro || null, importe: presupuesto })) { await cargarPresupuestos(); setAviso("Presupuesto guardado."); }
+  }
+  async function borrarPresupuesto(id: string) {
+    if (await enviar(null, "DELETE", `?id=${id}`)) { await cargarPresupuestos(); setPresupuesto(""); setAviso("Presupuesto borrado."); }
+  }
+  async function guardarPct() {
+    if (await enviar({ pctContribucionesEstimado: pct })) { await calcular(); setAviso("Porcentaje guardado."); }
+  }
+  // Elegir un presupuesto guardado carga su rango y recalcula.
+  function usar(p: any) {
+    const d = p.fechaDesde.slice(0, 10), h = p.fechaHasta.slice(0, 10), c = p.centroCostoId ?? "";
+    setDesde(d); setHasta(h); setCentro(c); setPresupuesto(String(p.importe));
+    calcular(d, h, c);
   }
 
   const campo = conPendientes ? "conPendientes" : "firmes";
@@ -60,7 +92,9 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
   const costo = datos?.costos?.[campo];
   const tope = Number(presupuesto) || 0;
   const diasVac = datos ? datos.diasVacaciones.firmes + (conPendientes ? datos.diasVacaciones.pendientes : 0) : 0;
-  const liquidadoTotal = (datos?.liquidado ?? []).reduce((a: number, p: any) => a + p.bruto, 0);
+  const liquidadoTotal = (datos?.liquidado ?? []).reduce((a: number, p: any) => a + p.bruto + p.contribuciones, 0);
+  const guardado = delRango(guardados, desde, hasta, centro);
+  const contrib = datos?.costos?.contribuciones;
 
   return (
     <div id="planificacion" style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1.5rem", maxWidth: "900px" }}>
@@ -76,7 +110,7 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
             {centros.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
         </label>
-        <button onClick={() => calcular()} disabled={cargando}>{cargando ? "Calculando…" : "Calcular"}</button>
+        <button onClick={() => { const p = delRango(guardados, desde, hasta, centro); setPresupuesto(p ? String(p.importe) : ""); calcular(); }} disabled={cargando}>{cargando ? "Calculando…" : "Calcular"}</button>
         <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
           <input type="checkbox" checked={conPendientes} onChange={(e) => setConPendientes(e.target.checked)} />
           Contar también los pedidos sin responder
@@ -112,24 +146,39 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
             <div style={{ marginTop: "1rem", borderTop: "1px solid #EEF1F4", paddingTop: "0.9rem" }}>
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "stretch" }}>
                 <div style={caja}>
-                  <div style={rotulo}>Masa salarial del rango</div>
+                  <div style={rotulo}>Costo laboral del rango</div>
                   <div style={numero}>{pesos(costo.masa)}</div>
-                  <div style={{ fontSize: "0.8rem" }}>bruta, estimada, {datos.diasDelRango} días</div>
+                  <div style={{ fontSize: "0.8rem" }}>bruto {pesos(costo.masaBruta)} + contribuciones {pesos(costo.contribuciones)} · {datos.diasDelRango} días</div>
                 </div>
                 <div style={caja}>
                   <div style={rotulo}>Vacaciones del rango</div>
                   <div style={numero}>{pesos(costo.vacaciones)}</div>
-                  <div style={{ fontSize: "0.8rem" }}>lo que se paga por esos {diasVac} días</div>
+                  <div style={{ fontSize: "0.8rem" }}>lo que cuestan esos {diasVac} días</div>
                 </div>
                 <div style={caja}>
                   <div style={rotulo}>Total con vacaciones</div>
                   <div style={numero}>{pesos(costo.total)}</div>
-                  <div style={{ fontSize: "0.8rem" }}>masa + {pesos(costo.adicional)} de plus vacacional</div>
+                  <div style={{ fontSize: "0.8rem" }}>costo laboral + {pesos(costo.adicional)} de plus vacacional</div>
                 </div>
               </div>
 
+              {/* Las contribuciones salen de la liquidación; si no las calcula, hay que decirlo y dejar estimarlas */}
+              {contrib && contrib.liquidadas < datos.dotacion - datos.costos.sinSueldo && (
+                <div style={{ marginTop: "0.9rem", background: "#fdf1e1", border: "1px solid #E8B36B", padding: "0.6rem 0.8rem", fontSize: "0.85rem" }}>
+                  {contrib.sin > 0
+                    ? <><strong>Faltan las contribuciones patronales</strong> de {contrib.sin} {contrib.sin === 1 ? "persona" : "personas"}: sus liquidaciones no las calculan, así que su costo está solo en bruto. </>
+                    : <>Las contribuciones de {contrib.estimadas} {contrib.estimadas === 1 ? "persona están estimadas" : "personas están estimadas"} con el porcentaje de abajo, porque sus liquidaciones no las calculan. </>}
+                  <label>Estimarlas como el{" "}
+                    <input type="number" min="0" max="100" step="0.1" value={pct} onChange={(e) => setPct(e.target.value)} style={{ width: "70px" }} /> % del bruto
+                  </label>{" "}
+                  <button onClick={guardarPct} style={{ padding: "0.25rem 0.7rem" }}>Guardar</button>
+                  <div style={{ fontSize: "0.75rem", color: "#6b727b", marginTop: "0.3rem" }}>Queda guardado para la empresa. Poné el porcentaje que te confirme el contador; vacío = no estimar.</div>
+                </div>
+              )}
+
               <div style={{ marginTop: "0.9rem", display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-                <label>Presupuesto aprobado para el rango: $ <input type="number" min="0" value={presupuesto} onChange={(e) => cambiarPresupuesto(e.target.value)} style={{ width: "150px" }} /></label>
+                <label>Presupuesto aprobado para el rango: $ <input type="number" min="0" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} style={{ width: "150px" }} /></label>
+                <button onClick={guardarPresupuesto} disabled={!presupuesto || (guardado && Number(presupuesto) === guardado.importe)}>{guardado ? "Actualizar" : "Guardar presupuesto"}</button>
                 {tope > 0 && (
                   <strong style={{ color: costo.total > tope ? "#B23A3A" : "#2F6F5E" }}>
                     {costo.total > tope ? `Se pasa por ${pesos(costo.total - tope)}` : `Dentro del presupuesto: quedan ${pesos(tope - costo.total)}`}
@@ -137,18 +186,39 @@ export default function Planificacion({ centros }: { centros: { id: string; nomb
                   </strong>
                 )}
               </div>
+              {aviso && <p style={{ fontSize: "0.85rem", margin: "0.4rem 0 0", color: aviso.endsWith(".") && /guardado|borrado/.test(aviso) ? "#2F6F5E" : "#B23A3A" }}>{aviso}</p>}
 
               {datos.liquidado.length > 0 && (
                 <p style={{ fontSize: "0.85rem", marginBottom: 0 }}>
                   <strong>Ya liquidado</strong> en períodos cerrados que tocan el rango: <strong>{pesos(liquidadoTotal)}</strong>{" "}
-                  ({datos.liquidado.map((p: any) => `${p.nombre}: ${pesos(p.bruto)}`).join(" · ")}).
+                  ({datos.liquidado.map((p: any) => `${p.nombre}: bruto ${pesos(p.bruto)}${p.contribuciones > 0 ? ` + contribuciones ${pesos(p.contribuciones)}` : ", sin contribuciones calculadas"}`).join(" · ")}).
                 </p>
               )}
               <p style={{ fontSize: "0.75rem", color: "#6b727b", marginBottom: 0 }}>
-                Importes brutos, sin contribuciones patronales. Es una estimación: toma la última liquidación cerrada de cada persona como sueldo de referencia
-                y paga el día de vacaciones a sueldo ÷ 25. No reemplaza a la liquidación.
+                Es una estimación: toma la última liquidación cerrada de cada persona como referencia (bruto y contribuciones patronales)
+                y paga el día de vacaciones a sueldo ÷ 25. No incluye boletas sindicales ni seguros que no estén cargados como concepto. No reemplaza a la liquidación.
                 {datos.costos.sinSueldo > 0 ? ` ${datos.costos.sinSueldo} ${datos.costos.sinSueldo === 1 ? "persona no tiene" : "personas no tienen"} liquidaciones cerradas y no ${datos.costos.sinSueldo === 1 ? "entra" : "entran"} en los importes.` : ""}
               </p>
+
+              {guardados && guardados.length > 0 && (
+                <>
+                  <h4 style={{ margin: "1rem 0 0.4rem" }}>Presupuestos guardados</h4>
+                  <table>
+                    <thead><tr><th>Desde</th><th>Hasta</th><th>Centro de costo</th><th>Presupuesto</th><th>Cargó</th><th></th></tr></thead>
+                    <tbody>
+                      {guardados.map((p) => (
+                        <tr key={p.id} style={guardado?.id === p.id ? { fontWeight: 700 } : undefined}>
+                          <td>{dia(p.fechaDesde)}</td><td>{dia(p.fechaHasta)}</td><td>{p.centroCosto?.nombre ?? "Toda la empresa"}</td><td>{pesos(p.importe)}</td><td style={{ fontSize: "0.8rem" }}>{p.cargadoPor}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <button onClick={() => usar(p)} style={{ padding: "0.2rem 0.6rem" }}>Ver</button>{" "}
+                            <button onClick={() => borrarPresupuesto(p.id)} style={{ padding: "0.2rem 0.6rem", background: "white", color: "#B23A3A", border: "1px solid #B23A3A" }}>Borrar</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
             </div>
           ) : (
             <p style={{ fontSize: "0.8rem", color: "#6b727b" }}>Los importes los ve quien tiene acceso a Liquidaciones.</p>

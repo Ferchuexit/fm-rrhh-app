@@ -138,6 +138,13 @@ model Empresa {
   noticias Noticia[]
 
   @@map("empresas")
+
+  // Para estimar el costo laboral cuando las liquidaciones todavía no
+  // calculan contribuciones patronales (reglas sin cargar): % sobre el
+  // bruto. null = no estimar. Si las liquidaciones SÍ las traen, se usan
+  // esas y este campo se ignora. Ver 82-planificacion-vacaciones.md.
+  pctContribucionesEstimado Decimal? @db.Decimal(5, 2)
+  presupuestos PresupuestoSalarial[]
 }
 
 // Departamento / centro de costo — para agrupar empleados y filtrar reportes
@@ -150,6 +157,7 @@ model CentroCosto {
   empresa Empresa  @relation(fields: [empresaId], references: [id])
   legajos Legajo[]
   noticias Noticia[]
+  presupuestos PresupuestoSalarial[]
 }
 
 // Lugar FÍSICO de trabajo — planta, obra, oficina — distinto de
@@ -1418,4 +1426,25 @@ model NoticiaLectura {
   legajo  Legajo  @relation(fields: [legajoId], references: [id])
 
   @@unique([noticiaId, legajoId])
+}
+
+// Presupuesto de costo laboral (bruto + contribuciones) aprobado por
+// dirección para un rango de fechas. RR.HH. lo usa para decidir pedidos de
+// vacaciones: /vacaciones (planificación) y /solicitudes lo comparan contra
+// el costo estimado del rango.
+model PresupuestoSalarial {
+  id            String   @id @default(uuid())
+  empresaId     String
+  centroCostoId String? // null = toda la empresa
+  fechaDesde    DateTime
+  fechaHasta    DateTime
+  importe       Decimal  @db.Decimal(16, 2)
+  nota          String?
+  cargadoPor    String? // email
+  updatedAt     DateTime @updatedAt
+
+  empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  centroCosto CentroCosto? @relation(fields: [centroCostoId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, fechaDesde, fechaHasta])
 }

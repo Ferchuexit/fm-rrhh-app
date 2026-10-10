@@ -9,12 +9,14 @@ type Solicitud = {
   estado: "pendiente" | "aprobada" | "rechazada" | "cancelada"; respuesta: string | null; resueltoPor: string | null; resueltoEn: string | null; createdAt: string;
   legajo: { numeroLegajo: number; apellido: string; nombre: string; centroCosto: { nombre: string } | null };
   solicitadoPor: { numeroLegajo: number; apellido: string; nombre: string } | null;
+  presupuestos: { id: string; fechaDesde: string; fechaHasta: string; sector: string | null; importe: number; hoy: number; conEste: number; sinReferencia: boolean }[];
   contexto: { dotacion: number; afuera: number; conEste: number; otrosPendientes: number } | null;
   saldo: { anio: number; corresponden: number; registrados: number; enTramite: number; disponibles: number } | null;
 };
 
 const dia = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 const momento = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "");
+const pesos = (n: number) => n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const COLOR: Record<string, string> = { pendiente: "#B8752B", aprobada: "#2F6F5E", rechazada: "#B23A3A", cancelada: "#6b727b" };
 
 export default function SolicitudesPage() {
@@ -104,6 +106,16 @@ export default function SolicitudesPage() {
                         <a href={`/vacaciones?desde=${s.fechaDesde.slice(0, 10)}&hasta=${s.fechaHasta.slice(0, 10)}#planificacion`}>Ver gente afuera y costo</a>
                       </div>
                     )}
+                    {(s.presupuestos ?? []).map((p) => {
+                      const sePasa = p.conEste > p.importe;
+                      return (
+                        <div key={p.id} style={{ fontSize: "0.85rem", marginTop: "0.3rem", color: sePasa ? "#B23A3A" : "#2F6F5E", fontWeight: sePasa ? 600 : 400 }}>
+                          Presupuesto {dia(p.fechaDesde)} al {dia(p.fechaHasta)}{p.sector ? ` (${p.sector})` : ""}: {pesos(p.importe)}. Hoy va en {pesos(p.hoy)}; aprobando este pedido, {pesos(p.conEste)} —{" "}
+                          {sePasa ? `se pasa por ${pesos(p.conEste - p.importe)}` : `entra, quedan ${pesos(p.importe - p.conEste)}`}.
+                          {p.sinReferencia ? " (Esta persona no tiene liquidaciones cerradas: su costo no está contado.)" : ""}
+                        </div>
+                      );
+                    })}
                     <div style={{ fontSize: "0.78rem", color: "#6b727b", marginTop: "0.2rem" }}>
                       Pedido el {momento(s.createdAt)} · {s.solicitadoPor ? <>por su jefe, <strong>{s.solicitadoPor.apellido}, {s.solicitadoPor.nombre}</strong></> : "por el propio empleado"}
                     </div>
