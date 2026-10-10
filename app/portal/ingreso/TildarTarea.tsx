@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 
-// El tilde de una tarea de ingreso que marca el empleado o el jefe.
-export default function TildarTarea({ id, hecha, titulo }: { id: string; hecha: boolean; titulo: string }) {
+// El tilde de una tarea de ingreso (o de egreso) que marca el empleado o el jefe.
+export default function TildarTarea({ id, hecha, titulo, tipo = "ingreso" }: { id: string; hecha: boolean; titulo: string; tipo?: "ingreso" | "egreso" }) {
   const [marcada, setMarcada] = useState(hecha);
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -12,7 +12,7 @@ export default function TildarTarea({ id, hecha, titulo }: { id: string; hecha: 
     setEnviando(true);
     setError("");
     try {
-      const res = await fetch(`/api/portal/ingreso/tareas/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hecha: !marcada }) });
+      const res = await fetch(`/api/portal/${tipo}/tareas/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hecha: !marcada }) });
       if (res.status === 401) { window.location.href = "/portal/login"; return; }
       if (!res.ok) { setError((await res.json().catch(() => ({}))).error || "No se pudo guardar."); return; }
       setMarcada(!marcada);

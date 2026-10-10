@@ -11,6 +11,7 @@ import { fechaPeriodo } from "../formato";
 import PedidoForm from "../vacaciones/PedidoForm";
 import CancelarPedido from "../vacaciones/CancelarPedido";
 import TildarTarea from "../ingreso/TildarTarea";
+import TareasEgreso from "./TareasEgreso";
 import { ponerAlDia } from "@/lib/ingresos";
 import { cubre } from "@/lib/capacitaciones-reglas";
 
@@ -28,6 +29,7 @@ export default async function PortalEquipo() {
       <>
         <h1>Mi equipo</h1>
         <p className="p-sub">No tenés gente a cargo cargada en el sistema. Si es un error, avisale a RR.HH.</p>
+        <TareasEgreso jefeId={sesion.legajoId} hoy={hoyArgentina()} />
       </>
     );
   }
@@ -99,6 +101,8 @@ export default async function PortalEquipo() {
           </div>
         );
       })}
+
+      <TareasEgreso jefeId={sesion.legajoId} hoy={hoy} />
 
       {ingresos.map((ing) => (
         <div key={ing.id}>

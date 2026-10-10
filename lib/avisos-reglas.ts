@@ -83,6 +83,12 @@ export function avisoEvaluacionEntregada(): TextoAviso {
   return { tipo: "evaluacion", titulo: "Ya está tu evaluación de desempeño", cuerpo: "Entrá para verla y dejar constancia de que la leíste.", url: "/portal/evaluaciones" };
 }
 
+// Sin el nombre ni la palabra "egreso": se lee con el celular bloqueado, y
+// una desvinculación puede no estar comunicada todavía.
+export function avisoTareasDeEquipo(): TextoAviso {
+  return { tipo: "equipo", titulo: "Tenés tareas nuevas de tu equipo", cuerpo: "RR.HH. te asignó tareas. Entrá a Mi equipo para verlas.", url: "/portal/equipo" };
+}
+
 export function avisoAutoevaluacion(limite: Date): TextoAviso {
   return { tipo: "evaluacion", titulo: "Tenés tu autoevaluación para completar", cuerpo: `Hasta el ${dia(limite)}. Entrá a Evaluaciones.`, url: "/portal/evaluaciones" };
 }

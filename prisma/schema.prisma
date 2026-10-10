@@ -156,6 +156,7 @@ model Empresa {
   capacitaciones            Capacitacion[]
   formulariosEvaluacion     FormularioEvaluacion[]
   ciclosEvaluacion          CicloEvaluacion[]
+  PlantillaEgreso           PlantillaEgreso[]
 
   @@map("empresas")
 }
@@ -939,6 +940,7 @@ model Legajo {
   evaluaciones             Evaluacion[]
   evaluacionesACargo       Evaluacion[]             @relation("Evaluador")
   ingresos                 Ingreso[]
+  egresos                  Egreso[]
   avisos                   Aviso[]
   objetivos                Objetivo[]
   planCarrera              PlanCarrera?
@@ -1842,4 +1844,65 @@ model EjecucionRecordatorios {
   iniciadaEn  DateTime  @default(now())
   terminadaEn DateTime?
   resumen     Json? // { tipo: cantidad de personas avisadas }
+}
+
+// ── Offboarding ──
+// El espejo del onboarding: los pasos de salida de alguien que deja la
+// empresa. Las plantillas son de la empresa; cada egreso lleva su copia de
+// las tareas, con vencimientos calculados contra el último día de trabajo.
+model PlantillaEgreso {
+  id        String   @id @default(uuid())
+  empresaId String
+  nombre    String
+  // [{ titulo, detalle?, responsable: 'rrhh'|'jefe', dia, clave? }]
+  // dia = días desde el último día de trabajo (negativo = antes).
+  tareas    Json
+  updatedAt DateTime @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, nombre])
+}
+
+model Egreso {
+  id                   String    @id @default(uuid())
+  legajoId             String
+  plantilla            String // nombre de la plantilla de la que salió (informativo)
+  fechaEgreso          DateTime // último día de trabajo: contra esta fecha vencen las tareas
+  motivo               String // ver MOTIVOS_EGRESO en lib/egresos-reglas.ts
+  estado               String    @default("en_curso") // 'en_curso' | 'completado' | 'cancelado'
+  iniciadoPor          String?
+  createdAt            DateTime  @default(now())
+  cerradoEn            DateTime?
+  // Entrevista de salida: por qué se va de verdad, y si la empresa lo
+  // volvería a tomar. Solo la ve RR.HH.
+  entrevistaMotivo     String? // ver MOTIVOS_ENTREVISTA
+  recontratable        String? // 'si' | 'con_reservas' | 'no'
+  entrevistaComentario String?
+  entrevistaPor        String?
+  entrevistaEn         DateTime?
+
+  legajo Legajo        @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  tareas TareaEgreso[]
+
+  @@index([legajoId, estado])
+}
+
+model TareaEgreso {
+  id          String    @id @default(uuid())
+  egresoId    String
+  orden       Int
+  titulo      String
+  detalle     String?
+  responsable String // 'rrhh' | 'jefe'
+  vence       DateTime
+  clave       String? // se tilda sola: ver CLAVES_EGRESO en lib/egresos-reglas.ts
+  estado      String    @default("pendiente") // 'pendiente' | 'hecha' | 'no_aplica'
+  hechaPor    String? // email del usuario, "jefe: Nombre" o "sistema"
+  hechaEn     DateTime?
+  nota        String?
+
+  egreso Egreso @relation(fields: [egresoId], references: [id], onDelete: Cascade)
+
+  @@index([egresoId, orden])
 }
