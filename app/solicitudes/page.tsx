@@ -9,6 +9,7 @@ type Solicitud = {
   estado: "pendiente" | "aprobada" | "rechazada" | "cancelada"; respuesta: string | null; resueltoPor: string | null; resueltoEn: string | null; createdAt: string;
   legajo: { numeroLegajo: number; apellido: string; nombre: string; centroCosto: { nombre: string } | null };
   solicitadoPor: { numeroLegajo: number; apellido: string; nombre: string } | null;
+  contexto: { dotacion: number; afuera: number; conEste: number; otrosPendientes: number } | null;
   saldo: { anio: number; corresponden: number; registrados: number; enTramite: number; disponibles: number } | null;
 };
 
@@ -93,6 +94,14 @@ export default function SolicitudesPage() {
                       <div style={{ fontSize: "0.85rem", marginTop: "0.3rem", color: excede ? "#B23A3A" : "#4A4F58" }}>
                         Saldo {s.saldo.anio} sin contar este pedido: {s.saldo.disponibles} disponibles ({s.saldo.corresponden} corresponden, {s.saldo.registrados} registrados{s.saldo.enTramite ? `, ${s.saldo.enTramite} en otros pedidos` : ""})
                         {excede ? " — este pedido lo excede" : ""}
+                      </div>
+                    )}
+                    {s.contexto && (
+                      <div style={{ fontSize: "0.85rem", marginTop: "0.3rem", color: "#4A4F58" }}>
+                        En esas fechas, {s.legajo.centroCosto ? `en ${s.legajo.centroCosto.nombre}` : "en la empresa"} ({s.contexto.dotacion} {s.contexto.dotacion === 1 ? "persona" : "personas"}):{" "}
+                        hoy hay hasta <strong>{s.contexto.afuera}</strong> afuera a la vez; aprobando este pedido, hasta <strong>{s.contexto.conEste}</strong>
+                        {s.contexto.otrosPendientes > 0 ? ` (y hay ${s.contexto.otrosPendientes} ${s.contexto.otrosPendientes === 1 ? "pedido más" : "pedidos más"} sin responder para esas fechas)` : ""}.{" "}
+                        <a href={`/vacaciones?desde=${s.fechaDesde.slice(0, 10)}&hasta=${s.fechaHasta.slice(0, 10)}#planificacion`}>Ver gente afuera y costo</a>
                       </div>
                     )}
                     <div style={{ fontSize: "0.78rem", color: "#6b727b", marginTop: "0.2rem" }}>

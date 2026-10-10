@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
+import { picoPorSemana } from "@/lib/planificacion-reglas";
+import Planificacion from "./Planificacion";
 
 const ANIO_ACTUAL = new Date().getFullYear();
 
@@ -86,8 +88,8 @@ export default function VacacionesPage() {
 
   // ── Render del Gantt: barras posicionadas por % del año ──
   function posicionEnAnio(fecha: string, anio: number) {
-    const inicio = new Date(anio, 0, 1).getTime();
-    const fin = new Date(anio, 11, 31).getTime();
+    const inicio = Date.UTC(anio, 0, 1);
+    const fin = Date.UTC(anio + 1, 0, 1); // el 31/12 entero entra en el dibujo
     const pct = ((new Date(fecha).getTime() - inicio) / (fin - inicio)) * 100;
     return Math.min(100, Math.max(0, pct));
   }
@@ -174,6 +176,8 @@ export default function VacacionesPage() {
         </table>
       </div>
 
+      <Planificacion centros={centros} />
+
       {/* ── Gantt ── */}
       <div>
         <h3>Diagrama de Gantt</h3>
@@ -191,38 +195,94 @@ export default function VacacionesPage() {
           </label>
         </div>
 
-        {ganttData && (
-          <div style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", maxWidth: "900px" }}>
-            {ganttData.legajos.map((l: any) => (
-              <div key={l.id} style={{ display: "flex", alignItems: "center", marginBottom: "0.4rem" }}>
-                <div style={{ width: "180px", fontSize: "0.8rem", flexShrink: 0 }}>
-                  {l.numero} — {l.apellido} <span style={{ opacity: 0.5 }}>({l.centroCosto})</span>
+        {ganttData && (() => {
+          const dotacion = ganttData.legajos.length;
+          const ausencias = ganttData.legajos.flatMap((l: any) => [
+            ...l.vacaciones.map((v: any) => ({ legajoId: l.id, desde: new Date(v.fechaDesde), hasta: new Date(v.fechaHasta) })),
+            ...(l.pendientes ?? []).map((v: any) => ({ legajoId: l.id, desde: new Date(v.fechaDesde), hasta: new Date(v.fechaHasta), pendiente: true })),
+          ]);
+          const semanas = picoPorSemana(ganttAnio, ausencias);
+          const peor = Math.max(0, ...semanas.map((x) => x.firmes));
+          const corta = (d: Date) => d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+          const barra = (v: any, i: number, pendiente: boolean) => {
+            const izq = posicionEnAnio(v.fechaDesde, ganttAnio);
+            const der = posicionEnAnio(new Date(new Date(v.fechaHasta).getTime() + 24 * 3600 * 1000).toISOString(), ganttAnio);
+            return (
+              <div
+                key={(pendiente ? "p" : "v") + i}
+                title={`${pendiente ? "Pedido sin responder · " : ""}${v.dias} días — ${v.fechaDesde.slice(0, 10)} a ${v.fechaHasta.slice(0, 10)}`}
+                style={{
+                  position: "absolute", left: `${izq}%`, width: `${Math.max(0.5, der - izq)}%`, height: "100%", borderRadius: "2px",
+                  background: pendiente ? "repeating-linear-gradient(45deg, #E8B36B, #E8B36B 4px, #fdf1e1 4px, #fdf1e1 8px)" : "#7FA8C6",
+                }}
+              />
+            );
+          };
+          return (
+            <div style={{ background: "white", border: "1px solid #dfe4e8", padding: "1rem", maxWidth: "900px" }}>
+              <p style={{ margin: "0 0 0.75rem", fontSize: "0.85rem" }}>
+                <strong>{dotacion}</strong> {dotacion === 1 ? "persona" : "personas"} en este filtro · semana con más gente afuera: <strong>{peor}</strong>
+                {dotacion > 0 && peor > 0 ? ` (${Math.round((peor / dotacion) * 100)}% de la dotación)` : ""}
+                <span style={{ marginLeft: "1rem", color: "#6b727b" }}>
+                  <span style={{ display: "inline-block", width: 12, height: 10, background: "#7FA8C6", marginRight: 4 }} />aprobadas
+                  <span style={{ display: "inline-block", width: 12, height: 10, background: "repeating-linear-gradient(45deg, #E8B36B, #E8B36B 3px, #fdf1e1 3px, #fdf1e1 6px)", margin: "0 4px 0 12px" }} />pedidos sin responder
+                </span>
+              </p>
+
+              {/* Meses */}
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ width: "180px", flexShrink: 0 }} />
+                <div style={{ display: "flex", flex: 1, fontSize: "0.68rem", color: "#6b727b" }}>
+                  {["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((m, i) => (
+                    <div key={m} style={{ width: `${(new Date(Date.UTC(ganttAnio, i + 1, 0)).getUTCDate() / (ganttAnio % 4 === 0 ? 366 : 365)) * 100}%`, borderLeft: "1px solid #dfe4e8", paddingLeft: 2 }}>{m}</div>
+                  ))}
                 </div>
-                <div style={{ position: "relative", flex: 1, height: "18px", background: "#EEF1F4" }}>
-                  {l.vacaciones.map((v: any, i: number) => {
-                    const izq = posicionEnAnio(v.fechaDesde, ganttAnio);
-                    const der = posicionEnAnio(v.fechaHasta, ganttAnio);
+              </div>
+
+              {/* Cuánta gente hay afuera cada semana (el peor día de la semana) */}
+              <div style={{ display: "flex", alignItems: "center", margin: "0.2rem 0 0.6rem" }}>
+                <div style={{ width: "180px", fontSize: "0.8rem", flexShrink: 0, fontWeight: 600, color: "#163A5C" }}>Gente afuera por semana</div>
+                <div style={{ display: "flex", flex: 1, height: "22px" }}>
+                  {semanas.map((x, i) => {
+                    const parte = dotacion ? x.firmes / dotacion : 0;
+                    const fondo = x.firmes === 0 ? "#EEF1F4" : parte >= 0.3 ? "#B23A3A" : parte >= 0.15 ? "#B8752B" : "#2F6F5E";
+                    const mas = x.conPendientes - x.firmes;
                     return (
                       <div
                         key={i}
-                        title={`${v.dias} días — ${v.fechaDesde.slice(0, 10)} a ${v.fechaHasta.slice(0, 10)}`}
+                        title={`Semana del ${corta(x.desde)} al ${corta(x.hasta)}: hasta ${x.firmes} afuera a la vez${mas > 0 ? `; ${x.conPendientes} si se aprueban los pedidos sin responder` : ""}`}
                         style={{
-                          position: "absolute",
-                          left: `${izq}%`,
-                          width: `${Math.max(0.5, der - izq)}%`,
-                          height: "100%",
-                          background: "#7FA8C6",
-                          borderRadius: "2px",
+                          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.68rem", fontWeight: 700,
+                          color: x.firmes === 0 ? "#8a5413" : "white", background: fondo, borderRight: "1px solid white",
+                          boxShadow: mas > 0 ? "inset 0 -3px 0 #E8B36B" : undefined,
                         }}
-                      />
+                      >
+                        {x.firmes > 0 ? x.firmes : mas > 0 ? `+${mas}` : ""}
+                      </div>
                     );
                   })}
                 </div>
               </div>
-            ))}
-            {ganttData.legajos.length === 0 && <p style={{ opacity: 0.6 }}>No hay legajos para este filtro.</p>}
-          </div>
-        )}
+
+              {ganttData.legajos.map((l: any) => (
+                <div key={l.id} style={{ display: "flex", alignItems: "center", marginBottom: "0.4rem" }}>
+                  <div style={{ width: "180px", fontSize: "0.8rem", flexShrink: 0 }}>
+                    {l.numero} — {l.apellido} <span style={{ opacity: 0.5 }}>({l.centroCosto})</span>
+                  </div>
+                  <div style={{ position: "relative", flex: 1, height: "18px", background: "#EEF1F4" }}>
+                    {(l.pendientes ?? []).map((v: any, i: number) => barra(v, i, true))}
+                    {l.vacaciones.map((v: any, i: number) => barra(v, i, false))}
+                  </div>
+                </div>
+              ))}
+              {dotacion === 0 && <p style={{ opacity: 0.6 }}>No hay legajos para este filtro.</p>}
+              <p style={{ margin: "0.75rem 0 0", fontSize: "0.75rem", color: "#6b727b" }}>
+                El número de cada semana es el máximo de personas afuera el mismo día. Verde: menos del 15% de la dotación · naranja: 15% o más · rojo: 30% o más.
+                La raya naranja debajo marca semanas con pedidos sin responder.
+              </p>
+            </div>
+          );
+        })()}
       </div>
     </main>
   );
