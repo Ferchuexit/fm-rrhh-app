@@ -11,7 +11,7 @@ describe("validar un evento", () => {
   it("acepta lo mínimo y limpia", () => {
     const { datos, error } = E.validarEvento({ ...base, titulo: "  Asado  ", centroCostoIds: ["a", "a", "b"] }, hoy);
     expect(error).toBeNull();
-    expect(datos).toMatchObject({ titulo: "Asado", hora: "20:30", pideConfirmacion: true, cupo: null, maxAcompanantes: 0, centroCostoIds: ["a", "b"], limiteConfirmar: null });
+    expect(datos).toMatchObject({ categoria: "social", titulo: "Asado", hora: "20:30", pideConfirmacion: true, cupo: null, maxAcompanantes: 0, centroCostoIds: ["a", "b"], limiteConfirmar: null });
     expect(datos.fecha).toEqual(d("2026-12-12"));
   });
   it("rechaza sin nombre, sin fecha, fecha pasada u hora rara", () => {
@@ -32,6 +32,13 @@ describe("validar un evento", () => {
     expect(E.validarEvento({ ...base, cupo: "" }, hoy).datos.cupo).toBeNull();
     expect(E.validarEvento({ ...base, cupo: "80", maxAcompanantes: "2" }, hoy).datos).toMatchObject({ cupo: 80, maxAcompanantes: 2 });
     expect(E.validarEvento({ ...base, maxAcompanantes: 11 }, hoy).error).toMatch(/acompañantes/);
+  });
+  it("la categoría: por defecto es un evento social; una rara también", () => {
+    expect(E.validarEvento(base, hoy).datos.categoria).toBe("social");
+    expect(E.validarEvento({ ...base, categoria: "auditoria" }, hoy).datos.categoria).toBe("auditoria");
+    expect(E.validarEvento({ ...base, categoria: "cualquiera" }, hoy).datos.categoria).toBe("social");
+    expect(E.esFechaDeTrabajo("entrega")).toBe(true);
+    expect(E.esFechaDeTrabajo("social")).toBe(false);
   });
   it("si es solo un anuncio, no guarda cupo ni límite ni acompañantes", () => {
     expect(E.validarEvento({ ...base, pideConfirmacion: false, cupo: 10, maxAcompanantes: 3, limiteConfirmar: "2026-12-01" }, hoy).datos).toMatchObject({ pideConfirmacion: false, cupo: null, maxAcompanantes: 0, limiteConfirmar: null });

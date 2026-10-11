@@ -4,9 +4,11 @@
 // en Eventos, Capacitaciones, Vacaciones, Solicitudes, Feriados, Encuestas
 // y Evaluaciones, más los cumpleaños y aniversarios.
 import { useEffect, useMemo, useState } from "react";
+import { CATEGORIAS_EVENTO } from "@/lib/eventos-reglas";
 import { TIPOS_AGENDA, CLAVES_TIPO, rangoDelMes, grillaDelMes, porDia, ausentesPorDia, mesVecino, isoDia, type ItemAgenda, type TipoAgenda } from "@/lib/agenda-reglas";
 
 type Datos = { mes: string; hoy: string; items: ItemAgenda[] };
+type Nueva = { categoria: string; titulo: string; fecha: string; hora: string; lugar: string; descripcion: string; centroCostoIds: string[]; avisar: boolean };
 const btnSec: React.CSSProperties = { background: "white", color: "#163A5C", border: "1px solid #163A5C" };
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const diaLargo = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -18,6 +20,22 @@ export default function AgendaPage() {
   const [error, setError] = useState("");
   const [ocultos, setOcultos] = useState<TipoAgenda[]>([]);
   const [dia, setDia] = useState<string | null>(null);
+  const [nueva, setNueva] = useState<Nueva | null>(null);
+  const [sectores, setSectores] = useState<{ id: string; nombre: string }[]>([]);
+  const [errorNueva, setErrorNueva] = useState("");
+  const [msg, setMsg] = useState("");
+  const [vuelta, setVuelta] = useState(0); // para volver a pedir la agenda después de agregar
+
+
+  async function guardarNueva() {
+    if (!nueva) return;
+    setErrorNueva("");
+    const res = await fetch("/api/agenda", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nueva) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { setErrorNueva(d.error ?? "No se pudo guardar."); return; }
+    setMsg(`Agregado a la agenda${nueva.avisar ? `: se le avisó a ${d.avisados} ${d.avisados === 1 ? "persona" : "personas"} con acceso al portal` : ""}. El día anterior se les recuerda solo.`);
+    setDia(nueva.fecha); setMes(nueva.fecha.slice(0, 7)); setNueva(null); setVuelta((v) => v + 1);
+  }
 
   useEffect(() => {
     fetch(`/api/agenda${mes ? `?mes=${mes}` : ""}`).then(async (res) => {
@@ -26,9 +44,10 @@ export default function AgendaPage() {
       setError("");
       // Las fechas llegan como texto.
       setDatos({ ...d, items: d.items.map((i: any) => ({ ...i, fecha: new Date(i.fecha), hasta: i.hasta ? new Date(i.hasta) : null })) });
-      if (!mes) setDia(d.hoy.slice(0, 10));
+      setSectores(d.sectores ?? []);
+      setDia((x) => x ?? d.hoy.slice(0, 10)); // solo la primera vez: no pisa el día que ya eligió
     });
-  }, [mes]);
+  }, [mes, vuelta]);
 
   const vista = useMemo(() => {
     if (!datos) return null;
@@ -48,10 +67,36 @@ export default function AgendaPage() {
       <h1>Agenda</h1>
       <p style={{ maxWidth: "880px" }}>
         Todo lo que tiene fecha, en un solo calendario: eventos, capacitaciones, feriados, vacaciones y permisos aprobados, cumpleaños, aniversarios y fechas límite.
-        Acá no se carga nada: sale solo de cada módulo. Tocá un día para ver el detalle.
+        Casi todo sale solo de cada módulo; lo que no está en ninguno (una entrega, una auditoría, una reunión) lo agregás acá. Tocá un día para ver el detalle.
       </p>
       {error && <p style={{ color: "#B23A3A" }}>{error}</p>}
+      {msg && <p style={{ color: "#2F6F5E" }}>{msg}</p>}
       {!datos && !error && <p>Cargando…</p>}
+      {datos && !nueva && <p><button onClick={() => { setMsg(""); setErrorNueva(""); setNueva({ categoria: "entrega", titulo: "", fecha: dia && dia >= hoy ? dia : hoy, hora: "", lugar: "", descripcion: "", centroCostoIds: [], avisar: true }); }}>Agregar a la agenda</button></p>}
+      {datos && nueva && (
+        <div style={{ background: "white", border: "1px solid #dfe4e8", borderLeft: "4px solid #C2410C", padding: "1rem", marginBottom: "1rem", maxWidth: 900 }}>
+          <strong style={{ color: "#163A5C" }}>Agregar una fecha a la agenda</strong>
+          <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+            <label>Qué es<br /><select value={nueva.categoria} onChange={(e) => setNueva({ ...nueva, categoria: e.target.value })}>{Object.entries(CATEGORIAS_EVENTO).filter(([k]) => k !== "social").map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.nombre}</option>)}</select></label>
+            <label style={{ flex: "2 1 300px" }}>Título<br /><input value={nueva.titulo} maxLength={100} onChange={(e) => setNueva({ ...nueva, titulo: e.target.value })} placeholder="Producto listo para revisión de calidad — pedido Tigre" style={{ width: "100%" }} /></label>
+            <label>Día<br /><input type="date" value={nueva.fecha} min={hoy} onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} /></label>
+            <label>Hora <span style={{ color: "#6b727b" }}>(opcional)</span><br /><input type="time" value={nueva.hora} onChange={(e) => setNueva({ ...nueva, hora: e.target.value })} /></label>
+          </div>
+          <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+            <label style={{ flex: "1 1 240px" }}>Lugar <span style={{ color: "#6b727b" }}>(opcional)</span><br /><input value={nueva.lugar} maxLength={150} onChange={(e) => setNueva({ ...nueva, lugar: e.target.value })} style={{ width: "100%" }} /></label>
+            <label style={{ flex: "2 1 340px" }}>Detalle <span style={{ color: "#6b727b" }}>(opcional: qué tiene que estar listo, quién viene)</span><br /><input value={nueva.descripcion} maxLength={1500} onChange={(e) => setNueva({ ...nueva, descripcion: e.target.value })} style={{ width: "100%" }} /></label>
+          </div>
+          <div style={{ marginTop: "0.6rem" }}>
+            <strong>Quiénes lo ven:</strong>{" "}
+            <label style={{ marginRight: 12 }}><input type="checkbox" checked={nueva.centroCostoIds.length === 0} onChange={() => setNueva({ ...nueva, centroCostoIds: [] })} style={{ marginRight: 4 }} />Toda la empresa</label>
+            {sectores.map((s) => <label key={s.id} style={{ marginRight: 12 }}><input type="checkbox" checked={nueva.centroCostoIds.includes(s.id)} onChange={(e) => setNueva({ ...nueva, centroCostoIds: e.target.checked ? [...nueva.centroCostoIds, s.id] : nueva.centroCostoIds.filter((x) => x !== s.id) })} style={{ marginRight: 4 }} />{s.nombre}</label>)}
+          </div>
+          <label style={{ display: "block", marginTop: "0.5rem" }}><input type="checkbox" checked={nueva.avisar} onChange={(e) => setNueva({ ...nueva, avisar: e.target.checked })} style={{ marginRight: 4 }} />Avisarles ahora <span style={{ color: "#6b727b" }}>(notificación y mail; el día anterior se les recuerda igual)</span></label>
+          {errorNueva && <p style={{ color: "#B23A3A", margin: "0.5rem 0 0" }}>{errorNueva}</p>}
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem" }}><button onClick={guardarNueva}>Agregar</button><button onClick={() => setNueva(null)} style={btnSec}>Cancelar</button></div>
+          <p style={{ fontSize: "0.8rem", color: "#6b727b", margin: "0.5rem 0 0" }}>Para cambiarla o cancelarla después: Cultura → Eventos. Si necesitás que la gente confirme asistencia (un asado, una jornada), cargalo directamente ahí.</p>
+        </div>
+      )}
       {datos && vista && (
         <>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.6rem" }}>

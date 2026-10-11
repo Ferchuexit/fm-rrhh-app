@@ -3,10 +3,13 @@
 // una falla (una tabla que falta en esa base), el resto se muestra igual.
 import { prisma } from "./prisma";
 import { personasConFechas } from "./cultura";
-import { leCorresponde } from "./eventos-reglas";
+import { leCorresponde, CATEGORIAS_EVENTO, esFechaDeTrabajo } from "./eventos-reglas";
 import { festejosEnRango, tocaElRango, type ItemAgenda } from "./agenda-reglas";
 export * from "./agenda-reglas";
 
+// Una entrega o una auditoría van como "fecha clave"; el asado, como evento.
+const tipoDe = (categoria: string) => (esFechaDeTrabajo(categoria) ? ("clave" as const) : ("evento" as const));
+const rotuloDe = (e: { categoria: string; titulo: string }) => (esFechaDeTrabajo(e.categoria) ? `${CATEGORIAS_EVENTO[e.categoria]?.emoji ?? "📌"} ${e.titulo}` : e.titulo);
 const nombre = (l: { nombre: string; apellido: string }) => `${l.nombre} ${l.apellido}`;
 async function fuente(lista: ItemAgenda[], hacer: () => Promise<ItemAgenda[]>) {
   try { lista.push(...(await hacer())); } catch (e) { console.error("Agenda: falló una fuente:", (e as Error)?.message); }
@@ -18,7 +21,7 @@ const pisa = (desde: Date, hasta: Date) => ({ fechaDesde: { lte: hasta }, fechaH
 export async function agendaEmpresa(empresaId: string, desde: Date, hasta: Date): Promise<ItemAgenda[]> {
   const items: ItemAgenda[] = [];
   const enRango = { gte: desde, lte: hasta };
-  await fuente(items, async () => (await prisma.evento.findMany({ where: { empresaId, estado: { in: ["borrador", "publicado"] }, fecha: enRango } })).map((e) => ({ clave: `ev-${e.id}`, tipo: "evento", fecha: e.fecha, hasta: null, hora: e.hora, titulo: e.titulo + (e.estado === "borrador" ? " (borrador)" : ""), detalle: e.lugar, url: "/eventos" })));
+  await fuente(items, async () => (await prisma.evento.findMany({ where: { empresaId, estado: { in: ["borrador", "publicado"] }, fecha: enRango } })).map((e) => ({ clave: `ev-${e.id}`, tipo: tipoDe(e.categoria), fecha: e.fecha, hasta: null, hora: e.hora, titulo: rotuloDe(e) + (e.estado === "borrador" ? " (borrador)" : ""), detalle: [e.lugar, e.descripcion].filter(Boolean).join(" · ") || null, url: "/eventos" })));
   await fuente(items, async () => (await prisma.capacitacion.findMany({ where: { empresaId, estado: { not: "cancelada" }, fecha: enRango }, include: { _count: { select: { asistentes: true } } } })).map((c) => ({ clave: `cap-${c.id}`, tipo: "capacitacion", fecha: c.fecha, hasta: null, hora: null, titulo: c.titulo, detalle: [c.lugar, `${c._count.asistentes} ${c._count.asistentes === 1 ? "persona" : "personas"}`].filter(Boolean).join(" · "), url: "/capacitaciones" })));
   await fuente(items, async () => (await prisma.feriado.findMany({ where: { empresaId, fecha: enRango } })).map((f) => ({ clave: `fer-${f.id}`, tipo: "feriado", fecha: f.fecha, hasta: null, hora: null, titulo: f.nombre, detalle: null, url: null })));
   await fuente(items, async () => (await prisma.vacacion.findMany({ where: { legajo: { empresaId }, ...pisa(desde, hasta) }, include: { legajo: { select: { nombre: true, apellido: true, centroCosto: { select: { nombre: true } } } } } })).map((v) => ({ clave: `vac-${v.id}`, tipo: "vacaciones", fecha: v.fechaDesde, hasta: v.fechaHasta, hora: null, titulo: nombre(v.legajo), detalle: v.legajo.centroCosto?.nombre ?? null, url: "/vacaciones" })));
@@ -40,7 +43,7 @@ export async function agendaDe(legajoId: string, desde: Date, hasta: Date): Prom
   await fuente(items, async () => {
     const eventos = (await prisma.evento.findMany({ where: { empresaId: yo.empresaId, estado: "publicado", fecha: enRango } })).filter((e) => leCorresponde(e, yo.centroCostoId));
     const mias = new Map((await prisma.asistenciaEvento.findMany({ where: { legajoId, eventoId: { in: eventos.map((e) => e.id) } } })).map((r) => [r.eventoId, r.va]));
-    return eventos.map((e) => ({ clave: `ev-${e.id}`, tipo: "evento" as const, fecha: e.fecha, hasta: null, hora: e.hora, titulo: e.titulo, detalle: [e.lugar, !e.pideConfirmacion ? null : mias.get(e.id) === true ? "Confirmaste que vas" : mias.get(e.id) === false ? "Avisaste que no vas" : "Falta que confirmes"].filter(Boolean).join(" · ") || null, url: "/portal/eventos" }));
+    return eventos.map((e) => ({ clave: `ev-${e.id}`, tipo: tipoDe(e.categoria), fecha: e.fecha, hasta: null, hora: e.hora, titulo: rotuloDe(e), detalle: [e.lugar, esFechaDeTrabajo(e.categoria) ? e.descripcion : null, !e.pideConfirmacion ? null : mias.get(e.id) === true ? "Confirmaste que vas" : mias.get(e.id) === false ? "Avisaste que no vas" : "Falta que confirmes"].filter(Boolean).join(" · ") || null, url: "/portal/eventos" }));
   });
   await fuente(items, async () => (await prisma.capacitacion.findMany({ where: { empresaId: yo.empresaId, estado: { not: "cancelada" }, fecha: enRango, asistentes: { some: { legajoId } } } })).map((c) => ({ clave: `cap-${c.id}`, tipo: "capacitacion", fecha: c.fecha, hasta: null, hora: null, titulo: c.titulo, detalle: [c.lugar, c.instructor].filter(Boolean).join(" · ") || null, url: "/portal/capacitaciones" })));
   await fuente(items, async () => (await prisma.feriado.findMany({ where: { empresaId: yo.empresaId, fecha: enRango } })).map((f) => ({ clave: `fer-${f.id}`, tipo: "feriado", fecha: f.fecha, hasta: null, hora: null, titulo: f.nombre, detalle: null, url: null })));

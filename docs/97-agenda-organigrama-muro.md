@@ -65,3 +65,20 @@ Tests de las tres piezas: `tests/agenda-reglas.test.mjs`.
 
 La subida y la lectura de fotos contra Vercel Blob (en la prueba se usó el
 plan B de desarrollo), y el achicado de fotos en un celular real.
+
+## Agregado: fechas clave y organigrama en el panel
+
+- **Agregar a la agenda** (botón en Comunicación interna → Agenda): para lo
+  que no sale de ningún módulo — una entrega, una auditoría, una reunión,
+  una visita, una parada de mantenimiento. Se elige qué es, título, día,
+  hora, lugar, detalle y a quiénes les corresponde. Queda publicado al
+  momento, lo ven todos en la agenda del panel y del portal (tipo "Fechas
+  clave", en naranja), se puede avisar en el acto y **el día anterior se
+  les recuerda solo**.
+  Por dentro es un `Evento` con `categoria` distinta de `social` y sin
+  pedido de confirmación; por eso se edita o cancela en Cultura → Eventos.
+  Un usuario limitado a sectores no puede agregar fechas de toda la empresa.
+- **Organigrama en el panel** (Comunicación interna → Organigrama, módulo
+  `organigrama`, solo consulta): vista por puestos (ocupantes, dotación,
+  vacantes) y por personas (quién reporta a quién), con buscador e
+  impresión. Se edita en Puestos y en el legajo.

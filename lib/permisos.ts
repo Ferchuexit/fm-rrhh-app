@@ -45,6 +45,7 @@ export const MODULOS: DefModulo[] = [
     rutas: ["/convenios", "/categorias", "/escalas", "/conceptos", "/reglas", "/parametros", "/estado-implementacion", "/actualizaciones-normativas", "/api/convenios", "/api/categorias", "/api/escalas", "/api/conceptos", "/api/reglas", "/api/parametros", "/api/rangos", "/api/estado-implementacion", "/api/actualizaciones-normativas"],
   },
   { clave: "agenda", nombre: "Agenda", bloque: "Gestión Humana", desc: "Calendario que junta eventos, capacitaciones, vacaciones, feriados y festejos", rutas: ["/agenda", "/api/agenda"] },
+  { clave: "organigrama", nombre: "Organigrama", bloque: "Gestión Humana", desc: "Quién ocupa cada puesto y quién reporta a quién (solo consulta)", rutas: ["/organigrama", "/api/organigrama"] },
   { clave: "biblioteca", nombre: "Librería de conocimiento", bloque: "Gestión Humana", desc: "Reglamento, procedimientos, instructivos y preguntas frecuentes para consultar desde el portal", rutas: ["/biblioteca", "/api/biblioteca"] },
   { clave: "chat", nombre: "Chat interno", bloque: "Gestión Humana", desc: "Grupos de la empresa y consultas de los empleados a RR.HH.", rutas: ["/chat", "/api/chat"] },
   { clave: "noticias", nombre: "Noticias", bloque: "Gestión Humana", desc: "Comunicados a los empleados y su lectura", rutas: ["/noticias", "/api/noticias"] },
@@ -195,7 +196,7 @@ export const ROLES_PREDEFINIDOS: { id: string; nombre: string; descripcion: stri
   },
   {
     id: "rol-supervisor", nombre: "Supervisor", descripcion: "Gestiona a la gente (asistencia, vacaciones, legajo digital, noticias) sin ver sueldos ni liquidaciones.",
-    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar", objetivos: "gestionar", cultura: "gestionar", agenda: "ver", biblioteca: "ver" },
+    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar", objetivos: "gestionar", cultura: "gestionar", agenda: "ver", biblioteca: "ver", organigrama: "ver" },
   },
   { id: "rol-solo-lectura", nombre: "Solo lectura", descripcion: "Ve todo lo de la empresa (menos la configuración) sin poder modificar nada.", permisos: todo("ver", ["configuracion", "dispositivos"]) },
 ];

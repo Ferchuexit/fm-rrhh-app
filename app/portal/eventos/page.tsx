@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { obtenerSesionPortal } from "@/lib/portal";
 import { hoyArgentina } from "@/lib/ausencias";
-import { eventosDe, cuandoEs, motivoNoResponder } from "@/lib/eventos";
+import { eventosDe, cuandoEs, motivoNoResponder, CATEGORIAS_EVENTO } from "@/lib/eventos";
 import Responder from "./Responder";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,8 @@ export default async function PortalEventos() {
         const cerrado = motivoNoResponder(e, hoy);
         return (
           <div key={e.id} className="p-card" style={cancelado ? { opacity: 0.7 } : undefined}>
-            <div className="p-card-titulo" style={cancelado ? { textDecoration: "line-through" } : undefined}>{e.titulo}</div>
+            <div className="p-card-titulo" style={cancelado ? { textDecoration: "line-through" } : undefined}>{e.categoria !== "social" && `${CATEGORIAS_EVENTO[e.categoria]?.emoji ?? "📌"} `}{e.titulo}</div>
+            {e.categoria !== "social" && <div className="p-card-dato"><span className="p-chip info">{CATEGORIAS_EVENTO[e.categoria]?.nombre ?? "Fecha importante"}</span></div>}
             <div className="p-card-dato">📅 {cuandoEs(e).replace(/^./, (c) => c.toUpperCase())}</div>
             {e.lugar && <div className="p-card-dato">📍 {e.lugar}</div>}
             {e.descripcion && <div className="p-card-dato" style={{ whiteSpace: "pre-wrap", marginTop: "0.4rem" }}>{e.descripcion}</div>}

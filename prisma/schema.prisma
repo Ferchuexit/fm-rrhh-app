@@ -2121,6 +2121,10 @@ model Evento {
   id               String    @id @default(uuid())
   empresaId        String
   titulo           String
+  // Qué clase de fecha es: 'social' (lo que organiza la empresa para su
+  // gente) o una fecha de trabajo que todos tienen que tener presente:
+  // 'entrega' | 'auditoria' | 'reunion' | 'visita' | 'mantenimiento' | 'otro'.
+  categoria        String    @default("social")
   descripcion      String?
   lugar            String?
   fecha            DateTime // el día (medianoche UTC, como el resto de las fechas)

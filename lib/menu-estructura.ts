@@ -134,6 +134,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     icono: "📣",
     items: [
       { href: "/agenda", label: "Agenda", icono: "🗓️", desc: "El calendario de la empresa: eventos, capacitaciones, vacaciones, feriados y festejos" },
+      { href: "/organigrama", label: "Organigrama", icono: "🌳", desc: "Quién ocupa cada puesto y quién reporta a quién" },
       { href: "/biblioteca", label: "Librería de conocimiento", icono: "📚", desc: "Reglamento, procedimientos, instructivos y preguntas frecuentes, con buscador en el portal" },
       { href: "/chat", label: "Chat y grupos", icono: "💬", desc: "Grupos de la empresa y consultas de los empleados a RR.HH." },{ href: "/noticias", label: "Noticias", icono: "📣", desc: "Comunicados a los empleados, con acuse de lectura" }],
   },

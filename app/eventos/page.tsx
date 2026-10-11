@@ -3,15 +3,15 @@
 // Eventos de la empresa: se cargan, se publican (ahí se avisa a la gente) y
 // se ve con cuántos contar. Después del evento se puede tomar asistencia.
 import { useEffect, useState } from "react";
-import { ESTADOS_EVENTO } from "@/lib/eventos-reglas";
+import { ESTADOS_EVENTO, CATEGORIAS_EVENTO } from "@/lib/eventos-reglas";
 
 type Resumen = { van: number; noVan: number; acompanantes: number; total: number; sinResponder: number; quedan: number | null; asistieron: number | null };
-type Evento = { id: string; titulo: string; descripcion: string | null; lugar: string | null; fecha: string; hora: string | null; centroCostoIds: string[]; pideConfirmacion: boolean; limiteConfirmar: string | null; cupo: number | null; maxAcompanantes: number; estado: string; invitados: number; resumen: Resumen };
+type Evento = { id: string; categoria: string; titulo: string; descripcion: string | null; lugar: string | null; fecha: string; hora: string | null; centroCostoIds: string[]; pideConfirmacion: boolean; limiteConfirmar: string | null; cupo: number | null; maxAcompanantes: number; estado: string; invitados: number; resumen: Resumen };
 type Persona = { id: string; nombre: string; sector: string; va: boolean | null; acompanantes: number; asistio: boolean | null };
 type Datos = { hoy: string; sectores: { id: string; nombre: string }[]; eventos: Evento[] };
-type Form = { id: string; titulo: string; descripcion: string; lugar: string; fecha: string; hora: string; centroCostoIds: string[]; pideConfirmacion: boolean; limiteConfirmar: string; cupo: string; maxAcompanantes: string };
+type Form = { id: string; categoria: string; titulo: string; descripcion: string; lugar: string; fecha: string; hora: string; centroCostoIds: string[]; pideConfirmacion: boolean; limiteConfirmar: string; cupo: string; maxAcompanantes: string };
 
-const VACIO: Form = { id: "", titulo: "", descripcion: "", lugar: "", fecha: "", hora: "", centroCostoIds: [], pideConfirmacion: true, limiteConfirmar: "", cupo: "", maxAcompanantes: "0" };
+const VACIO: Form = { id: "", categoria: "social", titulo: "", descripcion: "", lugar: "", fecha: "", hora: "", centroCostoIds: [], pideConfirmacion: true, limiteConfirmar: "", cupo: "", maxAcompanantes: "0" };
 const caja: React.CSSProperties = { background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1rem", maxWidth: "960px" };
 const btnSec: React.CSSProperties = { background: "white", color: "#163A5C", border: "1px solid #163A5C" };
 const chico: React.CSSProperties = { padding: "0.2rem 0.55rem", fontSize: "0.82rem" };
@@ -70,7 +70,7 @@ export default function EventosPage() {
     setAbierto(e.id);
     cargarDetalle(e.id);
   }
-  const editar = (e: Evento) => { setErrorForm(""); setForm({ id: e.id, titulo: e.titulo, descripcion: e.descripcion ?? "", lugar: e.lugar ?? "", fecha: iso(e.fecha), hora: e.hora ?? "", centroCostoIds: e.centroCostoIds, pideConfirmacion: e.pideConfirmacion, limiteConfirmar: iso(e.limiteConfirmar), cupo: e.cupo === null ? "" : String(e.cupo), maxAcompanantes: String(e.maxAcompanantes) }); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const editar = (e: Evento) => { setErrorForm(""); setForm({ id: e.id, categoria: e.categoria, titulo: e.titulo, descripcion: e.descripcion ?? "", lugar: e.lugar ?? "", fecha: iso(e.fecha), hora: e.hora ?? "", centroCostoIds: e.centroCostoIds, pideConfirmacion: e.pideConfirmacion, limiteConfirmar: iso(e.limiteConfirmar), cupo: e.cupo === null ? "" : String(e.cupo), maxAcompanantes: String(e.maxAcompanantes) }); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const hoy = datos ? iso(datos.hoy) : "";
   const proximos = (datos?.eventos ?? []).filter((e) => iso(e.fecha) >= hoy && e.estado !== "cancelado").reverse();
@@ -86,7 +86,7 @@ export default function EventosPage() {
       <div key={e.id} style={{ ...caja, borderLeft: `4px solid ${COLOR[e.estado]}`, opacity: e.estado === "cancelado" ? 0.7 : 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
           <div>
-            <strong style={{ fontSize: "1.05rem", color: "#163A5C" }}>{e.titulo}</strong>{" "}
+            <strong style={{ fontSize: "1.05rem", color: "#163A5C" }}>{e.categoria !== "social" && `${CATEGORIAS_EVENTO[e.categoria]?.emoji ?? "📌"} `}{e.titulo}</strong>{" "}
             <span style={{ fontSize: "0.78rem", fontWeight: 700, color: COLOR[e.estado] }}>{ESTADOS_EVENTO[e.estado].toUpperCase()}</span>
             <div style={{ fontSize: "0.9rem", marginTop: 2 }}>{diaLargo(e.fecha)}{e.hora && `, ${e.hora} hs`}{e.lugar && ` · ${e.lugar}`}</div>
             <div style={{ fontSize: "0.82rem", color: "#6b727b" }}>{sectoresDe(e)} · {e.invitados} {e.invitados === 1 ? "invitado" : "invitados"}{e.cupo !== null && ` · cupo ${e.cupo}`}{e.maxAcompanantes > 0 && ` · hasta ${e.maxAcompanantes} acompañante${e.maxAcompanantes === 1 ? "" : "s"}`}{e.limiteConfirmar && ` · confirmar hasta el ${new Date(e.limiteConfirmar).toLocaleDateString("es-AR", { day: "numeric", month: "numeric", timeZone: "UTC" })}`}</div>
@@ -159,6 +159,7 @@ export default function EventosPage() {
         <div style={{ ...caja, borderLeft: "4px solid #163A5C" }}>
           <strong style={{ color: "#163A5C" }}>{form.id ? "Editar evento" : "Nuevo evento"}</strong>
           <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+            <label>Qué es<br /><select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>{Object.entries(CATEGORIAS_EVENTO).map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.nombre}</option>)}</select></label>
             <label style={{ flex: "2 1 300px" }}>Nombre<br /><input value={form.titulo} maxLength={100} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Asado de fin de año" style={{ width: "100%" }} /></label>
             <label>Día<br /><input type="date" value={form.fecha} min={hoy} onChange={(e) => setForm({ ...form, fecha: e.target.value })} /></label>
             <label>Hora <span style={{ color: "#6b727b" }}>(opcional)</span><br /><input type="time" value={form.hora} onChange={(e) => setForm({ ...form, hora: e.target.value })} /></label>

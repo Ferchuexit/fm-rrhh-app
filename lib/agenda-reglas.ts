@@ -6,8 +6,9 @@
 import { fechaEnAnio, HITOS, type PersonaFechas } from "./cultura-reglas";
 
 const DIA = 86400000;
-export type TipoAgenda = "evento" | "capacitacion" | "feriado" | "vacaciones" | "permiso" | "cumple" | "aniversario" | "limite";
+export type TipoAgenda = "clave" | "evento" | "capacitacion" | "feriado" | "vacaciones" | "permiso" | "cumple" | "aniversario" | "limite";
 export const TIPOS_AGENDA: Record<TipoAgenda, { nombre: string; emoji: string; color: string }> = {
+  clave: { nombre: "Fechas clave", emoji: "📌", color: "#C2410C" },
   evento: { nombre: "Eventos", emoji: "📅", color: "#163A5C" },
   capacitacion: { nombre: "Capacitaciones", emoji: "🎓", color: "#6B4E9B" },
   feriado: { nombre: "Feriados", emoji: "🏳️", color: "#B23A3A" },

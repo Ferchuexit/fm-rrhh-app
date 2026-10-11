@@ -7,7 +7,21 @@ import { fechaDesdeTexto } from "./ausencias-reglas";
 export const ESTADOS_EVENTO: Record<string, string> = { borrador: "Borrador", publicado: "Publicado", cancelado: "Cancelado" };
 export const MAX_ACOMPANANTES = 10;
 
-export interface DatosEvento { titulo: string; descripcion: string | null; lugar: string | null; fecha: Date; hora: string | null; centroCostoIds: string[]; pideConfirmacion: boolean; limiteConfirmar: Date | null; cupo: number | null; maxAcompanantes: number }
+// Qué clase de fecha es. "social" es el evento de siempre; las demás son
+// fechas de trabajo que se cargan desde la Agenda para que todos las
+// tengan presentes.
+export const CATEGORIAS_EVENTO: Record<string, { nombre: string; emoji: string }> = {
+  social: { nombre: "Evento de la empresa", emoji: "🎉" },
+  entrega: { nombre: "Entrega", emoji: "📦" },
+  auditoria: { nombre: "Auditoría", emoji: "🔍" },
+  reunion: { nombre: "Reunión", emoji: "👥" },
+  visita: { nombre: "Visita", emoji: "🤝" },
+  mantenimiento: { nombre: "Mantenimiento o parada", emoji: "🛠️" },
+  otro: { nombre: "Otra fecha importante", emoji: "📌" },
+};
+export const esFechaDeTrabajo = (categoria: string) => categoria !== "social";
+
+export interface DatosEvento { categoria: string; titulo: string; descripcion: string | null; lugar: string | null; fecha: Date; hora: string | null; centroCostoIds: string[]; pideConfirmacion: boolean; limiteConfirmar: Date | null; cupo: number | null; maxAcompanantes: number }
 
 const texto = (v: unknown, max: number) => String(v ?? "").replace(/\r/g, "").trim().slice(0, max) || null;
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -15,7 +29,7 @@ const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 export function validarEvento(entrada: any, hoy: Date): { datos: DatosEvento | null; error: string | null } {
   const mal = (error: string) => ({ datos: null, error });
   const titulo = String(entrada?.titulo ?? "").trim().slice(0, 100);
-  if (titulo.length < 3) return mal("Ponele un nombre al evento (por ejemplo: Asado de fin de año).");
+  if (titulo.length < 3) return mal("Ponele un nombre (por ejemplo: Asado de fin de año, o Entrega del pedido de Tigre).");
   const fecha = fechaDesdeTexto(entrada?.fecha);
   if (!fecha) return mal("Elegí qué día es el evento.");
   if (fecha < hoy) return mal("Ese día ya pasó. Elegí una fecha de hoy en adelante.");
@@ -39,7 +53,8 @@ export function validarEvento(entrada: any, hoy: Date): { datos: DatosEvento | n
     if (!Number.isInteger(maxAcompanantes) || maxAcompanantes < 0 || maxAcompanantes > MAX_ACOMPANANTES) return mal(`Los acompañantes por persona van de 0 a ${MAX_ACOMPANANTES}.`);
   }
   const centroCostoIds = [...new Set<string>((Array.isArray(entrada?.centroCostoIds) ? entrada.centroCostoIds : []).map(String))];
-  return { datos: { titulo, descripcion: texto(entrada?.descripcion, 1500), lugar: texto(entrada?.lugar, 150), fecha, hora, centroCostoIds, pideConfirmacion, limiteConfirmar, cupo, maxAcompanantes }, error: null };
+  const categoria = typeof entrada?.categoria === "string" && entrada.categoria in CATEGORIAS_EVENTO ? entrada.categoria : "social";
+  return { datos: { categoria, titulo, descripcion: texto(entrada?.descripcion, 1500), lugar: texto(entrada?.lugar, 150), fecha, hora, centroCostoIds, pideConfirmacion, limiteConfirmar, cupo, maxAcompanantes }, error: null };
 }
 
 type EventoParaResponder = { estado: string; fecha: Date; pideConfirmacion: boolean; limiteConfirmar: Date | null; cupo: number | null; maxAcompanantes: number };
