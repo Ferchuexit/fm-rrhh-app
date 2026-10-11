@@ -44,6 +44,7 @@ export const MODULOS: DefModulo[] = [
     clave: "configuracion", nombre: "Configuración de sueldos", bloque: "Liquidación de sueldos", desc: "Convenios, categorías, escalas, conceptos, reglas, parámetros — lo que cambia el cálculo de todos",
     rutas: ["/convenios", "/categorias", "/escalas", "/conceptos", "/reglas", "/parametros", "/estado-implementacion", "/actualizaciones-normativas", "/api/convenios", "/api/categorias", "/api/escalas", "/api/conceptos", "/api/reglas", "/api/parametros", "/api/rangos", "/api/estado-implementacion", "/api/actualizaciones-normativas"],
   },
+  { clave: "indicadores", nombre: "Indicadores de Gestión Humana", bloque: "Gestión Humana", desc: "Tablero con rotación, ausentismo, clima, documentación, capacitación, vacantes y más", rutas: ["/indicadores", "/api/indicadores"] },
   { clave: "agenda", nombre: "Agenda", bloque: "Gestión Humana", desc: "Calendario que junta eventos, capacitaciones, vacaciones, feriados y festejos", rutas: ["/agenda", "/api/agenda"] },
   { clave: "organigrama", nombre: "Organigrama", bloque: "Gestión Humana", desc: "Quién ocupa cada puesto y quién reporta a quién (solo consulta)", rutas: ["/organigrama", "/api/organigrama"] },
   { clave: "biblioteca", nombre: "Librería de conocimiento", bloque: "Gestión Humana", desc: "Reglamento, procedimientos, instructivos y preguntas frecuentes para consultar desde el portal", rutas: ["/biblioteca", "/api/biblioteca"] },

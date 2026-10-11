@@ -129,6 +129,15 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
+    // Lo que se mide con todo lo que cargan los demás módulos.
+    bloque: GESTION,
+    categoria: "Indicadores",
+    icono: "📊",
+    items: [
+      { href: "/indicadores", label: "Tablero de Gestión Humana", icono: "📊", desc: "Rotación, ausentismo, clima, documentación, capacitación, vacantes: para decidir con datos" },
+    ],
+  },
+  {
     bloque: GESTION,
     categoria: "Comunicación interna",
     icono: "📣",
