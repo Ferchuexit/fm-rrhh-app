@@ -126,13 +126,16 @@ model Rol {
 }
 
 model Empresa {
-  id             String   @id @default(uuid())
-  cuit           String   @unique
-  razonSocial    String
-  nombreFantasia String?
-  domicilio      String? // para el encabezado del recibo (Ley 27.802) y "lugar de pago"
-  logoUrl        String? // logo para la terminal de fichadas (y a futuro, recibos) — sube a Vercel Blob público
-  createdAt      DateTime @default(now())
+  id                 String   @id @default(uuid())
+  cuit               String   @unique
+  razonSocial        String
+  nombreFantasia     String?
+  // Chat interno: si los empleados pueden escribirse entre ellos uno a uno
+  // (los grupos y el chat con RR.HH. están siempre).
+  chatEntreEmpleados Boolean  @default(true)
+  domicilio          String? // para el encabezado del recibo (Ley 27.802) y "lugar de pago"
+  logoUrl            String? // logo para la terminal de fichadas (y a futuro, recibos) — sube a Vercel Blob público
+  createdAt          DateTime @default(now())
 
   legajos                Legajo[]
   periodos               Periodo[]
@@ -162,6 +165,7 @@ model Empresa {
   Busqueda                  Busqueda[]
   ValorEmpresa              ValorEmpresa[]
   Evento                    Evento[]
+  Conversacion              Conversacion[]
 
   @@map("empresas")
 }
@@ -956,6 +960,7 @@ model Legajo {
   reconocimientos          Reconocimiento[]
   aplausos                 AplausoReconocimiento[]
   asistenciasEvento        AsistenciaEvento[]
+  conversaciones           MiembroConversacion[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2188,4 +2193,71 @@ model AplausoReconocimiento {
   legajo         Legajo         @relation(fields: [legajoId], references: [id], onDelete: Cascade)
 
   @@id([reconocimientoId, legajoId])
+}
+
+// ── Comunicación interna: chat y grupos ──────────────────────────────
+// Tres tipos de conversación:
+//   'grupo'   → la arma RR.HH.: toda la empresa, uno o más sectores, o
+//               gente elegida a mano. Puede ser solo de anuncios.
+//   'rrhh'    → la consulta de UN empleado con RR.HH. (una por persona).
+//               Del lado de la empresa responde cualquiera con el módulo.
+//   'directo' → entre dos empleados. RR.HH. no las ve.
+model Conversacion {
+  id              String    @id @default(uuid())
+  empresaId       String
+  tipo            String
+  nombre          String? // solo grupos
+  descripcion     String?
+  emoji           String    @default("💬")
+  todos           Boolean   @default(false) // grupo de toda la empresa
+  centroCostoIds  String[] // grupo de estos sectores (la gente entra y sale sola)
+  soloAnuncios    Boolean   @default(false) // solo escriben RR.HH. y los encargados
+  // De quién es la consulta (tipo 'rrhh'). Sin relación a Legajo, como
+  // Candidato.empleadoId: la conversación es de la empresa.
+  empleadoId      String?
+  // Para no duplicar: "rrhh|<legajo>" o "dm|<legajoA>|<legajoB>" (ordenados).
+  clave           String?   @unique
+  archivada       Boolean   @default(false)
+  leidoRRHHEn     DateTime? // tipo 'rrhh': hasta dónde leyó la empresa
+  ultimoMensajeEn DateTime?
+  ultimoTexto     String? // para la lista
+  creadoPor       String?
+  createdAt       DateTime  @default(now())
+
+  empresa  Empresa               @relation(fields: [empresaId], references: [id])
+  miembros MiembroConversacion[]
+  mensajes MensajeChat[]
+
+  @@index([empresaId, tipo, ultimoMensajeEn])
+}
+
+// La fila existe por dos motivos: porque a la persona la agregaron a mano
+// (agregado = true) o solo para recordar hasta dónde leyó.
+model MiembroConversacion {
+  conversacionId String
+  legajoId       String
+  agregado       Boolean   @default(true)
+  admin          Boolean   @default(false) // encargado: escribe en un grupo de anuncios
+  leidoHasta     DateTime?
+
+  conversacion Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  legajo       Legajo       @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@id([conversacionId, legajoId])
+  @@index([legajoId])
+}
+
+model MensajeChat {
+  id             String    @id @default(uuid())
+  conversacionId String
+  autorId        String? // el legajo que escribió; null = RR.HH. desde el panel
+  autorNombre    String
+  deRRHH         Boolean   @default(false)
+  texto          String
+  borradoEn      DateTime? // se deja el hueco ("mensaje eliminado"), no se pierde el hilo
+  createdAt      DateTime  @default(now())
+
+  conversacion Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+
+  @@index([conversacionId, createdAt])
 }

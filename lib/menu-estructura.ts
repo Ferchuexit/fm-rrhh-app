@@ -132,7 +132,8 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     bloque: GESTION,
     categoria: "Comunicación interna",
     icono: "📣",
-    items: [{ href: "/noticias", label: "Noticias", icono: "📣", desc: "Comunicados a los empleados, con acuse de lectura" }],
+    items: [
+      { href: "/chat", label: "Chat y grupos", icono: "💬", desc: "Grupos de la empresa y consultas de los empleados a RR.HH." },{ href: "/noticias", label: "Noticias", icono: "📣", desc: "Comunicados a los empleados, con acuse de lectura" }],
   },
   {
     // Lo que RR.HH. gestiona con el empleado. Las tres últimas pantallas son

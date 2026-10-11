@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
 import PortalBarra from "./PortalBarra";
 import { noticiasPendientes } from "@/lib/noticias";
+import { chatSinLeer } from "@/lib/chat";
 
 // manifest + íconos: lo que deja "instalar" el portal en el celular como
 // una app (y, en iPhone, lo que habilita las notificaciones).
@@ -30,6 +31,8 @@ export default async function PortalLayout({ children }: { children: React.React
   // Si falla (por ejemplo, falta la migración), el portal abre igual.
   const noticiasSinAtender = sesion && !sesion.debeCambiarPin ? await noticiasPendientes(sesion.legajoId).catch(() => 0) : 0;
 
+  const chatPendiente = sesion && !sesion.debeCambiarPin ? await chatSinLeer(sesion.legajoId).catch(() => 0) : 0;
+
   return (
     <div className="portal">
       <header className="portal-header">
@@ -44,7 +47,7 @@ export default async function PortalLayout({ children }: { children: React.React
         </div>
       </header>
       <main className="portal-main">{children}</main>
-      {sesion && !sesion.debeCambiarPin && <PortalBarra globos={{ noticias: noticiasSinAtender }} />}
+      {sesion && !sesion.debeCambiarPin && <PortalBarra globos={{ noticias: noticiasSinAtender, chat: chatPendiente }} />}
     </div>
   );
 }

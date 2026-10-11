@@ -44,6 +44,7 @@ export const MODULOS: DefModulo[] = [
     clave: "configuracion", nombre: "Configuración de sueldos", bloque: "Liquidación de sueldos", desc: "Convenios, categorías, escalas, conceptos, reglas, parámetros — lo que cambia el cálculo de todos",
     rutas: ["/convenios", "/categorias", "/escalas", "/conceptos", "/reglas", "/parametros", "/estado-implementacion", "/actualizaciones-normativas", "/api/convenios", "/api/categorias", "/api/escalas", "/api/conceptos", "/api/reglas", "/api/parametros", "/api/rangos", "/api/estado-implementacion", "/api/actualizaciones-normativas"],
   },
+  { clave: "chat", nombre: "Chat interno", bloque: "Gestión Humana", desc: "Grupos de la empresa y consultas de los empleados a RR.HH.", rutas: ["/chat", "/api/chat"] },
   { clave: "noticias", nombre: "Noticias", bloque: "Gestión Humana", desc: "Comunicados a los empleados y su lectura", rutas: ["/noticias", "/api/noticias"] },
   { clave: "legajo_digital", nombre: "Legajo digital", bloque: "Gestión Humana", desc: "Checklist de documentación, bandeja de revisión, onboarding de ingresos y offboarding de egresos", rutas: ["/legajo-digital", "/api/legajo-digital", "/onboarding", "/api/onboarding", "/offboarding", "/api/offboarding"] },
   { clave: "vacaciones", nombre: "Vacaciones y permisos", bloque: "Gestión Humana", desc: "Registro, Gantt y solicitudes del portal", rutas: ["/vacaciones", "/solicitudes", "/api/vacaciones", "/api/solicitudes"] },

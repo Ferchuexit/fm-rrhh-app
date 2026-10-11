@@ -129,6 +129,12 @@ export function avisoBusquedaConReferidos(titulo: string): TextoAviso {
   return { tipo: "referido", titulo: "¿Conocés a alguien para este puesto?", cuerpo: `${titulo.slice(0, 80)}. Podés recomendar a alguien desde el portal.`, url: "/portal/referidos" };
 }
 
+// ── Chat ─────────────────────────────────────────────────────────────
+// Sin el texto del mensaje: se lee con el celular bloqueado.
+export function avisoMensajeChat(conversacionId: string, de: string, grupo: string | null): TextoAviso {
+  return { tipo: "chat", titulo: grupo ? `Mensaje nuevo en ${grupo.slice(0, 50)}` : `${de.slice(0, 50)} te escribió`, cuerpo: grupo ? `${de.slice(0, 50)} escribió en el grupo.` : "Entrá al chat para leerlo.", url: `/portal/chat/${conversacionId}` };
+}
+
 export function avisoBusquedaInterna(titulo: string): TextoAviso {
   return { tipo: "empleo", titulo: "Hay una búsqueda interna", cuerpo: `${titulo.slice(0, 80)}. Si te interesa, postulate desde el portal.`, url: "/portal/empleos" };
 }

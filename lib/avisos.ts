@@ -59,7 +59,9 @@ async function enTandas<T>(items: T[], tamanio: number, hacer: (item: T) => Prom
 
 // Avisa a uno o varios empleados. Devuelve un resumen (para la pantalla de
 // prueba y los logs); nunca tira.
-export async function avisar(legajoIds: string[], aviso: TextoAviso | ((legajoId: string) => TextoAviso)): Promise<{ personas: number; push: number; mails: number }> {
+// `sinMail`: solo notificación al celular (el chat: un mail por mensaje
+// sería una molestia).
+export async function avisar(legajoIds: string[], aviso: TextoAviso | ((legajoId: string) => TextoAviso), opciones: { sinMail?: boolean } = {}): Promise<{ personas: number; push: number; mails: number }> {
   const resumen = { personas: 0, push: 0, mails: 0 };
   try {
     const ids = [...new Set(legajoIds)];
@@ -95,7 +97,7 @@ export async function avisar(legajoIds: string[], aviso: TextoAviso | ((legajoId
     }
 
     // ── Mails ──
-    const conMail = legajos.filter((l) => l.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(l.email));
+    const conMail = opciones.sinMail ? [] : legajos.filter((l) => l.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(l.email));
     if (conMail.length > 0) {
       const urlBase = urlBaseDelPedido();
       const { configurado, resultados } = await enviarEmailsEnLote(
