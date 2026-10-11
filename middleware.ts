@@ -17,7 +17,7 @@ import type { NextRequest } from "next/server";
 import { NOMBRE_COOKIE, verificarSesion } from "@/lib/auth-edge";
 import { NOMBRE_COOKIE_PORTAL, verificarSesionPortal } from "@/lib/portal-edge";
 
-import { RUTAS_PUBLICAS, puedeAcceder, permisosEnEmpresa, permisosHeredados } from "@/lib/permisos";
+import { esRutaPublica, puedeAcceder, permisosEnEmpresa, permisosHeredados } from "@/lib/permisos";
 
 // Qué rutas son públicas, cuáles son solo de admin y qué módulo protege
 // cada una está en lib/permisos.ts — un solo lugar, que también leen el
@@ -83,7 +83,7 @@ export async function middleware(req: NextRequest) {
     return middlewarePortal(req);
   }
 
-  if (RUTAS_PUBLICAS.includes(pathname)) {
+  if (esRutaPublica(pathname)) {
     return siguienteConPathname(req);
   }
 

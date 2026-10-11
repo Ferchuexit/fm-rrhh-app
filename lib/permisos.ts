@@ -54,6 +54,7 @@ export const MODULOS: DefModulo[] = [
   { clave: "dispositivos", nombre: "Dispositivos de fichada", bloque: "Gestión Humana", desc: "Terminales instaladas en la empresa y su PIN", rutas: ["/dispositivos", "/api/dispositivos", "/api/empresas/actual"] },
   { clave: "capacitaciones", nombre: "Capacitaciones y habilidades", bloque: "Gestión Humana", desc: "Capacitaciones con constancia firmada y matriz de quién está habilitado para qué", rutas: ["/capacitaciones", "/habilidades", "/api/capacitaciones", "/api/habilidades"] },
   { clave: "evaluaciones", nombre: "Evaluación de desempeño", bloque: "Gestión Humana", desc: "Ciclos de evaluación, resultados de cada persona y su entrega", rutas: ["/evaluaciones", "/api/evaluaciones"] },
+  { clave: "reclutamiento", nombre: "Puestos y reclutamiento", bloque: "Gestión Humana", desc: "Perfiles de puesto, organigrama, búsquedas y candidatos", rutas: ["/puestos", "/api/puestos", "/reclutamiento", "/api/reclutamiento"] },
   { clave: "encuestas", nombre: "Encuestas de clima", bloque: "Gestión Humana", desc: "Encuestas anónimas de clima laboral y sus resultados", rutas: ["/encuestas", "/api/encuestas"] },
   { clave: "objetivos", nombre: "Objetivos y plan de carrera", bloque: "Gestión Humana", desc: "Objetivos de cada persona con su avance, y a qué puesto apunta", rutas: ["/objetivos", "/api/objetivos"] },
   { clave: "accesos_portal", nombre: "Accesos al portal", bloque: "Gestión Humana", desc: "Generar y resetear el PIN de los empleados", rutas: ["/accesos-portal", "/api/accesos-portal"] },
@@ -72,6 +73,12 @@ export const RUTAS_PUBLICAS = [
   // La tarea diaria que dispara Vercel: sin sesión, protegida con CRON_SECRET.
   "/api/cron/recordatorios",
 ];
+
+// Sin sesión y por prefijo: la página pública de empleos, donde se postula
+// gente de afuera. Todo lo que cuelgue de acá tiene que estar pensado para
+// que lo vea CUALQUIERA.
+export const PREFIJOS_PUBLICOS = ["/empleos", "/api/empleos"];
+export const esRutaPublica = (pathname: string) => RUTAS_PUBLICAS.includes(pathname) || PREFIJOS_PUBLICOS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
 // Cualquier usuario del panel con sesión, tenga el rol que tenga.
 const RUTAS_LIBRES = ["/", "/api/logout", "/api/empresa-actual", "/api/sesion"];
@@ -113,7 +120,7 @@ export type Regla =
 // ¿Qué protege esta ruta? Gana siempre el prefijo MÁS LARGO, así
 // /api/empresas/actual (dispositivos) le gana a /api/empresas (solo admin).
 export function reglaDeRuta(pathname: string): Regla {
-  if (RUTAS_PUBLICAS.includes(pathname)) return { tipo: "publica" };
+  if (esRutaPublica(pathname)) return { tipo: "publica" };
   if (pathname === "/" || RUTAS_LIBRES.some((r) => r !== "/" && coincide(pathname, r))) return { tipo: "libre" };
 
   let mejor: { largo: number; regla: Regla } | null = null;

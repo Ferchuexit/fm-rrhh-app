@@ -9,6 +9,7 @@ import { noticiasPendientes } from "@/lib/noticias";
 import AvisosCelular from "./AvisosCelular";
 
 import { encuestasPendientesDe } from "@/lib/encuestas";
+import { busquedasInternas } from "@/lib/reclutamiento";
 export const dynamic = "force-dynamic";
 
 export default async function PortalInicio() {
@@ -24,6 +25,7 @@ export default async function PortalInicio() {
   // Evaluaciones: las de su equipo sin completar + las suyas sin firmar.
   const evaluacionesPendientes = await prisma.evaluacion.count({ where: { OR: [{ evaluadorId: sesion.legajoId, estado: "pendiente", ciclo: { estado: "abierto" } }, { legajoId: sesion.legajoId, estado: "entregada" }, { legajoId: sesion.legajoId, autoCompletadaEn: null, estado: { in: ["pendiente", "completada"] }, ciclo: { estado: "abierto", conAutoevaluacion: true } }] } }).catch(() => 0);
 
+  const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
 
   const [recibos, legajoDigital, noticiasNuevas, pedidosPendientes, genteACargo] = await Promise.all([
@@ -50,6 +52,7 @@ export default async function PortalInicio() {
     { href: "/portal/capacitaciones", icono: "🎓", label: "Capacitaciones", globo: capacitacionesSinConfirmar },
     { href: "/portal/evaluaciones", icono: "📊", label: "Evaluaciones", globo: evaluacionesPendientes },
     { href: "/portal/objetivos", icono: "🎯", label: "Objetivos", globo: 0 },
+    ...(empleosInternos > 0 ? [{ href: "/portal/empleos", icono: "🔎", label: "Empleos", globo: 0 }] : []),
     // Solo aparece cuando hay alguna para responder.
     ...(encuestasPendientes > 0 ? [{ href: "/portal/encuestas", icono: "📋", label: "Encuestas", globo: encuestasPendientes }] : []),
     // Solo para quien tiene gente a cargo ("Reporta a" en el legajo).

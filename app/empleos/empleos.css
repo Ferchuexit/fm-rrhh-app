@@ -1,0 +1,30 @@
+/* Página pública de empleos. No comparte estilos con el panel ni con el
+   portal: la ve gente de afuera, casi siempre desde el celular. */
+.e-pagina { min-height: 100vh; background: #eef1f4; color: #2b2f36; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.5; }
+.e-barra { background: #163a5c; color: #fff; padding: 1rem 1.25rem; }
+.e-barra strong { font-size: 1.05rem; }
+.e-barra span { display: block; font-size: 0.8rem; opacity: 0.85; }
+.e-cuerpo { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+.e-cuerpo h1 { font-size: 1.6rem; color: #163a5c; margin: 0.5rem 0 0.2rem; line-height: 1.2; }
+.e-cuerpo h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b727b; margin: 1.4rem 0 0.4rem; }
+.e-sub { color: #4a4f58; margin: 0 0 1rem; }
+.e-caja { background: #fff; border: 1px solid #dfe4e8; border-radius: 10px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+.e-texto { white-space: pre-wrap; margin: 0; }
+.e-campo { display: block; margin-bottom: 0.8rem; font-size: 0.9rem; font-weight: 600; }
+.e-campo input, .e-campo textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 0.25rem; padding: 0.7rem; font-size: 1rem; font-family: inherit; border: 1px solid #b9c4cd; border-radius: 8px; background: #fff; }
+.e-campo input:focus, .e-campo textarea:focus { outline: 2px solid #7fa8c6; outline-offset: 1px; }
+.e-campo small { font-weight: 400; color: #6b727b; }
+.e-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.8rem; }
+@media (max-width: 520px) { .e-dos { grid-template-columns: 1fr; } }
+.e-btn { display: block; width: 100%; padding: 0.9rem; font-size: 1.05rem; font-weight: 700; color: #fff; background: #163a5c; border: 0; border-radius: 8px; cursor: pointer; }
+.e-btn:disabled { opacity: 0.6; cursor: default; }
+.e-aviso { border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 0.8rem; }
+.e-aviso.error { background: #f8e4e4; border: 1px solid #e6b8b8; color: #8d2a2a; }
+.e-aviso.ok { background: #e3f1ec; border: 1px solid #b4d6ca; color: #215446; }
+.e-acepto { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.85rem; margin: 0.4rem 0 1rem; }
+.e-acepto input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+.e-pie { font-size: 0.78rem; color: #6b727b; margin-top: 1rem; }
+a.e-item { display: block; text-decoration: none; color: inherit; }
+a.e-item strong { color: #163a5c; font-size: 1.05rem; }
+/* El campo trampa para robots: fuera de la vista, no display:none (algunos lo detectan). */
+.e-trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

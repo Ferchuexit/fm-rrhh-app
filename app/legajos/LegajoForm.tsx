@@ -45,6 +45,11 @@ export default function LegajoForm({ legajoId }: { legajoId?: string }) {
     fetch("/api/sucursales").then((r) => r.json()).then(setSucursales);
     fetch("/api/legajos").then((r) => r.json()).then((d) => setPosiblesJefes(Array.isArray(d) ? d : []));
     if (!esEdicion) {
+      // Desde Reclutamiento se llega con los datos del candidato contratado
+      // (?apellido=…&nombre=…): se precargan para no tipearlos de nuevo.
+      const q = new URLSearchParams(window.location.search);
+      const precarga = Object.fromEntries(["apellido", "nombre", "email", "telefono", "localidad"].filter((k) => q.get(k)).map((k) => [k, q.get(k)!.slice(0, 120)]));
+      if (Object.keys(precarga).length) setF((prev: any) => ({ ...prev, ...precarga }));
       fetch("/api/legajos?proximoNumero=1").then((r) => r.json()).then((d) => setF((prev: any) => ({ ...prev, numeroLegajo: d.proximoNumero })));
     } else {
       fetch(`/api/legajos/${legajoId}`).then((r) => r.json()).then((d) => {

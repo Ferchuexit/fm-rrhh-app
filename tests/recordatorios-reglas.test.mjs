@@ -41,7 +41,7 @@ describe("textos", () => {
 });
 
 describe("resumen semanal para RR.HH.", () => {
-  const cero = { solicitudes: 0, evaluacionesVencidas: 0, evaluacionesSinEntregar: 0, objetivosVencidos: 0, habilidadesVencidas: 0, habilidadesPorVencer: 0, capacitacionesSinCerrar: 0, recibosSinFirmar: 0 };
+  const cero = { solicitudes: 0, evaluacionesVencidas: 0, evaluacionesSinEntregar: 0, objetivosVencidos: 0, habilidadesVencidas: 0, habilidadesPorVencer: 0, capacitacionesSinCerrar: 0, recibosSinFirmar: 0, candidatosSinRevisar: 0 };
   it("sin pendientes no hay líneas (y no sale mail)", () => {
     expect(R.lineasResumen(cero)).toEqual([]);
   });

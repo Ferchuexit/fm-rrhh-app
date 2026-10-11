@@ -20,7 +20,7 @@
 import { Prisma } from "@prisma/client";
 import { cookies, headers } from "next/headers";
 import { NOMBRE_COOKIE, verificarSesion } from "./auth-edge";
-import { RUTAS_PUBLICAS } from "./permisos";
+import { esRutaPublica } from "./permisos";
 import { caminos as deducirCaminos, decidir, sumarFiltro, legajosDelAlta, empresasDelAlta, MENSAJE_FUERA_DE_ALCANCE, type Alcance } from "./alcance-reglas";
 
 const COOKIE_EMPRESA = "empresaActual"; // = NOMBRE_COOKIE_EMPRESA (no se importa de empresa-actual: ese archivo importa a prisma)
@@ -50,7 +50,7 @@ export function extensionDeAlcance(base: ClienteBase) {
     } catch {
       return null; // fuera de un pedido (scripts, build)
     }
-    if (ruta === "/portal" || ruta.startsWith("/portal/") || ruta.startsWith("/api/portal/") || RUTAS_PUBLICAS.includes(ruta)) return null;
+    if (ruta === "/portal" || ruta.startsWith("/portal/") || ruta.startsWith("/api/portal/") || esRutaPublica(ruta)) return null;
     if (!token) return null; // sin sesión del panel: el middleware ya lo frenó, salvo login
 
     const clave = `${token}|${empresaCookie ?? ""}`;

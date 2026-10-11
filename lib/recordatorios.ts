@@ -138,7 +138,7 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
       let mails = 0;
       for (const emp of empresas) {
         const deLaEmpresa = { empresaId: emp.id, condicion: "activo" };
-        const [solicitudes, evaluacionesVencidas, evaluacionesSinEntregar, objetivosVencidos, habilidadesVencidas, habilidadesPorVencer, capacitacionesSinCerrar, recibos] = await Promise.all([
+        const [solicitudes, evaluacionesVencidas, evaluacionesSinEntregar, objetivosVencidos, habilidadesVencidas, habilidadesPorVencer, capacitacionesSinCerrar, recibos, candidatosSinRevisar] = await Promise.all([
           db.solicitudAusencia.count({ where: { estado: "pendiente", legajo: deLaEmpresa } }),
           db.evaluacion.count({ where: { estado: "pendiente", ciclo: { estado: "abierto", fechaLimite: { lt: hoy } }, legajo: deLaEmpresa } }),
           db.evaluacion.count({ where: { estado: "completada", legajo: deLaEmpresa } }),
@@ -147,8 +147,9 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
           db.habilidadLegajo.count({ where: { vence: { gte: hoy, lte: masDias(hoy, 60) }, legajo: deLaEmpresa } }),
           db.capacitacion.count({ where: { empresaId: emp.id, estado: "programada", fecha: { lt: hoy } } }),
           db.liquidacion.count({ where: { ...recibosSinFirmar, legajo: deLaEmpresa } }),
+          db.candidato.count({ where: { etapa: "postulado", busqueda: { empresaId: emp.id, estado: "abierta" } } }),
         ]);
-        const lineas = R.lineasResumen({ solicitudes, evaluacionesVencidas, evaluacionesSinEntregar, objetivosVencidos, habilidadesVencidas, habilidadesPorVencer, capacitacionesSinCerrar, recibosSinFirmar: recibos });
+        const lineas = R.lineasResumen({ solicitudes, evaluacionesVencidas, evaluacionesSinEntregar, objetivosVencidos, habilidadesVencidas, habilidadesPorVencer, capacitacionesSinCerrar, recibosSinFirmar: recibos, candidatosSinRevisar });
         if (lineas.length === 0) continue;
 
         // A quién: usuarios de esa empresa que gestionan algo de Gestión
@@ -159,7 +160,7 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
           .filter((a) => a.usuario.rol !== "admin" && a.sectores.length === 0)
           .filter((a) => {
             const p = a.rol ? limpiarPermisos(a.rol.permisos) : permisosHeredados(a.usuario.rol);
-            return ["vacaciones", "evaluaciones", "objetivos", "capacitaciones"].some((m) => p[m] === "gestionar");
+            return ["vacaciones", "evaluaciones", "objetivos", "capacitaciones", "reclutamiento"].some((m) => p[m] === "gestionar");
           })
           .map((a) => a.usuario.email);
         if (para.length === 0) para = admins;

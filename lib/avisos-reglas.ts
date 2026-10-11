@@ -89,6 +89,10 @@ export function avisoTareasDeEquipo(): TextoAviso {
   return { tipo: "equipo", titulo: "Tenés tareas nuevas de tu equipo", cuerpo: "RR.HH. te asignó tareas. Entrá a Mi equipo para verlas.", url: "/portal/equipo" };
 }
 
+export function avisoBusquedaInterna(titulo: string): TextoAviso {
+  return { tipo: "empleo", titulo: "Hay una búsqueda interna", cuerpo: `${titulo.slice(0, 80)}. Si te interesa, postulate desde el portal.`, url: "/portal/empleos" };
+}
+
 export function avisoEncuestaAbierta(limite: Date): TextoAviso {
   return { tipo: "encuesta", titulo: "Hay una encuesta para vos", cuerpo: `Es anónima y lleva unos minutos. Tenés hasta el ${dia(limite)}.`, url: "/portal/encuestas" };
 }

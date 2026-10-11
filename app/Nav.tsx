@@ -18,7 +18,7 @@ import { headers } from "next/headers";
 // sesión en una tablet del cliente) y /portal (empleado, con su propio
 // encabezado). El pathname llega vía header — lo pone el middleware.
 export function rutaSinMenu(pathname: string) {
-  return pathname.startsWith("/terminal") || pathname === "/portal" || pathname.startsWith("/portal/");
+  return pathname.startsWith("/terminal") || pathname === "/portal" || pathname.startsWith("/portal/") || pathname === "/empleos" || pathname.startsWith("/empleos/");
 }
 
 export default async function Nav() {

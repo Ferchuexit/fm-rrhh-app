@@ -69,7 +69,7 @@ export function recordatorioHabilidadVence(hoy: Date, vence: Date): TextoAviso {
 }
 
 // ── Resumen semanal para RR.HH. (mail, los lunes) ──
-export interface PendientesRRHH { solicitudes: number; evaluacionesVencidas: number; evaluacionesSinEntregar: number; objetivosVencidos: number; habilidadesVencidas: number; habilidadesPorVencer: number; capacitacionesSinCerrar: number; recibosSinFirmar: number }
+export interface PendientesRRHH { solicitudes: number; evaluacionesVencidas: number; evaluacionesSinEntregar: number; objetivosVencidos: number; habilidadesVencidas: number; habilidadesPorVencer: number; capacitacionesSinCerrar: number; recibosSinFirmar: number; candidatosSinRevisar: number }
 
 export function lineasResumen(p: PendientesRRHH): { texto: string; url: string }[] {
   const n = (c: number, uno: string, varios: string) => (c === 1 ? `1 ${uno}` : `${c} ${varios}`);
@@ -81,6 +81,7 @@ export function lineasResumen(p: PendientesRRHH): { texto: string; url: string }
     [p.habilidadesVencidas, n(p.habilidadesVencidas, "habilitación vencida", "habilitaciones vencidas"), "/habilidades"],
     [p.habilidadesPorVencer, `${n(p.habilidadesPorVencer, "habilitación vence", "habilitaciones vencen")} en los próximos 60 días`, "/habilidades"],
     [p.capacitacionesSinCerrar, `${n(p.capacitacionesSinCerrar, "capacitación ya pasó y falta", "capacitaciones ya pasaron y falta")} cerrarla${p.capacitacionesSinCerrar === 1 ? "" : "s"}`, "/capacitaciones"],
+    [p.candidatosSinRevisar, `${n(p.candidatosSinRevisar, "candidato nuevo", "candidatos nuevos")} sin revisar en las búsquedas abiertas`, "/reclutamiento"],
     [p.recibosSinFirmar, `${n(p.recibosSinFirmar, "recibo", "recibos")} de los últimos 3 meses sin firmar`, "/firmas-recibos"],
   ];
   return lineas.filter(([c]) => c > 0).map(([, texto, url]) => ({ texto, url }));

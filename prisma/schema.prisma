@@ -158,6 +158,8 @@ model Empresa {
   ciclosEvaluacion          CicloEvaluacion[]
   PlantillaEgreso           PlantillaEgreso[]
   Encuesta                  Encuesta[]
+  Puesto                    Puesto[]
+  Busqueda                  Busqueda[]
 
   @@map("empresas")
 }
@@ -170,6 +172,7 @@ model CentroCosto {
   nombre    String
 
   empresa      Empresa               @relation(fields: [empresaId], references: [id])
+  puestos      Puesto[]
   legajos      Legajo[]
   noticias     Noticia[]
   presupuestos PresupuestoSalarial[]
@@ -943,6 +946,11 @@ model Legajo {
   ingresos                 Ingreso[]
   egresos                  Egreso[]
   participacionesEncuesta  ParticipacionEncuesta[]
+  // El puesto que ocupa en el organigrama (Desarrollo de talento → Puestos).
+  // Distinto de la categoría de convenio: dos "Oficial" pueden ocupar
+  // puestos distintos.
+  puestoId                 String?
+  puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
   objetivos                Objetivo[]
   planCarrera              PlanCarrera?
@@ -1966,4 +1974,96 @@ model RespuestaEncuesta {
   encuesta Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
 
   @@index([encuestaId])
+}
+
+// ── Puestos y reclutamiento ──
+// Puesto: una casilla del organigrama. Dice qué hace, qué pide, de quién
+// depende y cuánta gente debería tener. Los legajos que lo ocupan lo
+// referencian; la diferencia con la dotación prevista son las vacantes.
+model Puesto {
+  id            String   @id @default(uuid())
+  empresaId     String
+  nombre        String
+  centroCostoId String?
+  reportaAId    String? // el puesto del que depende
+  mision        String? // para qué existe, en una o dos frases
+  tareas        String? // una por renglón
+  requisitos    String? // una por renglón: estudios, experiencia, licencias
+  condiciones   String? // horario, turnos, lugar
+  habilidades   Json     @default("[]") // [{ habilidadId, nivel }] de la matriz
+  dotacion      Int      @default(1) // cuánta gente debería tener
+  updatedAt     DateTime @updatedAt
+
+  empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  centroCosto CentroCosto? @relation(fields: [centroCostoId], references: [id], onDelete: SetNull)
+  reportaA    Puesto?      @relation("Dependencia", fields: [reportaAId], references: [id], onDelete: SetNull)
+  dependen    Puesto[]     @relation("Dependencia")
+  ocupantes   Legajo[]
+  busquedas   Busqueda[]
+
+  @@unique([empresaId, nombre])
+}
+
+// Búsqueda: una vacante abierta. El texto del aviso es SUYO (se arma desde
+// el perfil del puesto y se retoca): cambiar el puesto después no cambia
+// un aviso ya publicado.
+model Busqueda {
+  id           String    @id @default(uuid())
+  empresaId    String
+  puestoId     String?
+  titulo       String
+  descripcion  String // qué va a hacer
+  requisitos   String?
+  ofrecemos    String?
+  lugar        String?
+  vacantes     Int       @default(1)
+  publica      Boolean   @default(true) // tiene página pública de postulación
+  interna      Boolean   @default(false) // se muestra a los empleados en el portal
+  estado       String    @default("borrador") // 'borrador' | 'abierta' | 'pausada' | 'cerrada'
+  motivoCierre String? // 'cubierta' | 'cancelada'
+  creadaPor    String?
+  createdAt    DateTime  @default(now())
+  abiertaEn    DateTime?
+  cerradaEn    DateTime?
+
+  empresa    Empresa     @relation(fields: [empresaId], references: [id])
+  puesto     Puesto?     @relation(fields: [puestoId], references: [id], onDelete: SetNull)
+  candidatos Candidato[]
+
+  @@index([empresaId, estado])
+}
+
+model Candidato {
+  id               String    @id @default(uuid())
+  busquedaId       String
+  apellido         String
+  nombre           String
+  email            String?
+  telefono         String?
+  localidad        String?
+  mensaje          String? // lo que escribió al postularse
+  // De dónde llegó: 'web', 'computrabajo', 'bumeran', 'linkedin',
+  // 'referido', 'interno', 'manual'… Sale del enlace que se pegó en cada
+  // portal, y sirve para saber qué canal trae gente.
+  fuente           String    @default("web")
+  // Si es un empleado que se postuló desde el portal. Va SIN relación a
+  // Legajo a propósito: un candidato es de la búsqueda (de la empresa), no
+  // de un sector, y no debe filtrarse por el sector del empleado.
+  // (No se llama legajoId: ese nombre lo reserva el control de alcance.)
+  empleadoId       String?
+  cvNombre         String?
+  cvKey            String? // referencia en Vercel Blob (privado)
+  cvBase64         String? // solo desarrollo, cuando no hay Blob
+  etapa            String    @default("postulado") // ver ETAPAS en lib/reclutamiento-reglas.ts
+  etapaDesde       DateTime  @default(now())
+  motivoDescarte   String?
+  puntaje          Int? // 1..5, valoración de RR.HH.
+  notas            String?
+  consentimientoEn DateTime? // cuándo aceptó que se guarden sus datos
+  createdAt        DateTime  @default(now())
+
+  busqueda Busqueda @relation(fields: [busquedaId], references: [id], onDelete: Cascade)
+
+  @@index([busquedaId, etapa])
+  @@index([email])
 }
