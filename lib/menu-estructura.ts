@@ -158,6 +158,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     items: [
       { href: "/capacitaciones", label: "Capacitaciones", icono: "🎓", desc: "Programar, tomar asistencia y constancia firmada por el empleado" },
       { href: "/evaluaciones", label: "Evaluación de desempeño", icono: "⭐", desc: "Ciclos de evaluación: el jefe evalúa, RR.HH. revisa y entrega, el empleado firma" },
+      { href: "/encuestas", label: "Encuestas de clima", icono: "📋", desc: "Encuestas anónimas: cómo está el clima, por dimensión y por sector" },
       { href: "/objetivos", label: "Objetivos y plan de carrera", icono: "🎯", desc: "Qué se espera de cada uno, cómo viene, y qué le falta para el puesto al que apunta" },
       { href: "/habilidades", label: "Matriz de habilidades", icono: "🧩", desc: "Quién está habilitado para cada puesto o máquina, y qué está por vencer" },
     ],

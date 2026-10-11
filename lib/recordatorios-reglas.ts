@@ -61,6 +61,9 @@ export function recordatorioConfirmarCapacitacion(cantidad: number): TextoAviso 
 export function recordatorioRecibos(cantidad: number): TextoAviso {
   return { tipo: "recordatorio", titulo: cantidad === 1 ? "Tenés 1 recibo sin firmar" : `Tenés ${cantidad} recibos sin firmar`, cuerpo: "Entrá a Recibos para verlos y firmarlos.", url: "/portal/recibos" };
 }
+export function recordatorioEncuesta(hoy: Date, limite: Date): TextoAviso {
+  return { tipo: "recordatorio", titulo: diasEntre(hoy, limite) === 0 ? "Hoy cierra la encuesta" : "Todavía podés responder la encuesta", cuerpo: `Es anónima y lleva unos minutos. ${plazo(hoy, limite)}`, url: "/portal/encuestas" };
+}
 export function recordatorioHabilidadVence(hoy: Date, vence: Date): TextoAviso {
   return { tipo: "recordatorio", titulo: `Una habilitación tuya vence ${diasEntre(hoy, vence) <= 7 ? "esta semana" : `el ${dia(vence)}`}`, cuerpo: "Entrá a Capacitaciones para ver cuál, y avisale a tu jefe para renovarla.", url: "/portal/capacitaciones" };
 }

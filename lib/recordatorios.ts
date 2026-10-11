@@ -14,6 +14,7 @@ import { enviarEmailsEnLote } from "./email";
 import { limpiarPermisos, permisosHeredados } from "./permisos";
 import { ESTADOS_PERIODO_PUBLICADOS } from "./portal";
 import * as R from "./recordatorios-reglas";
+import { cerrarVencidas, filtroDestinatarios } from "./encuestas";
 
 const DIA = 86400000;
 const masDias = (d: Date, n: number) => new Date(d.getTime() + n * DIA);
@@ -103,18 +104,32 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
     return n;
   });
 
+  // 8. Encuestas abiertas: a quien todavía no respondió, 2 días antes del
+  //    cierre y el último día. Se sabe QUIÉN no respondió (para esto), nunca
+  //    qué respondió cada uno. Antes, se cierran las que ya vencieron.
+  await bloque(resumen, "encuestas", async () => {
+    await cerrarVencidas(hoy);
+    const abiertas = await db.encuesta.findMany({ where: { estado: "abierta", fechaCierre: { in: [masDias(hoy, 2), hoy] } } });
+    let n = 0;
+    for (const e of abiertas) {
+      const faltan = await db.legajo.findMany({ where: { ...filtroDestinatarios(e), participacionesEncuesta: { none: { encuestaId: e.id } } }, select: { id: true } });
+      n += (await avisar(faltan.map((l) => l.id), R.recordatorioEncuesta(hoy, e.fechaCierre))).personas;
+    }
+    return n;
+  });
+
   if (R.esLunes(hoy)) {
     const hace3Meses = masDias(hoy, -92);
     const recibosSinFirmar = { vigente: true, periodo: { estado: { in: ESTADOS_PERIODO_PUBLICADOS }, fechaHasta: { gte: hace3Meses } }, OR: [{ reciboDigital: null }, { reciboDigital: { firma: null } }], legajo: activo };
 
-    // 8. Recibos de los últimos 3 meses sin firmar (los lunes, al empleado).
+    // 9. Recibos de los últimos 3 meses sin firmar (los lunes, al empleado).
     await bloque(resumen, "recibos", async () => {
       const porPersona = await db.liquidacion.groupBy({ by: ["legajoId"], where: recibosSinFirmar, _count: true });
       const cuantos = new Map(porPersona.map((p) => [p.legajoId, p._count]));
       return (await avisar([...cuantos.keys()], (id) => R.recordatorioRecibos(cuantos.get(id) ?? 1))).personas;
     });
 
-    // 9. Resumen para RR.HH., empresa por empresa.
+    // 10. Resumen para RR.HH., empresa por empresa.
     await bloque(resumen, "resumen_rrhh", async () => {
       if (!process.env.RESEND_API_KEY) return 0;
       const urlBase = urlBaseDelPedido();

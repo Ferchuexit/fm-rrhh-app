@@ -157,6 +157,7 @@ model Empresa {
   formulariosEvaluacion     FormularioEvaluacion[]
   ciclosEvaluacion          CicloEvaluacion[]
   PlantillaEgreso           PlantillaEgreso[]
+  Encuesta                  Encuesta[]
 
   @@map("empresas")
 }
@@ -941,6 +942,7 @@ model Legajo {
   evaluacionesACargo       Evaluacion[]             @relation("Evaluador")
   ingresos                 Ingreso[]
   egresos                  Egreso[]
+  participacionesEncuesta  ParticipacionEncuesta[]
   avisos                   Aviso[]
   objetivos                Objetivo[]
   planCarrera              PlanCarrera?
@@ -1914,4 +1916,54 @@ model TareaEgreso {
   egreso Egreso @relation(fields: [egresoId], references: [id], onDelete: Cascade)
 
   @@index([egresoId, orden])
+}
+
+// ── Encuestas de clima ──
+// ANÓNIMAS por diseño: lo que alguien respondió y quién respondió se
+// guardan en tablas distintas, sin nada que las una.
+//   ParticipacionEncuesta → QUIÉN ya respondió (para no responder dos veces
+//       y para recordarle a quien falta). Sin fecha ni hora.
+//   RespuestaEncuesta     → QUÉ se respondió. Sin legajo, sin fecha ni hora
+//       (una hora permitiría cruzarla con la participación). Solo el
+//       sector, para poder abrir los resultados por sector.
+model Encuesta {
+  id             String    @id @default(uuid())
+  empresaId      String
+  titulo         String
+  descripcion    String?
+  preguntas      Json // [{ texto, tipo: 'escala'|'enps'|'opcion'|'texto', dimension?, opciones? }]
+  centroCostoIds String[] // a qué sectores va; vacío = toda la empresa
+  estado         String    @default("borrador") // 'borrador' | 'abierta' | 'cerrada'
+  fechaCierre    DateTime // último día para responder
+  creadaPor      String?
+  createdAt      DateTime  @default(now())
+  abiertaEn      DateTime?
+  cerradaEn      DateTime?
+
+  empresa         Empresa                 @relation(fields: [empresaId], references: [id])
+  participaciones ParticipacionEncuesta[]
+  respuestas      RespuestaEncuesta[]
+
+  @@index([empresaId, estado])
+}
+
+model ParticipacionEncuesta {
+  encuestaId String
+  legajoId   String
+
+  encuesta Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
+  legajo   Legajo   @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@id([encuestaId, legajoId])
+}
+
+model RespuestaEncuesta {
+  id         String  @id @default(uuid())
+  encuestaId String
+  sector     String?
+  respuestas Json // { "0": 4, "5": "texto libre" } — índice de la pregunta → respuesta
+
+  encuesta Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
+
+  @@index([encuestaId])
 }
