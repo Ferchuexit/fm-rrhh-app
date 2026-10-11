@@ -166,6 +166,16 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     ],
   },
   {
+    // Lo que hace a la gente sentirse parte: reconocer, celebrar.
+    bloque: GESTION,
+    categoria: "Cultura",
+    icono: "🎉",
+    items: [
+      { href: "/reconocimientos", label: "Reconocimientos", icono: "👏", desc: "El muro donde los compañeros se reconocen por los valores de la empresa" },
+      { href: "/celebraciones", label: "Cumpleaños y aniversarios", icono: "🎂", desc: "Quién cumple años y quién cumple años en la empresa" },
+    ],
+  },
+  {
     bloque: GESTION,
     categoria: "Operaciones",
     icono: "🕒",

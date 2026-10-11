@@ -160,6 +160,7 @@ model Empresa {
   Encuesta                  Encuesta[]
   Puesto                    Puesto[]
   Busqueda                  Busqueda[]
+  ValorEmpresa              ValorEmpresa[]
 
   @@map("empresas")
 }
@@ -949,6 +950,10 @@ model Legajo {
   // El puesto que ocupa en el organigrama (Desarrollo de talento → Puestos).
   // Distinto de la categoría de convenio: dos "Oficial" pueden ocupar
   // puestos distintos.
+  // Cultura: si la persona pidió que su cumpleaños no se muestre a los demás.
+  ocultarCumple            Boolean                  @default(false)
+  reconocimientos          Reconocimiento[]
+  aplausos                 AplausoReconocimiento[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2080,4 +2085,49 @@ model Candidato {
 
   @@index([busquedaId, etapa])
   @@index([email])
+}
+
+// ── Cultura: reconocimientos ──
+// Los valores de la empresa por los que se reconoce a alguien.
+model ValorEmpresa {
+  id        String @id @default(uuid())
+  empresaId String
+  nombre    String
+  emoji     String @default("⭐")
+  orden     Int    @default(0)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, nombre])
+}
+
+// Un reconocimiento: alguien destaca a un compañero por un valor. Se
+// publica en el muro del portal. `legajo` es QUIEN LO RECIBE.
+model Reconocimiento {
+  id           String   @id @default(uuid())
+  legajoId     String
+  emisorId     String? // el legajo de quien lo dio; null = lo dio RR.HH. desde el panel
+  emisorNombre String
+  valor        String // nombre del valor en ese momento (si después se renombra, este queda)
+  emoji        String   @default("⭐")
+  mensaje      String
+  oculto       Boolean  @default(false) // RR.HH. lo sacó del muro
+  ocultoPor    String?
+  createdAt    DateTime @default(now())
+
+  legajo   Legajo                  @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  aplausos AplausoReconocimiento[]
+
+  @@index([legajoId, createdAt])
+  @@index([emisorId, createdAt])
+}
+
+model AplausoReconocimiento {
+  reconocimientoId String
+  legajoId         String
+
+  reconocimiento Reconocimiento @relation(fields: [reconocimientoId], references: [id], onDelete: Cascade)
+  legajo         Legajo         @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@id([reconocimientoId, legajoId])
 }

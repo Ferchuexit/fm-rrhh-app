@@ -55,6 +55,7 @@ export const MODULOS: DefModulo[] = [
   { clave: "capacitaciones", nombre: "Capacitaciones y habilidades", bloque: "Gestión Humana", desc: "Capacitaciones con constancia firmada y matriz de quién está habilitado para qué", rutas: ["/capacitaciones", "/habilidades", "/api/capacitaciones", "/api/habilidades"] },
   { clave: "evaluaciones", nombre: "Evaluación de desempeño", bloque: "Gestión Humana", desc: "Ciclos de evaluación, resultados de cada persona y su entrega", rutas: ["/evaluaciones", "/api/evaluaciones"] },
   { clave: "reclutamiento", nombre: "Puestos y reclutamiento", bloque: "Gestión Humana", desc: "Perfiles de puesto, organigrama, búsquedas y candidatos", rutas: ["/puestos", "/api/puestos", "/reclutamiento", "/api/reclutamiento"] },
+  { clave: "cultura", nombre: "Cultura", bloque: "Gestión Humana", desc: "Reconocimientos entre compañeros, cumpleaños y aniversarios", rutas: ["/reconocimientos", "/api/reconocimientos", "/celebraciones", "/api/celebraciones"] },
   { clave: "encuestas", nombre: "Encuestas de clima", bloque: "Gestión Humana", desc: "Encuestas anónimas de clima laboral y sus resultados", rutas: ["/encuestas", "/api/encuestas"] },
   { clave: "objetivos", nombre: "Objetivos y plan de carrera", bloque: "Gestión Humana", desc: "Objetivos de cada persona con su avance, y a qué puesto apunta", rutas: ["/objetivos", "/api/objetivos"] },
   { clave: "accesos_portal", nombre: "Accesos al portal", bloque: "Gestión Humana", desc: "Generar y resetear el PIN de los empleados", rutas: ["/accesos-portal", "/api/accesos-portal"] },
@@ -191,7 +192,7 @@ export const ROLES_PREDEFINIDOS: { id: string; nombre: string; descripcion: stri
   },
   {
     id: "rol-supervisor", nombre: "Supervisor", descripcion: "Gestiona a la gente (asistencia, vacaciones, legajo digital, noticias) sin ver sueldos ni liquidaciones.",
-    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar", objetivos: "gestionar" },
+    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar", objetivos: "gestionar", cultura: "gestionar" },
   },
   { id: "rol-solo-lectura", nombre: "Solo lectura", descripcion: "Ve todo lo de la empresa (menos la configuración) sin poder modificar nada.", permisos: todo("ver", ["configuracion", "dispositivos"]) },
 ];

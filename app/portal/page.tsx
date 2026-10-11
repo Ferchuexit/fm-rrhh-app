@@ -10,6 +10,8 @@ import AvisosCelular from "./AvisosCelular";
 
 import { encuestasPendientesDe } from "@/lib/encuestas";
 import { busquedasInternas } from "@/lib/reclutamiento";
+import { festejosDeHoy, textoCelebracion } from "@/lib/cultura";
+import { hoyArgentina } from "@/lib/ausencias-reglas";
 export const dynamic = "force-dynamic";
 
 export default async function PortalInicio() {
@@ -25,6 +27,8 @@ export default async function PortalInicio() {
   // Evaluaciones: las de su equipo sin completar + las suyas sin firmar.
   const evaluacionesPendientes = await prisma.evaluacion.count({ where: { OR: [{ evaluadorId: sesion.legajoId, estado: "pendiente", ciclo: { estado: "abierto" } }, { legajoId: sesion.legajoId, estado: "entregada" }, { legajoId: sesion.legajoId, autoCompletadaEn: null, estado: { in: ["pendiente", "completada"] }, ciclo: { estado: "abierto", conAutoevaluacion: true } }] } }).catch(() => 0);
 
+  // Quién festeja hoy (cumpleaños o aniversario), para el saludo de arriba.
+  const festejos = await festejosDeHoy(sesion.empresaId, hoyArgentina()).catch(() => []);
   const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
 
@@ -52,6 +56,7 @@ export default async function PortalInicio() {
     { href: "/portal/capacitaciones", icono: "🎓", label: "Capacitaciones", globo: capacitacionesSinConfirmar },
     { href: "/portal/evaluaciones", icono: "📊", label: "Evaluaciones", globo: evaluacionesPendientes },
     { href: "/portal/objetivos", icono: "🎯", label: "Objetivos", globo: 0 },
+    { href: "/portal/muro", icono: "👏", label: "Muro", globo: 0 },
     ...(empleosInternos > 0 ? [{ href: "/portal/empleos", icono: "🔎", label: "Empleos", globo: 0 }] : []),
     // Solo aparece cuando hay alguna para responder.
     ...(encuestasPendientes > 0 ? [{ href: "/portal/encuestas", icono: "📋", label: "Encuestas", globo: encuestasPendientes }] : []),
@@ -84,6 +89,12 @@ export default async function PortalInicio() {
         </a>
       ) : (
         <p className="p-sub">Estás al día. ¿Qué necesitás?</p>
+      )}
+
+      {festejos.length > 0 && (
+        <a href="/portal/muro" className="p-aviso ok" style={{ display: "block", textDecoration: "none" }}>
+          🎉 {festejos.some((c) => c.legajoId === sesion.legajoId) ? (festejos.find((c) => c.legajoId === sesion.legajoId)!.tipo === "cumple" ? "¡Feliz cumpleaños!" : "¡Feliz aniversario con nosotros!") : festejos.length === 1 ? `Hoy ${textoCelebracion(festejos[0])}` : `Hoy hay ${festejos.length} festejos`} ›
+        </a>
       )}
 
       <div className="p-apps">

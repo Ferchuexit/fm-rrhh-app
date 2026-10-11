@@ -15,6 +15,8 @@ import { limpiarPermisos, permisosHeredados } from "./permisos";
 import { ESTADOS_PERIODO_PUBLICADOS } from "./portal";
 import * as R from "./recordatorios-reglas";
 import { cerrarVencidas, filtroDestinatarios } from "./encuestas";
+import { personasConFechas, celebraciones, textoCelebracion } from "./cultura";
+import { avisoCumple, avisoAniversario, avisoCelebracionesEquipo } from "./avisos";
 
 const DIA = 86400000;
 const masDias = (d: Date, n: number) => new Date(d.getTime() + n * DIA);
@@ -100,6 +102,26 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
       const vence = masDias(hoy, faltan);
       const filas = await db.habilidadLegajo.findMany({ where: { vence, legajo: activo }, select: { legajoId: true } });
       n += (await avisar(filas.map((f) => f.legajoId), R.recordatorioHabilidadVence(hoy, vence))).personas;
+    }
+    return n;
+  });
+
+  // Festejos del día: saludo a quien cumple años o aniversario, y aviso a
+  // su jefe para que salude. Del cumpleaños nunca se dice la edad, y a
+  // quien pidió no mostrarlo se lo saluda a él pero no se le avisa a nadie.
+  await bloque(resumen, "festejos", async () => {
+    let n = 0;
+    for (const emp of await db.empresa.findMany({ select: { id: true } })) {
+      const personas = await personasConFechas(emp.id, db);
+      const reservados = new Set(personas.filter((p) => p.ocultarCumple).map((p) => p.id));
+      const hoyFestejan = celebraciones(personas, hoy, 0, false);
+      for (const c of hoyFestejan) n += (await avisar([c.legajoId], c.tipo === "cumple" ? avisoCumple(c.nombre) : avisoAniversario(c.anios!))).personas;
+      const porJefe = new Map<string, string[]>();
+      for (const c of hoyFestejan) {
+        if (!c.jefeId || (c.tipo === "cumple" && reservados.has(c.legajoId))) continue;
+        porJefe.set(c.jefeId, [...(porJefe.get(c.jefeId) ?? []), textoCelebracion(c)]);
+      }
+      for (const [jefeId, lineas] of porJefe) await avisar([jefeId], avisoCelebracionesEquipo(lineas));
     }
     return n;
   });

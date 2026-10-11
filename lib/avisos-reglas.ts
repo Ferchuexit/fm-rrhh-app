@@ -89,6 +89,22 @@ export function avisoTareasDeEquipo(): TextoAviso {
   return { tipo: "equipo", titulo: "Tenés tareas nuevas de tu equipo", cuerpo: "RR.HH. te asignó tareas. Entrá a Mi equipo para verlas.", url: "/portal/equipo" };
 }
 
+// ── Cultura ──
+export function avisoCumple(nombre: string): TextoAviso {
+  return { tipo: "celebracion", titulo: `¡Feliz cumpleaños, ${nombre.split(" ")[0]}! 🎂`, cuerpo: "Que tengas un gran día. Te saluda todo el equipo.", url: "/portal/muro" };
+}
+export function avisoAniversario(anios: number): TextoAviso {
+  return { tipo: "celebracion", titulo: anios === 1 ? "¡Hoy cumplís tu primer año con nosotros! 🎉" : `¡Hoy cumplís ${anios} años con nosotros! 🎉`, cuerpo: "Gracias por ser parte del equipo.", url: "/portal/muro" };
+}
+// Al jefe, para que salude. Solo nombres y motivo: nunca la edad.
+export function avisoCelebracionesEquipo(lineas: string[]): TextoAviso {
+  return { tipo: "celebracion", titulo: lineas.length === 1 ? lineas[0] : "Hoy hay festejos en tu equipo", cuerpo: lineas.length === 1 ? "Es de tu equipo: buen momento para saludar." : lineas.join(" · ").slice(0, 180), url: "/portal/muro" };
+}
+// Sin el texto del mensaje: se lee con el celular bloqueado.
+export function avisoReconocimiento(de: string, valor: string): TextoAviso {
+  return { tipo: "reconocimiento", titulo: "¡Te reconocieron! 👏", cuerpo: `${de.slice(0, 50)} te reconoció por ${valor.slice(0, 40)}. Entrá al muro para leerlo.`, url: "/portal/muro" };
+}
+
 export function avisoBusquedaInterna(titulo: string): TextoAviso {
   return { tipo: "empleo", titulo: "Hay una búsqueda interna", cuerpo: `${titulo.slice(0, 80)}. Si te interesa, postulate desde el portal.`, url: "/portal/empleos" };
 }
