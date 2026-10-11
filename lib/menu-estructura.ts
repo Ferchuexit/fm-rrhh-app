@@ -133,6 +133,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     categoria: "Comunicación interna",
     icono: "📣",
     items: [
+      { href: "/agenda", label: "Agenda", icono: "🗓️", desc: "El calendario de la empresa: eventos, capacitaciones, vacaciones, feriados y festejos" },
       { href: "/chat", label: "Chat y grupos", icono: "💬", desc: "Grupos de la empresa y consultas de los empleados a RR.HH." },{ href: "/noticias", label: "Noticias", icono: "📣", desc: "Comunicados a los empleados, con acuse de lectura" }],
   },
   {
@@ -173,6 +174,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     icono: "🎉",
     items: [
       { href: "/reconocimientos", label: "Reconocimientos", icono: "👏", desc: "El muro donde los compañeros se reconocen por los valores de la empresa" },
+      { href: "/publicaciones", label: "Publicaciones del muro", icono: "📷", desc: "Lo que la gente comparte en el muro: publicar como empresa y moderar" },
       { href: "/celebraciones", label: "Cumpleaños y aniversarios", icono: "🎂", desc: "Quién cumple años y quién cumple años en la empresa" },
       { href: "/eventos", label: "Eventos", icono: "📅", desc: "Lo que organiza la empresa: se publica, la gente confirma y se sabe con cuántos contar" },
       { href: "/referidos", label: "Programa de referidos", icono: "🤝", desc: "Los empleados recomiendan gente para las búsquedas abiertas" },

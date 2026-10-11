@@ -43,6 +43,12 @@ export default function Lista({ inicial, companieros }: { inicial: Conv[]; compa
     } catch { setError("No hay conexión. Probá de nuevo."); }
   }
 
+  // Desde el organigrama se llega con ?con=<persona>: se abre esa charla.
+  useEffect(() => {
+    const con = new URLSearchParams(window.location.search).get("con");
+    if (con) abrir(con);
+  }, []);
+
   const filtrados = companieros.filter((c) => c.nombre.toLowerCase().includes(buscar.trim().toLowerCase())).slice(0, 30);
   return (
     <>

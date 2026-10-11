@@ -133,6 +133,8 @@ model Empresa {
   // Chat interno: si los empleados pueden escribirse entre ellos uno a uno
   // (los grupos y el chat con RR.HH. están siempre).
   chatEntreEmpleados Boolean  @default(true)
+  // Muro: si lo que publican los empleados espera el visto bueno de RR.HH.
+  muroConAprobacion  Boolean  @default(false)
   domicilio          String? // para el encabezado del recibo (Ley 27.802) y "lugar de pago"
   logoUrl            String? // logo para la terminal de fichadas (y a futuro, recibos) — sube a Vercel Blob público
   createdAt          DateTime @default(now())
@@ -166,6 +168,7 @@ model Empresa {
   ValorEmpresa              ValorEmpresa[]
   Evento                    Evento[]
   Conversacion              Conversacion[]
+  Publicacion               Publicacion[]
 
   @@map("empresas")
 }
@@ -961,6 +964,7 @@ model Legajo {
   aplausos                 AplausoReconocimiento[]
   asistenciasEvento        AsistenciaEvento[]
   conversaciones           MiembroConversacion[]
+  meGusta                  MeGustaPublicacion[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2260,4 +2264,53 @@ model MensajeChat {
   conversacion Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
 
   @@index([conversacionId, createdAt])
+}
+
+// ── Muro: publicaciones ──────────────────────────────────────────────
+// Lo que la gente (o la empresa) comparte en el muro: un texto y, si
+// quiere, una foto. Es de la empresa: `autorId` va sin relación a Legajo
+// (null = publicó RR.HH. desde el panel).
+model Publicacion {
+  id          String   @id @default(uuid())
+  empresaId   String
+  autorId     String?
+  autorNombre String
+  texto       String
+  fotoKey     String? // referencia en Vercel Blob (privado)
+  fotoBase64  String? // solo desarrollo, cuando no hay Blob
+  fotoMime    String?
+  pendiente   Boolean  @default(false) // espera el visto bueno de RR.HH.
+  oculto      Boolean  @default(false) // RR.HH. la sacó del muro
+  ocultoPor   String?
+  createdAt   DateTime @default(now())
+
+  empresa     Empresa                 @relation(fields: [empresaId], references: [id])
+  meGusta     MeGustaPublicacion[]
+  comentarios ComentarioPublicacion[]
+
+  @@index([empresaId, createdAt])
+}
+
+model MeGustaPublicacion {
+  publicacionId String
+  legajoId      String
+
+  publicacion Publicacion @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  legajo      Legajo      @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@id([publicacionId, legajoId])
+}
+
+model ComentarioPublicacion {
+  id            String   @id @default(uuid())
+  publicacionId String
+  autorId       String? // null = RR.HH.
+  autorNombre   String
+  texto         String
+  oculto        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  publicacion Publicacion @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+
+  @@index([publicacionId, createdAt])
 }

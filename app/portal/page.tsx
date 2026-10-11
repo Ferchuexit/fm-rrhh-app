@@ -63,6 +63,8 @@ export default async function PortalInicio() {
     { href: "/portal/evaluaciones", icono: "📊", label: "Evaluaciones", globo: evaluacionesPendientes },
     { href: "/portal/objetivos", icono: "🎯", label: "Objetivos", globo: 0 },
     { href: "/portal/chat", icono: "💬", label: "Chat", globo: chatPendiente },
+    { href: "/portal/agenda", icono: "🗓️", label: "Agenda", globo: 0 },
+    { href: "/portal/organigrama", icono: "🌳", label: "Organigrama", globo: 0 },
     { href: "/portal/muro", icono: "👏", label: "Muro", globo: 0 },
     ...(eventosPorVenir.length > 0 ? [{ href: "/portal/eventos", icono: "📅", label: "Eventos", globo: eventosPendientes }] : []),
     ...(conReferidos > 0 ? [{ href: "/portal/referidos", icono: "🤝", label: "Recomendá", globo: 0 }] : []),
