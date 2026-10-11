@@ -12,6 +12,7 @@ import { encuestasPendientesDe } from "@/lib/encuestas";
 import { busquedasInternas, busquedasConReferidos } from "@/lib/reclutamiento";
 import { eventosDe } from "@/lib/eventos";
 import { chatSinLeer } from "@/lib/chat";
+import { eppSinFirmar } from "@/lib/epp";
 import { festejosDeHoy, textoCelebracion } from "@/lib/cultura";
 import { hoyArgentina } from "@/lib/ausencias-reglas";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,8 @@ export default async function PortalInicio() {
   const eventosPendientes = eventosPorVenir.filter((e) => e.estado === "publicado" && e.pideConfirmacion && !e.mia && (e.limiteConfirmar ?? e.fecha) >= hoyArgentina()).length;
   const conReferidos = await busquedasConReferidos(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const hayBiblioteca = await prisma.articuloBiblioteca.count({ where: { empresaId: sesion.empresaId, estado: "publicado" } }).catch(() => 0);
+  const eppPendiente = await eppSinFirmar(sesion.legajoId).catch(() => 0);
+  const tieneEpp = eppPendiente > 0 || (await prisma.entregaEpp.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0 || (await prisma.elementoEpp.count({ where: { empresaId: sesion.empresaId, activo: true } }).catch(() => 0)) > 0;
   const chatPendiente = await chatSinLeer(sesion.legajoId).catch(() => 0);
   const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
@@ -66,6 +69,7 @@ export default async function PortalInicio() {
     { href: "/portal/chat", icono: "💬", label: "Chat", globo: chatPendiente },
     { href: "/portal/agenda", icono: "🗓️", label: "Agenda", globo: 0 },
     { href: "/portal/organigrama", icono: "🌳", label: "Organigrama", globo: 0 },
+    ...(tieneEpp ? [{ href: "/portal/epp", icono: "🦺", label: "Mis elementos", globo: eppPendiente }] : []),
     ...(hayBiblioteca > 0 ? [{ href: "/portal/biblioteca", icono: "📚", label: "Librería", globo: 0 }] : []),
     { href: "/portal/muro", icono: "👏", label: "Muro", globo: 0 },
     ...(eventosPorVenir.length > 0 ? [{ href: "/portal/eventos", icono: "📅", label: "Eventos", globo: eventosPendientes }] : []),

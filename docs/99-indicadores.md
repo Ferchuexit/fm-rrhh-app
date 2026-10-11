@@ -15,6 +15,7 @@ se guarda en PDF.
 | Clima | % de respuestas favorables, eNPS, participación, por tema (de peor a mejor), evolución entre encuestas | Encuestas cerradas |
 | Documentación | % de legajos completos, avance total, qué espera al empleado y qué a RR.HH., avance por documento | Legajo digital |
 | Capacitación | Realizadas, asistencia, % de la dotación capacitada, horas por empleado, constancias sin firmar, habilitaciones vencidas y por vencer | Capacitaciones y Habilidades |
+| EPP | % de gente protegida, nunca entregados, vencidos, por vencer, sin firma, qué falta reponer | EPP y ropa de trabajo (ver `100`) |
 | Ingresos y egresos | En curso, tareas a tiempo, tareas vencidas (y de quién), días para completar, % con entrevista de salida, recontratables | Onboarding y Offboarding |
 | Vacantes y reclutamiento | Vacantes por puesto, búsquedas abiertas, tiempo de cobertura, hasta dónde llegan los candidatos, de dónde llegan | Puestos y Reclutamiento |
 | Desempeño y cultura | Evaluaciones completadas y firmadas, objetivos cumplidos y vencidos, gente reconocida, uso del portal | Evaluaciones, Objetivos, Reconocimientos, Accesos |
@@ -44,8 +45,6 @@ tareas a tiempo 85 %. Pendiente: que cada empresa las ajuste desde pantalla.
 
 ## Lo que todavía no se puede medir
 
-- **Entrega de EPP**: no hay registro de entregas (solo una tarea en el
-  ingreso). Hace falta el módulo.
 - Sanciones que no sean suspensión (apercibimientos): no hay registro.
 - Saldo de vacaciones pendientes por persona en el tablero.
 

@@ -157,6 +157,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     items: [
       { href: "/onboarding", label: "Onboarding", icono: "🚀", desc: "Pasos de ingreso de cada empleado nuevo: quién hace qué y cómo viene" },
       { href: "/offboarding", label: "Offboarding", icono: "🚪", desc: "Pasos de salida de quien deja la empresa, entrevista de salida y motivos de rotación" },
+      { href: "/epp", label: "EPP y ropa de trabajo", icono: "🦺", desc: "Qué le corresponde a cada uno, entregas con firma, vencimientos y la planilla de constancia" },
       { href: "/legajo-digital", label: "Legajo digital", icono: "📁", desc: "Checklist de documentación de cada empleado y revisión" },
       { href: "/vacaciones", label: "Vacaciones", icono: "🏖️", desc: "Notificación, pendientes, Gantt" },
       { href: "/solicitudes", label: "Solicitudes", icono: "📨", desc: "Pedidos de vacaciones y permisos para aprobar" },

@@ -305,9 +305,20 @@ export default function IndicadoresPage() {
             )}
           </Seccion>
 
-          {/* ── EPP: todavía no hay de dónde sacarlo ── */}
-          <Seccion titulo="Entrega de elementos de protección (EPP)">
-            <SinDatos><strong style={{ color: TINTA }}>Todavía no se mide.</strong> El sistema no tiene un registro de entregas de EPP: hoy solo figura como una tarea del ingreso. Para tener este indicador (quién tiene qué, qué está vencido, entregas con firma) hace falta sumar ese módulo.</SinDatos>
+          {/* ── EPP ── */}
+          <Seccion titulo="Elementos de protección (EPP) y ropa de trabajo" href="/epp" enlace="EPP">
+            {!d.epp ? <SinDatos>No se pudo calcular.</SinDatos> : d.epp.catalogo === 0 || d.epp.personas === 0 ? <SinDatos>Todavía no se definió qué elementos le corresponden a cada sector o puesto. Se carga en <a href="/epp">EPP y ropa de trabajo</a> → Catálogo.</SinDatos> : (
+              <>
+                <div style={fila}>
+                  <Dato titulo="Gente protegida" valor={num(d.epp.pctProtegidas, " %")} estado={semaforo(d.epp.pctProtegidas, R.epp)} nota={`${d.epp.protegidas} de ${d.epp.personas} con todo entregado y vigente`} />
+                  <Dato titulo="Nunca entregados" valor={num(d.epp.falta)} estado={d.epp.falta > 0 ? "critico" : "bien"} nota="elementos que corresponden" />
+                  <Dato titulo="Vencidos" valor={num(d.epp.vencido)} estado={d.epp.vencido > 0 ? "critico" : "bien"} nota="hay que reponerlos" />
+                  <Dato titulo="Vencen en 30 días" valor={num(d.epp.porVencer)} estado={d.epp.porVencer > 0 ? "atencion" : "bien"} nota="para anticipar la compra" />
+                  <Dato titulo="Sin la firma" valor={num(d.epp.sinFirmar)} estado={d.epp.sinFirmar > 0 ? "atencion" : "bien"} nota="entregas sin confirmar" />
+                </div>
+                {d.epp.porElemento.some((e: any) => e.falta + e.vencido > 0) && <div style={caja}><strong style={{ fontSize: "0.95rem" }}>Qué falta entregar o reponer</strong><div style={{ fontSize: "0.8rem", color: SUAVE }}>Personas a las que les corresponde y no lo tienen vigente</div><Barras datos={d.epp.porElemento.filter((e: any) => e.falta + e.vencido > 0).sort((a: any, b: any) => b.falta + b.vencido - a.falta - a.vencido).map((e: any) => ({ nombre: e.nombre, valor: e.falta + e.vencido, detalle: `de ${e.corresponde}` }))} /></div>}
+              </>
+            )}
           </Seccion>
 
           {/* ── Onboarding y offboarding ── */}

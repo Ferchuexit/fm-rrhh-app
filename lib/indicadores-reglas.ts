@@ -148,6 +148,7 @@ export const REFERENCIAS = {
   clima: { bien: 70, atencion: 55, mayorEsMejor: true, texto: "70 % favorable o más" },
   documentacion: { bien: 90, atencion: 70, mayorEsMejor: true, texto: "90 % de legajos completos" },
   asistenciaCapacitacion: { bien: 90, atencion: 75, mayorEsMejor: true, texto: "90 % o más" },
+  epp: { bien: 100, atencion: 90, mayorEsMejor: true, texto: "100 % de la gente con todo entregado y vigente" },
   tareasATiempo: { bien: 85, atencion: 65, mayorEsMejor: true, texto: "85 % o más" },
 } as const;
 export const estadoDe = (clave: keyof typeof REFERENCIAS, valor: number | null) => semaforo(valor, REFERENCIAS[clave].bien, REFERENCIAS[clave].atencion, REFERENCIAS[clave].mayorEsMejor);
@@ -160,6 +161,7 @@ export interface DatosAlertas {
   constanciasSinFirmar: number; habilidadesVencidas: number; habilidadesPorVencer: number;
   tareasIngresoVencidas: number; tareasEgresoVencidas: number; egresosSinEntrevista: number;
   vacantes: number; busquedasViejas: number; candidatosSinRevisar: number; evaluacionesPendientes: number; objetivosVencidos: number; picoVacaciones: number; dotacion: number;
+  eppSinProteccion?: number; eppPorVencer?: number; eppSinFirmar?: number;
 }
 const n = (cant: number, uno: string, varios: string) => `${cant} ${cant === 1 ? uno : varios}`;
 export function alertas(d: DatosAlertas): Alerta[] {
@@ -179,6 +181,9 @@ export function alertas(d: DatosAlertas): Alerta[] {
   sumar(d.docPendientesRrhh > 0, "atencion", `Hay ${n(d.docPendientesRrhh, "documento esperando", "documentos esperando")} revisión de RR.HH.`, "/legajo-digital");
   sumar(d.habilidadesVencidas > 0, "critico", `${n(d.habilidadesVencidas, "habilitación vencida", "habilitaciones vencidas")}: gente que no debería estar haciendo esa tarea.`, "/habilidades");
   sumar(d.habilidadesPorVencer > 0, "atencion", `${n(d.habilidadesPorVencer, "habilitación vence", "habilitaciones vencen")} en los próximos 60 días.`, "/habilidades");
+  sumar((d.eppSinProteccion ?? 0) > 0, "critico", `${n(d.eppSinProteccion ?? 0, "persona tiene", "personas tienen")} elementos de protección sin entregar o vencidos.`, "/epp");
+  sumar((d.eppPorVencer ?? 0) > 0, "atencion", `${n(d.eppPorVencer ?? 0, "elemento de protección vence", "elementos de protección vencen")} en los próximos 30 días.`, "/epp");
+  sumar((d.eppSinFirmar ?? 0) > 0, "atencion", `${n(d.eppSinFirmar ?? 0, "entrega de EPP sin", "entregas de EPP sin")} la firma del empleado.`, "/epp");
   sumar(d.constanciasSinFirmar > 0, "atencion", `${n(d.constanciasSinFirmar, "constancia de capacitación sin firmar", "constancias de capacitación sin firmar")} por el empleado.`, "/capacitaciones");
   sumar(d.tareasIngresoVencidas > 0, "atencion", `${n(d.tareasIngresoVencidas, "tarea de ingreso vencida", "tareas de ingreso vencidas")}.`, "/onboarding");
   sumar(d.tareasEgresoVencidas > 0, "atencion", `${n(d.tareasEgresoVencidas, "tarea de egreso vencida", "tareas de egreso vencidas")}.`, "/offboarding");

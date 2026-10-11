@@ -44,6 +44,7 @@ export const MODULOS: DefModulo[] = [
     clave: "configuracion", nombre: "Configuración de sueldos", bloque: "Liquidación de sueldos", desc: "Convenios, categorías, escalas, conceptos, reglas, parámetros — lo que cambia el cálculo de todos",
     rutas: ["/convenios", "/categorias", "/escalas", "/conceptos", "/reglas", "/parametros", "/estado-implementacion", "/actualizaciones-normativas", "/api/convenios", "/api/categorias", "/api/escalas", "/api/conceptos", "/api/reglas", "/api/parametros", "/api/rangos", "/api/estado-implementacion", "/api/actualizaciones-normativas"],
   },
+  { clave: "epp", nombre: "EPP y ropa de trabajo", bloque: "Gestión Humana", desc: "Qué elementos de protección le corresponden a cada uno, entregas con firma y vencimientos", rutas: ["/epp", "/api/epp"] },
   { clave: "indicadores", nombre: "Indicadores de Gestión Humana", bloque: "Gestión Humana", desc: "Tablero con rotación, ausentismo, clima, documentación, capacitación, vacantes y más", rutas: ["/indicadores", "/api/indicadores"] },
   { clave: "agenda", nombre: "Agenda", bloque: "Gestión Humana", desc: "Calendario que junta eventos, capacitaciones, vacaciones, feriados y festejos", rutas: ["/agenda", "/api/agenda"] },
   { clave: "organigrama", nombre: "Organigrama", bloque: "Gestión Humana", desc: "Quién ocupa cada puesto y quién reporta a quién (solo consulta)", rutas: ["/organigrama", "/api/organigrama"] },
@@ -197,7 +198,7 @@ export const ROLES_PREDEFINIDOS: { id: string; nombre: string; descripcion: stri
   },
   {
     id: "rol-supervisor", nombre: "Supervisor", descripcion: "Gestiona a la gente (asistencia, vacaciones, legajo digital, noticias) sin ver sueldos ni liquidaciones.",
-    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar", objetivos: "gestionar", cultura: "gestionar", agenda: "ver", biblioteca: "ver", organigrama: "ver" },
+    permisos: { legajos: "ver", asistencia: "gestionar", vacaciones: "gestionar", legajo_digital: "gestionar", noticias: "gestionar", accesos_portal: "gestionar", capacitaciones: "gestionar", objetivos: "gestionar", cultura: "gestionar", agenda: "ver", biblioteca: "ver", organigrama: "ver", epp: "gestionar" },
   },
   { id: "rol-solo-lectura", nombre: "Solo lectura", descripcion: "Ve todo lo de la empresa (menos la configuración) sin poder modificar nada.", permisos: todo("ver", ["configuracion", "dispositivos"]) },
 ];

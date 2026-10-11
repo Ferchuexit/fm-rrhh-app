@@ -152,6 +152,13 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
     return n;
   });
 
+  // EPP: a quien tiene una entrega sin confirmar, a los 3 días y a los 10.
+  // (El aviso del día de la entrega sale en el momento.)
+  await bloque(resumen, "epp", async () => {
+    const pendientes = await db.entregaEpp.findMany({ where: { firmadoEn: null, enPapel: false, fechaEntrega: { in: [masDias(hoy, -3), masDias(hoy, -10)] }, legajo: activo }, select: { legajoId: true } });
+    return (await avisar([...new Set(pendientes.map((e) => e.legajoId))], { tipo: "epp", titulo: "Falta que confirmes una entrega", cuerpo: "Te entregaron elementos de trabajo y todavía no confirmaste que los recibiste. Es un toque desde el portal.", url: "/portal/epp" })).personas;
+  });
+
   // 8. Encuestas abiertas: a quien todavía no respondió, 2 días antes del
   //    cierre y el último día. Se sabe QUIÉN no respondió (para esto), nunca
   //    qué respondió cada uno. Antes, se cierran las que ya vencieron.

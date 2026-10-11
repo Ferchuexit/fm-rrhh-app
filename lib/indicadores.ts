@@ -10,6 +10,7 @@ import { resumenEmpresa } from "./legajo-digital";
 import { resultados, type Pregunta } from "./encuestas-reglas";
 import { MOTIVOS_EGRESO, MOTIVOS_ENTREVISTA } from "./egresos-reglas";
 import { FUENTES, ETAPAS } from "./reclutamiento-reglas";
+import { estadoEpp } from "./epp";
 import * as R from "./indicadores-reglas";
 export * from "./indicadores-reglas";
 
@@ -132,6 +133,12 @@ export async function indicadores(empresaId: string, hoy: Date, meses: number, s
     };
   });
 
+  // ── EPP y ropa de trabajo ──
+  const epp = await bloque("epp", async () => {
+    const e = await estadoEpp(empresaId, hoy, sectorId);
+    return { catalogo: e.elementos.filter((x) => x.activo).length, ...e.resumen, porElemento: e.porElemento };
+  });
+
   // ── Onboarding y offboarding ──
   const ingresos = await bloque("onboarding", async () => {
     const lista = await prisma.ingreso.findMany({ where: { ...deGente, estado: { not: "cancelado" }, OR: [{ estado: "en_curso" }, { createdAt: { gte: desde } }] }, select: { estado: true, fechaIngreso: true, cerradoEn: true, tareas: { select: { vence: true, hechaEn: true, estado: true, responsable: true } } } });
@@ -219,7 +226,8 @@ export async function indicadores(empresaId: string, hoy: Date, meses: number, s
     tareasIngresoVencidas: ingresos?.vencidas ?? 0, tareasEgresoVencidas: egresos?.vencidas ?? 0, egresosSinEntrevista: egresos?.sinEntrevista ?? 0,
     vacantes: reclutamiento?.vacantes ?? 0, busquedasViejas: reclutamiento?.viejas ?? 0, candidatosSinRevisar: reclutamiento?.sinRevisar ?? 0,
     evaluacionesPendientes: desempeno?.ciclo?.abierto ? desempeno.ciclo.pendientes : 0, objetivosVencidos: desempeno?.objetivos.vencidos ?? 0, picoVacaciones: vacaciones?.pico.personas ?? 0, dotacion: activos.length,
+    eppSinProteccion: epp ? epp.personas - epp.protegidas : 0, eppPorVencer: epp?.porVencer ?? 0, eppSinFirmar: epp?.sinFirmar ?? 0,
   });
 
-  return { hoy, meses, desde, sectores, sectorId, alertas: lista, referencias: R.REFERENCIAS, dotacion, ausentismo, vacaciones, clima, documentacion, capacitacion, ingresos, egresos, reclutamiento, desempeno, cultura };
+  return { hoy, meses, desde, sectores, sectorId, alertas: lista, referencias: R.REFERENCIAS, dotacion, ausentismo, vacaciones, clima, documentacion, capacitacion, epp, ingresos, egresos, reclutamiento, desempeno, cultura };
 }

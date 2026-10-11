@@ -170,6 +170,7 @@ model Empresa {
   Conversacion              Conversacion[]
   Publicacion               Publicacion[]
   ArticuloBiblioteca        ArticuloBiblioteca[]
+  ElementoEpp               ElementoEpp[]
 
   @@map("empresas")
 }
@@ -967,6 +968,7 @@ model Legajo {
   conversaciones           MiembroConversacion[]
   meGusta                  MeGustaPublicacion[]
   lecturasBiblioteca       LecturaBiblioteca[]
+  entregasEpp              EntregaEpp[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2363,4 +2365,59 @@ model LecturaBiblioteca {
 
   @@id([articuloId, legajoId])
   @@index([legajoId])
+}
+
+// ── Elementos de protección personal (EPP) y ropa de trabajo ─────────
+// El catálogo de lo que la empresa entrega y a quién le corresponde cada
+// cosa (a todos, a ciertos sectores o a ciertos puestos).
+model ElementoEpp {
+  id             String   @id @default(uuid())
+  empresaId      String
+  nombre         String // "Calzado de seguridad"
+  tipoModelo     String? // "Botín con puntera de acero"
+  marca          String?
+  certificado    Boolean  @default(true) // si posee certificación
+  // Cada cuánto se repone. null = no tiene vencimiento (se repone por rotura).
+  vidaUtilDias   Int?
+  talle          String? // 'ropa' | 'calzado': de qué talle del legajo depende
+  paraTodos      Boolean  @default(false)
+  centroCostoIds String[]
+  puestoIds      String[]
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  empresa  Empresa      @relation(fields: [empresaId], references: [id])
+  entregas EntregaEpp[]
+
+  @@unique([empresaId, nombre])
+}
+
+// Cada entrega a una persona. Guarda cómo era el elemento ese día (si
+// después cambia la marca en el catálogo, la constancia no cambia). La
+// firma es la conformidad del empleado desde el portal.
+model EntregaEpp {
+  id           String    @id @default(uuid())
+  legajoId     String
+  elementoId   String?
+  producto     String
+  tipoModelo   String?
+  marca        String?
+  certificado  Boolean   @default(true)
+  cantidad     Int       @default(1)
+  talle        String?
+  fechaEntrega DateTime // el día (medianoche UTC)
+  vence        DateTime? // fechaEntrega + vida útil; null = no vence
+  motivo       String    @default("reposicion") // ver MOTIVOS_ENTREGA
+  observacion  String?
+  entregadoPor String?
+  firmadoEn    DateTime?
+  firmaIp      String?
+  enPapel      Boolean   @default(false) // firmó la planilla impresa (lo marca RR.HH.)
+  createdAt    DateTime  @default(now())
+
+  legajo   Legajo       @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  elemento ElementoEpp? @relation(fields: [elementoId], references: [id], onDelete: SetNull)
+
+  @@index([legajoId, fechaEntrega])
+  @@index([elementoId])
 }
