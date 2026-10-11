@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { hoyArgentina } from "@/lib/ausencias-reglas";
-import { CAMPOS_CANDIDATO, FUENTES, resumenBusqueda, validarPostulacion, prepararCV, registrarPostulacion } from "@/lib/reclutamiento";
+import { CAMPOS_CANDIDATO, FUENTES, resumenBusqueda, validarPostulacion, prepararCV, registrarPostulacion, filtrosDe, ordenar, esFinalistaSugerido } from "@/lib/reclutamiento";
 import { avisar, avisoBusquedaInterna, urlBaseDelPedido } from "@/lib/avisos";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +24,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     if (!empresa) return NextResponse.json({ error: "No hay una empresa seleccionada." }, { status: 400 });
     const busqueda = await prisma.busqueda.findFirst({ where: { id: params.id, empresaId: empresa.id }, include: { puesto: { select: { nombre: true } } } });
     if (!busqueda) return NextResponse.json({ error: "No se encontró esa búsqueda." }, { status: 404 });
-    const candidatos = await prisma.candidato.findMany({ where: { busquedaId: busqueda.id }, select: CAMPOS_CANDIDATO, orderBy: [{ puntaje: { sort: "desc", nulls: "last" } }, { createdAt: "asc" }] });
-    return NextResponse.json({ busqueda, candidatos, resumen: resumenBusqueda(busqueda, candidatos, hoyArgentina()), enlace: `${urlBaseDelPedido()}/empleos/${busqueda.id}`, empresa: empresa.nombreFantasia || empresa.razonSocial });
+    const candidatos = await prisma.candidato.findMany({ where: { busquedaId: busqueda.id }, select: CAMPOS_CANDIDATO });
+    // Ordenados por el filtro: arriba los que mejor encajan.
+    return NextResponse.json({ busqueda, candidatos: ordenar(candidatos).map((c) => ({ ...c, finalista: esFinalistaSugerido(c) })), resumen: resumenBusqueda(busqueda, candidatos, hoyArgentina()), enlace: `${urlBaseDelPedido()}/empleos/${busqueda.id}`, empresa: empresa.nombreFantasia || empresa.razonSocial });
   } catch (e) {
     return fallo(e, "GET /api/reclutamiento/[id]");
   }
@@ -48,7 +49,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const fuente = String(form.get("fuente") ?? "manual");
       const cv = await prepararCV(form.get("cv") instanceof File ? (form.get("cv") as File) : null, busqueda.id);
       if ("error" in cv) return NextResponse.json({ error: cv.error }, { status: 400 });
-      const r = await registrarPostulacion(prisma, busqueda.id, datos, { fuente: fuente in FUENTES ? fuente : "manual", cv });
+      const r = await registrarPostulacion(prisma, busqueda.id, datos, { fuente: fuente in FUENTES ? fuente : "manual", cv, filtros: filtrosDe(busqueda) });
       if (r === "repetida") return NextResponse.json({ error: "Ya hay un candidato con ese mail o teléfono en esta búsqueda." }, { status: 409 });
       if (r === "llena") return NextResponse.json({ error: "Esta búsqueda ya tiene demasiados candidatos." }, { status: 409 });
       return NextResponse.json({ ok: true });
@@ -66,6 +67,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         await avisar(empleados.map((l) => l.id), avisoBusquedaInterna(busqueda.titulo));
       }
       return r;
+    }
+    if (body.accion === "preseleccionar") {
+      // Pasa a Preselección a los postulados que el filtro sugiere como
+      // finalistas. Solo adelanta ese paso: nadie queda descartado.
+      if (busqueda.estado === "cerrada") return NextResponse.json({ error: "Esa búsqueda está cerrada." }, { status: 409 });
+      const postulados = await prisma.candidato.findMany({ where: { busquedaId: busqueda.id, etapa: "postulado" }, select: { id: true, puntajeFiltro: true, cumpleExcluyentes: true } });
+      const ids = postulados.filter(esFinalistaSugerido).map((c) => c.id);
+      if (ids.length === 0) return NextResponse.json({ error: "Ningún postulado llega al puntaje para sugerirlo como finalista." }, { status: 400 });
+      await prisma.candidato.updateMany({ where: { id: { in: ids }, etapa: "postulado" }, data: { etapa: "preseleccion", etapaDesde: new Date() } });
+      return NextResponse.json({ ok: true, pasaron: ids.length });
     }
     if (body.accion === "pausar") return cambiar(["abierta"], { estado: "pausada" }, "Esa búsqueda no está abierta.");
     if (body.accion === "reanudar") return cambiar(["pausada"], { estado: "abierta" }, "Esa búsqueda no está pausada.");

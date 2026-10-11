@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
-import { registrarPostulacion } from "@/lib/reclutamiento";
+import { registrarPostulacion, filtrosDe, limpiarRespuestasFiltro } from "@/lib/reclutamiento";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +14,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!sesion) return NextResponse.json({ error: "Tu sesión venció. Volvé a ingresar." }, { status: 401 });
     const body = await req.json().catch(() => ({}));
     const [busqueda, legajo] = await Promise.all([
-      prisma.busqueda.findFirst({ where: { id: params.id, empresaId: sesion.empresaId, estado: "abierta", interna: true }, select: { id: true } }),
+      prisma.busqueda.findFirst({ where: { id: params.id, empresaId: sesion.empresaId, estado: "abierta", interna: true }, select: { id: true, preguntas: true, palabrasClave: true } }),
       prisma.legajo.findUnique({ where: { id: sesion.legajoId }, select: { apellido: true, nombre: true, email: true, telefono: true, localidad: true, condicion: true } }),
     ]);
     if (!busqueda || !legajo || legajo.condicion !== "activo") return NextResponse.json({ error: "Esa búsqueda ya no recibe postulaciones." }, { status: 409 });
-    const r = await registrarPostulacion(prisma, busqueda.id, { apellido: legajo.apellido, nombre: legajo.nombre, email: null, telefono: null, localidad: legajo.localidad, mensaje: String(body.mensaje ?? "").trim().slice(0, 1500) || null }, { fuente: "interno", empleadoId: sesion.legajoId });
+    const filtros = filtrosDe(busqueda);
+    const resp = limpiarRespuestasFiltro(filtros.preguntas, body.respuestas, true);
+    if (resp.error) return NextResponse.json({ error: resp.error }, { status: 400 });
+    const r = await registrarPostulacion(prisma, busqueda.id, { apellido: legajo.apellido, nombre: legajo.nombre, email: null, telefono: null, localidad: legajo.localidad, mensaje: String(body.mensaje ?? "").trim().slice(0, 1500) || null }, { fuente: "interno", empleadoId: sesion.legajoId, filtros, respuestas: resp.respuestas });
     if (r === "repetida") return NextResponse.json({ error: "Ya te habías postulado a esta búsqueda." }, { status: 409 });
     if (r === "llena") return NextResponse.json({ error: "Esa búsqueda ya no recibe postulaciones." }, { status: 409 });
     return NextResponse.json({ ok: true });

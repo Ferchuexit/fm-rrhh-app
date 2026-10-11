@@ -115,3 +115,46 @@ npx prisma generate
 - Publicación automática en portales, donde se confirme que se puede.
 - Agenda de entrevistas y mails al candidato desde el sistema.
 - Usar el puesto en el plan de carrera (hoy es texto libre).
+
+## Filtros de preselección
+
+Para que, de muchos postulados, queden arriba los que mejor encajan.
+
+**En cada búsqueda** (al crearla o editarla) se cargan, opcionalmente:
+
+- **Preguntas de filtro** (hasta 10) que el candidato responde al
+  postularse: *Sí/No*, *elegir una opción* o *un número* (años de
+  experiencia). De cada una se define qué respuesta **suma**, su **peso**
+  (deseable, importante, muy importante) y si es **excluyente**.
+- **Palabras clave** que se buscan en el texto del CV y en el mensaje.
+
+**El puntaje** es el porcentaje de puntos que sumó (cada pregunta su peso,
+cada palabra clave 1). En el tablero:
+
+- Los candidatos salen **ordenados**: primero los que cumplen los
+  excluyentes, por puntaje; después los sin evaluar; al fondo, los que no
+  cumplen algún excluyente (marcados con ✗).
+- **"Pasar a Preselección"** adelanta de un toque a los postulados que
+  llegan a 70 % cumpliendo los excluyentes.
+- En la ficha de cada uno se ve el **porqué**: qué respondió, qué sumó y qué
+  palabras clave aparecen en su CV.
+
+**Criterios**
+
+- El filtro **ordena y marca, no descarta**. Descartar sigue siendo una
+  decisión de una persona, con su motivo.
+- El candidato ve las preguntas pero **no cuál respuesta suma** ni cuál es
+  excluyente (no viaja al navegador).
+- Un CV escaneado como foto no tiene texto: en ese caso las palabras clave
+  **no suman ni restan**.
+- Quien se carga a mano no responde preguntas: queda "sin evaluar" (si
+  tiene CV con texto, se le evalúan las palabras clave).
+- Las preguntas **no se pueden cambiar** una vez que alguien las respondió;
+  las palabras clave sí, y se recalcula el puntaje de todos.
+- La **base de candidatos** ahora también busca dentro del texto de los CV.
+- No hay inteligencia artificial: es una cuenta que se puede explicar
+  candidato por candidato.
+
+Técnico: `lib/reclutamiento-filtros.ts`
+(`tests/reclutamiento-filtros.test.mjs`); el texto del CV se extrae con
+`unpdf` (dependencia nueva: correr `npm install`). Migración `filtros_ats`.

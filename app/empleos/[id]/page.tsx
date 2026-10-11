@@ -6,6 +6,7 @@
 import type { Metadata } from "next";
 import { prismaSistema } from "@/lib/prisma";
 import { fuenteValida } from "@/lib/reclutamiento-reglas";
+import { preguntasPublicas } from "@/lib/reclutamiento-filtros";
 import FormularioPostulacion from "./FormularioPostulacion";
 import "../empleos.css";
 
@@ -14,7 +15,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 const buscar = (id: string) =>
   UUID.test(id)
-    ? prismaSistema.busqueda.findFirst({ where: { id, publica: true, estado: { in: ["abierta", "pausada", "cerrada"] } }, select: { id: true, titulo: true, descripcion: true, requisitos: true, ofrecemos: true, lugar: true, estado: true, empresaId: true, empresa: { select: { razonSocial: true, nombreFantasia: true } } } })
+    ? prismaSistema.busqueda.findFirst({ where: { id, publica: true, estado: { in: ["abierta", "pausada", "cerrada"] } }, select: { id: true, preguntas: true, titulo: true, descripcion: true, requisitos: true, ofrecemos: true, lugar: true, estado: true, empresaId: true, empresa: { select: { razonSocial: true, nombreFantasia: true } } } })
     : null;
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
@@ -41,7 +42,7 @@ export default async function Empleo({ params, searchParams }: { params: { id: s
               {b.ofrecemos && <><h2>Ofrecemos</h2><p className="e-texto">{b.ofrecemos}</p></>}
             </div>
             {b.estado === "abierta"
-              ? <FormularioPostulacion id={b.id} fuente={fuenteValida(searchParams.f)} empresa={empresa} />
+              ? <FormularioPostulacion id={b.id} fuente={fuenteValida(searchParams.f)} empresa={empresa} preguntas={preguntasPublicas(b.preguntas)} />
               : <div className="e-aviso ok">Esta búsqueda ya no recibe postulaciones. ¡Gracias por tu interés!</div>}
             <p className="e-pie"><a href={`/empleos?e=${b.empresaId}`}>Ver todas las búsquedas de {empresa}</a></p>
           </>

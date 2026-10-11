@@ -2,8 +2,10 @@
 // El formulario público de postulación. Pocos campos: quien busca trabajo
 // desde el celular abandona un formulario largo.
 import { useState } from "react";
+import type { PreguntaPublica } from "@/lib/reclutamiento-filtros";
+import CamposFiltro from "../CamposFiltro";
 
-export default function FormularioPostulacion({ id, fuente, empresa }: { id: string; fuente: string; empresa: string }) {
+export default function FormularioPostulacion({ id, fuente, empresa, preguntas }: { id: string; fuente: string; empresa: string; preguntas: PreguntaPublica[] }) {
   const [estado, setEstado] = useState<"" | "enviando" | "listo">("");
   const [error, setError] = useState("");
 
@@ -38,6 +40,7 @@ export default function FormularioPostulacion({ id, fuente, empresa }: { id: str
         <label className="e-campo">Mail<input name="email" type="email" maxLength={120} autoComplete="email" /></label>
       </div>
       <label className="e-campo">Localidad <small>(opcional)</small><input name="localidad" maxLength={80} autoComplete="address-level2" /></label>
+      {preguntas.length > 0 && <><h2>Algunas preguntas</h2><CamposFiltro preguntas={preguntas} clase="e-campo" /></>}
       <label className="e-campo">CV en PDF <small>(opcional, hasta 4 MB)</small><input name="cv" type="file" accept="application/pdf" /></label>
       <label className="e-campo">Contanos algo de vos <small>(opcional: experiencia, disponibilidad)</small><textarea name="mensaje" rows={4} maxLength={1500} /></label>
       {/* Trampa para robots: una persona no lo ve ni lo completa. */}

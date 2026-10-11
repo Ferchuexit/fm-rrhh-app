@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 60);
     const contiene = { contains: q, mode: "insensitive" as const };
     const candidatos = await prisma.candidato.findMany({
-      where: { busqueda: { empresaId: empresa.id }, ...(q ? { OR: [{ apellido: contiene }, { nombre: contiene }, { localidad: contiene }, { notas: contiene }, { mensaje: contiene }, { busqueda: { titulo: contiene } }] } : {}) },
+      where: { busqueda: { empresaId: empresa.id }, ...(q ? { OR: [{ apellido: contiene }, { nombre: contiene }, { localidad: contiene }, { notas: contiene }, { mensaje: contiene }, { cvTexto: contiene }, { busqueda: { titulo: contiene } }] } : {}) },
       select: { ...CAMPOS_CANDIDATO, busqueda: { select: { titulo: true, estado: true } } },
       orderBy: [{ puntaje: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 100,
     });

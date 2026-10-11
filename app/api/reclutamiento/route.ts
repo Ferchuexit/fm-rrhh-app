@@ -2,11 +2,12 @@
 // Búsquedas de la empresa actual, con cuántos candidatos hay en cada etapa.
 // POST crea una búsqueda o edita una existente.
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { obtenerSesionActual } from "@/lib/auth";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { hoyArgentina } from "@/lib/ausencias-reglas";
-import { validarBusqueda, resumenBusqueda } from "@/lib/reclutamiento";
+import { validarBusqueda, resumenBusqueda, limpiarFiltros, limpiarPalabras, recalcularFiltros } from "@/lib/reclutamiento";
 
 export const dynamic = "force-dynamic";
 
@@ -40,17 +41,30 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const { datos, error } = validarBusqueda(body);
     if (error) return NextResponse.json({ error }, { status: 400 });
+    const filtros = limpiarFiltros(body.preguntas);
+    if (filtros.error) return NextResponse.json({ error: filtros.error }, { status: 400 });
+    const palabrasClave = limpiarPalabras(body.palabrasClave);
     const puestoId = body.puestoId ? String(body.puestoId) : null;
     if (puestoId && !(await prisma.puesto.findFirst({ where: { id: puestoId, empresaId: empresa.id }, select: { id: true } }))) return NextResponse.json({ error: "Ese puesto ya no existe. Recargá la página." }, { status: 400 });
 
     if (body.id) {
       // Se puede corregir el aviso con la búsqueda abierta (un error de
       // tipeo, sumar una vacante); cerrada, ya es historia.
-      const { count } = await prisma.busqueda.updateMany({ where: { id: String(body.id), empresaId: empresa.id, estado: { not: "cerrada" } }, data: { ...datos, puestoId } });
-      if (count === 0) return NextResponse.json({ error: "Esa búsqueda está cerrada o no existe." }, { status: 409 });
+      const id = String(body.id);
+      const actual = await prisma.busqueda.findFirst({ where: { id, empresaId: empresa.id, estado: { not: "cerrada" } }, select: { preguntas: true } });
+      if (!actual) return NextResponse.json({ error: "Esa búsqueda está cerrada o no existe." }, { status: 409 });
+      // Las preguntas de filtro no se cambian si alguien ya las respondió:
+      // sus respuestas quedarían apuntando a otra pregunta. Las palabras
+      // clave sí (se recalcula el puntaje de todos).
+      // (Las guardadas se pasan por el mismo limpiador: la base devuelve las
+      // claves en otro orden y la comparación daría distinto sin serlo.)
+      const cambianPreguntas = JSON.stringify(limpiarFiltros(actual.preguntas).preguntas) !== JSON.stringify(filtros.preguntas);
+      if (cambianPreguntas && (await prisma.candidato.count({ where: { busquedaId: id, NOT: { respuestas: { equals: Prisma.DbNull } } } })) > 0) return NextResponse.json({ error: "Ya hay candidatos que respondieron las preguntas de filtro: no se pueden cambiar. Sí podés cambiar las palabras clave y el resto del aviso." }, { status: 409 });
+      await prisma.busqueda.update({ where: { id }, data: { ...datos, puestoId, preguntas: filtros.preguntas as any, palabrasClave } });
+      await recalcularFiltros(id, { preguntas: filtros.preguntas, palabras: palabrasClave });
       return NextResponse.json({ ok: true, id: body.id });
     }
-    const creada = await prisma.busqueda.create({ data: { empresaId: empresa.id, puestoId, creadaPor: sesion.email, ...datos } });
+    const creada = await prisma.busqueda.create({ data: { empresaId: empresa.id, puestoId, creadaPor: sesion.email, ...datos, preguntas: filtros.preguntas as any, palabrasClave } });
     return NextResponse.json({ ok: true, id: creada.id });
   } catch (e: any) {
     console.error("Error en POST /api/reclutamiento:", e);

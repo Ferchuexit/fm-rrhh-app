@@ -4,14 +4,15 @@
 // del puesto), publicarla, seguir a los candidatos por etapa y volver a
 // encontrar a los de búsquedas anteriores.
 import { useEffect, useState } from "react";
+import { PESOS, TIPOS_FILTRO, UMBRAL_FINALISTA, detalleRespuestas, type PreguntaFiltro, type RespuestasFiltro, type TipoFiltro } from "@/lib/reclutamiento-filtros";
 import { ETAPAS, ESTADOS_BUSQUEDA, FUENTES, FUENTES_PARA_ENLACE, MOTIVOS_DESCARTE, avisoDesdePuesto, textoParaPortal } from "@/lib/reclutamiento-reglas";
 
 type Resumen = { total: number; porEtapa: Record<string, number>; enProceso: number; sinRevisar: number; cubiertas: number; dias: number | null; fuentes: { fuente: string; nombre: string; total: number; avanzaron: number; contratados: number }[] };
-type Busqueda = { id: string; puestoId: string | null; titulo: string; descripcion: string; requisitos: string | null; ofrecemos: string | null; lugar: string | null; vacantes: number; publica: boolean; interna: boolean; estado: string; motivoCierre: string | null; puesto: { nombre: string } | null; resumen: Resumen };
+type Busqueda = { id: string; puestoId: string | null; titulo: string; descripcion: string; requisitos: string | null; ofrecemos: string | null; lugar: string | null; vacantes: number; publica: boolean; interna: boolean; estado: string; motivoCierre: string | null; preguntas: PreguntaFiltro[]; palabrasClave: string[]; puesto: { nombre: string } | null; resumen: Resumen };
 type Puesto = { id: string; nombre: string; mision: string | null; tareas: string | null; requisitos: string | null; condiciones: string | null; centroCosto: { nombre: string } | null };
-type Candidato = { id: string; busquedaId: string; apellido: string; nombre: string; email: string | null; telefono: string | null; localidad: string | null; mensaje: string | null; fuente: string; empleadoId: string | null; cvNombre: string | null; etapa: string; etapaDesde: string; motivoDescarte: string | null; puntaje: number | null; notas: string | null; createdAt: string; busqueda?: { titulo: string; estado: string } };
+type Candidato = { id: string; busquedaId: string; apellido: string; nombre: string; email: string | null; telefono: string | null; localidad: string | null; mensaje: string | null; fuente: string; empleadoId: string | null; cvNombre: string | null; etapa: string; etapaDesde: string; motivoDescarte: string | null; puntaje: number | null; notas: string | null; createdAt: string; respuestas: RespuestasFiltro | null; puntajeFiltro: number | null; cumpleExcluyentes: boolean | null; noCumple: string[]; palabrasHalladas: string[]; finalista?: boolean; busqueda?: { titulo: string; estado: string } };
 type Detalle = { busqueda: Busqueda; candidatos: Candidato[]; resumen: Resumen; enlace: string; empresa: string };
-type Form = { id: string; puestoId: string; titulo: string; descripcion: string; requisitos: string; ofrecemos: string; lugar: string; vacantes: string; publica: boolean; interna: boolean };
+type Form = { id: string; puestoId: string; titulo: string; descripcion: string; requisitos: string; ofrecemos: string; lugar: string; vacantes: string; publica: boolean; interna: boolean; preguntas: PreguntaFiltro[]; palabrasClave: string };
 
 const dia = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 const caja: React.CSSProperties = { background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1rem", maxWidth: "1100px" };
@@ -19,7 +20,7 @@ const btnSec: React.CSSProperties = { background: "white", color: "#163A5C", bor
 const chico: React.CSSProperties = { padding: "0.2rem 0.6rem", fontSize: "0.8rem" };
 const rotulo: React.CSSProperties = { fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "#6b727b", margin: "1rem 0 0.4rem" };
 const COLOR_ESTADO: Record<string, string> = { borrador: "#9aa5b1", abierta: "#2F6F5E", pausada: "#B8752B", cerrada: "#6b727b" };
-const VACIA: Form = { id: "", puestoId: "", titulo: "", descripcion: "", requisitos: "", ofrecemos: "", lugar: "", vacantes: "1", publica: true, interna: false };
+const VACIA: Form = { id: "", puestoId: "", titulo: "", descripcion: "", requisitos: "", ofrecemos: "", lugar: "", vacantes: "1", publica: true, interna: false, preguntas: [], palabrasClave: "" };
 
 async function enviar(url: string, cuerpo: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
@@ -41,6 +42,7 @@ export default function ReclutamientoPage() {
   const [copiado, setCopiado] = useState("");
   const [manual, setManual] = useState(false);
   const [verCerradas, setVerCerradas] = useState(false);
+  const [soloCumplen, setSoloCumplen] = useState(false);
   const [q, setQ] = useState("");
   const [banco, setBanco] = useState<Candidato[] | null>(null);
 
@@ -146,6 +148,15 @@ export default function ReclutamientoPage() {
           <div style={{ marginTop: "0.5rem", borderTop: "1px solid #EEF1F4", paddingTop: "0.5rem" }}>
             <div>{c.telefono && <>📞 <a href={`tel:${c.telefono}`}>{c.telefono}</a> </>}{c.email && <>· ✉ <a href={`mailto:${c.email}`}>{c.email}</a> </>}{c.empleadoId && !c.telefono && !c.email && <>Es empleado: sus datos están en su <a href={`/legajos/${c.empleadoId}/editar`}>legajo</a>. </>}{c.cvNombre && <>· <a href={`/api/reclutamiento/candidatos/${c.id}/cv`} target="_blank" rel="noreferrer"><strong>Ver CV</strong></a></>}</div>
             {c.mensaje && <div style={{ whiteSpace: "pre-wrap", color: "#4A4F58", margin: "0.3rem 0" }}>«{c.mensaje}»</div>}
+            {b && (c.puntajeFiltro !== null || c.respuestas) && (
+              <div style={{ background: "#F5F7F9", padding: "0.4rem 0.6rem", margin: "0.4rem 0" }}>
+                <strong>Filtro: {c.puntajeFiltro === null ? "sin evaluar" : `${c.puntajeFiltro}%`}</strong>{c.cumpleExcluyentes === false && <span style={{ color: "#B23A3A", fontWeight: 700 }}> · no cumple un excluyente</span>}
+                {c.respuestas && detalleRespuestas(b.preguntas, c.respuestas).map((x, i) => (
+                  <div key={i} style={{ color: x.cumple ? "#215446" : x.excluyente ? "#B23A3A" : "#6b727b" }}>{x.cumple ? "✓" : "✗"} {x.pregunta} <strong>{x.respuesta}</strong>{!x.cumple && x.excluyente && " (excluyente)"}</div>
+                ))}
+                {b.palabrasClave.length > 0 && <div style={{ marginTop: 2 }}>Palabras clave en el CV: {c.palabrasHalladas.length === 0 ? <span style={{ color: "#6b727b" }}>ninguna{!c.cvNombre && " (no subió CV)"}</span> : b.palabrasClave.map((w) => <span key={w} style={{ marginRight: 8, color: c.palabrasHalladas.includes(w) ? "#215446" : "#9aa5b1", fontWeight: c.palabrasHalladas.includes(w) ? 700 : 400 }}>{c.palabrasHalladas.includes(w) ? "✓" : "·"} {w}</span>)}</div>}
+              </div>
+            )}
             {c.etapa === "descartado" && c.motivoDescarte && <div style={{ color: "#B23A3A" }}>Descartado: {MOTIVOS_DESCARTE[c.motivoDescarte] ?? c.motivoDescarte}</div>}
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "0.4rem" }}>
               <span>Valoración:</span>
@@ -186,7 +197,7 @@ export default function ReclutamientoPage() {
           {b.estado === "pausada" && <button onClick={() => accion(b, { accion: "reanudar" }, "Reanudada.")}>Reanudar</button>}
           {(b.estado === "abierta" || b.estado === "pausada") && <button onClick={() => accion(b, { accion: "cerrar", motivo: "cubierta" }, "Búsqueda cerrada como cubierta.")} style={btnSec}>Cerrar: se cubrió</button>}
           {(b.estado === "abierta" || b.estado === "pausada") && <button onClick={() => accion(b, { accion: "cerrar", motivo: "cancelada" }, "Búsqueda cancelada.")} style={{ ...btnSec, color: "#B23A3A", borderColor: "#B23A3A" }}>Cancelar la búsqueda</button>}
-          {b.estado !== "cerrada" && <button onClick={() => { setErrorForm(""); setForm({ id: b.id, puestoId: b.puestoId ?? "", titulo: b.titulo, descripcion: b.descripcion, requisitos: b.requisitos ?? "", ofrecemos: b.ofrecemos ?? "", lugar: b.lugar ?? "", vacantes: String(b.vacantes), publica: b.publica, interna: b.interna }); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={btnSec}>Editar el aviso</button>}
+          {b.estado !== "cerrada" && <button onClick={() => { setErrorForm(""); setForm({ id: b.id, puestoId: b.puestoId ?? "", titulo: b.titulo, descripcion: b.descripcion, requisitos: b.requisitos ?? "", ofrecemos: b.ofrecemos ?? "", lugar: b.lugar ?? "", vacantes: String(b.vacantes), publica: b.publica, interna: b.interna, preguntas: b.preguntas.map((x) => ({ ...x })), palabrasClave: b.palabrasClave.join(", ") }); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={btnSec}>Editar el aviso</button>}
           {b.estado === "borrador" && <button onClick={() => accion(b, { accion: "borrar" }, "Borrada.")} style={{ ...btnSec, color: "#B23A3A", borderColor: "#B23A3A" }}>Borrar</button>}
         </div>
         {aviso && <p style={{ color: aviso.ok ? "#2F6F5E" : "#B23A3A", margin: "0.5rem 0 0" }}>{aviso.texto}</p>}
@@ -230,16 +241,28 @@ export default function ReclutamientoPage() {
           </form>
         )}
         {d.candidatos.length === 0 && <p style={{ color: "#6b727b", fontSize: "0.9rem" }}>Todavía no se postuló nadie.</p>}
+        {(b.preguntas.length > 0 || b.palabrasClave.length > 0) && d.candidatos.length > 0 && (() => {
+          const postulados = d.candidatos.filter((c) => c.etapa === "postulado");
+          const sugeridos = postulados.filter((c) => c.finalista).length;
+          const noCumplen = postulados.filter((c) => c.cumpleExcluyentes === false).length;
+          return (
+            <div style={{ background: "#e8f0f6", border: "1px solid #c3d6e5", padding: "0.5rem 0.75rem", marginBottom: "0.6rem", fontSize: "0.88rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+              <span>Ordenados por el filtro: arriba, los que mejor encajan. <strong style={{ color: "#2F6F5E" }}>{sugeridos}</strong> {sugeridos === 1 ? "postulado llega" : "postulados llegan"} a {UMBRAL_FINALISTA}% cumpliendo los excluyentes{noCumplen > 0 && <> · <strong style={{ color: "#B23A3A" }}>{noCumplen}</strong> no {noCumplen === 1 ? "cumple" : "cumplen"} algún excluyente</>}.</span>
+              {sugeridos > 0 && b.estado !== "cerrada" && <button onClick={() => accion(b, { accion: "preseleccionar" }, `${sugeridos === 1 ? "Pasó 1 candidato" : `Pasaron ${sugeridos} candidatos`} a Preselección.`)} style={chico}>Pasar {sugeridos === 1 ? "ese" : `esos ${sugeridos}`} a Preselección</button>}
+              {noCumplen > 0 && <label><input type="checkbox" checked={soloCumplen} onChange={(e) => setSoloCumplen(e.target.checked)} style={{ marginRight: 4 }} />Ocultar los que no cumplen</label>}
+            </div>
+          );
+        })()}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.5rem", alignItems: "start" }}>
           {ETAPAS.filter((et) => d.candidatos.some((c) => c.etapa === et.clave) || !["contratado", "descartado"].includes(et.clave)).map((et) => {
-            const lista = d.candidatos.filter((c) => c.etapa === et.clave);
+            const lista = d.candidatos.filter((c) => c.etapa === et.clave && !(soloCumplen && c.cumpleExcluyentes === false && et.clave === "postulado"));
             return (
               <div key={et.clave} style={{ background: "#F5F7F9", padding: "0.4rem", minHeight: 70 }}>
                 <div style={{ fontSize: "0.8rem", fontWeight: 700, color: et.clave === "descartado" ? "#B23A3A" : et.clave === "contratado" ? "#2F6F5E" : "#163A5C", marginBottom: 6 }}>{et.nombre} <span style={{ fontWeight: 400, color: "#6b727b" }}>{lista.length}</span></div>
                 {lista.map((c) => (
                   <button key={c.id} onClick={() => { setCandidato(candidato === c.id ? null : c.id); setNotas(c.notas ?? ""); setDescarte(null); }} style={{ display: "block", width: "100%", textAlign: "left", background: "white", color: "#2b2f36", border: candidato === c.id ? "2px solid #163A5C" : "1px solid #dfe4e8", padding: "0.35rem 0.5rem", marginBottom: 5, fontSize: "0.85rem", fontWeight: 400 }}>
                     <strong>{c.apellido}, {c.nombre}</strong>{c.empleadoId && <span style={{ color: "#163A5C", fontSize: "0.7rem", fontWeight: 700 }}> · EMPL.</span>}
-                    <span style={{ display: "block", fontSize: "0.75rem", color: "#6b727b" }}>{FUENTES[c.fuente] ?? c.fuente}{c.cvNombre && " · CV"}{c.puntaje ? <span style={{ color: "#B8752B" }}> {"★".repeat(c.puntaje)}</span> : ""}</span>
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "#6b727b" }}>{FUENTES[c.fuente] ?? c.fuente}{c.cvNombre && " · CV"}{c.puntajeFiltro !== null && <strong style={{ color: c.cumpleExcluyentes === false ? "#B23A3A" : c.finalista ? "#2F6F5E" : "#4A4F58" }}> · {c.puntajeFiltro}%{c.cumpleExcluyentes === false && " ✗"}</strong>}{c.puntaje ? <span style={{ color: "#B8752B" }}> {"★".repeat(c.puntaje)}</span> : ""}</span>
                   </button>
                 ))}
               </div>
@@ -317,7 +340,39 @@ export default function ReclutamientoPage() {
                 <label style={{ flex: 1, minWidth: 300 }}>Requisitos<br /><textarea rows={4} maxLength={2000} value={form.requisitos} onChange={(e) => setForm({ ...form, requisitos: e.target.value })} style={{ width: "100%" }} /></label>
                 <label style={{ flex: 1, minWidth: 300 }}>Qué ofrecemos <span style={{ color: "#6b727b" }}>(horario, beneficios)</span><br /><textarea rows={4} maxLength={1500} value={form.ofrecemos} onChange={(e) => setForm({ ...form, ofrecemos: e.target.value })} style={{ width: "100%" }} /></label>
               </div>
-              <div style={{ marginTop: "0.6rem" }}>
+              <div style={{ marginTop: "0.9rem", borderTop: "1px solid #EEF1F4", paddingTop: "0.7rem" }}>
+                <strong style={{ color: "#163A5C" }}>Filtros de preselección</strong> <span style={{ fontSize: "0.85rem", color: "#6b727b" }}>(opcional) — ordenan a los candidatos del que mejor encaja al que menos. No descartan a nadie solos.</span>
+                {form.preguntas.map((q, i) => {
+                  const cambiar = (c: Partial<PreguntaFiltro>) => setForm({ ...form, preguntas: form.preguntas.map((x, k) => (k === i ? { ...x, ...c } : x)) });
+                  return (
+                    <div key={i} style={{ background: "#F5F7F9", padding: "0.5rem", marginTop: "0.4rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end", fontSize: "0.88rem" }}>
+                      <label style={{ flex: 1, minWidth: 260 }}>Pregunta al candidato<br /><input value={q.texto} maxLength={200} onChange={(e) => cambiar({ texto: e.target.value })} placeholder="¿Tenés experiencia con seccionadora?" style={{ width: "100%" }} /></label>
+                      <label>Tipo<br /><select value={q.tipo} onChange={(e) => { const t = e.target.value as TipoFiltro; cambiar(t === "si_no" ? { tipo: t, esperado: "si" } : t === "numero" ? { tipo: t, minimo: 1 } : { tipo: t, opciones: ["", ""], aceptadas: [0] }); }}>{Object.entries(TIPOS_FILTRO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+                      {q.tipo === "si_no" && <label>Suma si responde<br /><select value={q.esperado ?? "si"} onChange={(e) => cambiar({ esperado: e.target.value as "si" | "no" })}><option value="si">Sí</option><option value="no">No</option></select></label>}
+                      {q.tipo === "numero" && <label>Suma desde<br /><input type="number" min={0} step="0.5" value={q.minimo ?? 0} onChange={(e) => cambiar({ minimo: Number(e.target.value) })} style={{ width: 70 }} /></label>}
+                      <label>Peso<br /><select value={q.puntos} onChange={(e) => cambiar({ puntos: Number(e.target.value) })}>{Object.entries(PESOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+                      <label title="Si no la cumple, queda marcado y va al fondo de la lista" style={{ paddingBottom: 4 }}><input type="checkbox" checked={q.excluyente} onChange={(e) => cambiar({ excluyente: e.target.checked })} style={{ marginRight: 4 }} />Excluyente</label>
+                      <button onClick={() => setForm({ ...form, preguntas: form.preguntas.filter((_, k) => k !== i) })} style={{ ...btnSec, ...chico, marginBottom: 2 }} aria-label={`Quitar la pregunta ${i + 1}`}>✕</button>
+                      {q.tipo === "opcion" && (
+                        <div style={{ flexBasis: "100%" }}>
+                          {(q.opciones ?? []).map((o, k) => (
+                            <div key={k} style={{ display: "flex", gap: "0.4rem", alignItems: "center", marginTop: 3 }}>
+                              <input value={o} maxLength={80} placeholder={`Opción ${k + 1}`} onChange={(e) => cambiar({ opciones: q.opciones!.map((x, j) => (j === k ? e.target.value : x)) })} style={{ width: 240 }} />
+                              <label><input type="checkbox" checked={(q.aceptadas ?? []).includes(k)} onChange={() => cambiar({ aceptadas: (q.aceptadas ?? []).includes(k) ? q.aceptadas!.filter((x) => x !== k) : [...(q.aceptadas ?? []), k] })} style={{ marginRight: 4 }} />suma</label>
+                              {q.opciones!.length > 2 && <button onClick={() => cambiar({ opciones: q.opciones!.filter((_, j) => j !== k), aceptadas: (q.aceptadas ?? []).filter((x) => x !== k).map((x) => (x > k ? x - 1 : x)) })} style={{ ...btnSec, ...chico }}>✕</button>}
+                            </div>
+                          ))}
+                          {q.opciones!.length < 8 && <button onClick={() => cambiar({ opciones: [...q.opciones!, ""] })} style={{ ...btnSec, ...chico, marginTop: 4 }}>+ Opción</button>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {form.preguntas.length < 10 && <button onClick={() => setForm({ ...form, preguntas: [...form.preguntas, { texto: "", tipo: "si_no", excluyente: false, puntos: 1, esperado: "si" }] })} style={{ ...btnSec, ...chico, marginTop: "0.5rem" }}>+ Pregunta de filtro</button>}
+                <label style={{ display: "block", marginTop: "0.6rem" }}>Palabras clave para buscar en el CV <span style={{ color: "#6b727b" }}>(separadas por coma)</span><br /><input value={form.palabrasClave} onChange={(e) => setForm({ ...form, palabrasClave: e.target.value })} placeholder="seccionadora, escuadradora, autoelevador" style={{ width: "100%", maxWidth: 800 }} /></label>
+                <p style={{ fontSize: "0.78rem", color: "#6b727b", margin: "0.4rem 0 0" }}>El candidato ve las preguntas, pero no cuál respuesta suma ni cuál es excluyente. Las palabras clave solo se pueden buscar en CV con texto (un CV escaneado como foto no suma ni resta). Preguntá por lo que el puesto necesita de verdad: no por edad, sexo, estado civil, hijos ni lugar de nacimiento.</p>
+              </div>
+              <div style={{ marginTop: "0.9rem" }}>
                 <strong>Dónde se publica:</strong>{" "}
                 <label style={{ marginRight: 14 }}><input type="checkbox" checked={form.publica} onChange={(e) => setForm({ ...form, publica: e.target.checked })} style={{ marginRight: 4 }} />Página de empleos (gente de afuera)</label>
                 <label><input type="checkbox" checked={form.interna} onChange={(e) => setForm({ ...form, interna: e.target.checked })} style={{ marginRight: 4 }} />Búsqueda interna (la ven los empleados en el portal)</label>

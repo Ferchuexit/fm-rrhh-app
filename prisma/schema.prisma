@@ -2008,23 +2008,29 @@ model Puesto {
 // el perfil del puesto y se retoca): cambiar el puesto después no cambia
 // un aviso ya publicado.
 model Busqueda {
-  id           String    @id @default(uuid())
-  empresaId    String
-  puestoId     String?
-  titulo       String
-  descripcion  String // qué va a hacer
-  requisitos   String?
-  ofrecemos    String?
-  lugar        String?
-  vacantes     Int       @default(1)
-  publica      Boolean   @default(true) // tiene página pública de postulación
-  interna      Boolean   @default(false) // se muestra a los empleados en el portal
-  estado       String    @default("borrador") // 'borrador' | 'abierta' | 'pausada' | 'cerrada'
-  motivoCierre String? // 'cubierta' | 'cancelada'
-  creadaPor    String?
-  createdAt    DateTime  @default(now())
-  abiertaEn    DateTime?
-  cerradaEn    DateTime?
+  id            String    @id @default(uuid())
+  empresaId     String
+  puestoId      String?
+  titulo        String
+  descripcion   String // qué va a hacer
+  requisitos    String?
+  ofrecemos     String?
+  lugar         String?
+  // Filtros de preselección (ver lib/reclutamiento-filtros.ts):
+  //   preguntas     → lo que responde el candidato al postularse; cada una
+  //                   puede ser excluyente y vale puntos
+  //   palabrasClave → se buscan en el CV y en el mensaje
+  preguntas     Json      @default("[]")
+  palabrasClave String[]
+  vacantes      Int       @default(1)
+  publica       Boolean   @default(true) // tiene página pública de postulación
+  interna       Boolean   @default(false) // se muestra a los empleados en el portal
+  estado        String    @default("borrador") // 'borrador' | 'abierta' | 'pausada' | 'cerrada'
+  motivoCierre  String? // 'cubierta' | 'cancelada'
+  creadaPor     String?
+  createdAt     DateTime  @default(now())
+  abiertaEn     DateTime?
+  cerradaEn     DateTime?
 
   empresa    Empresa     @relation(fields: [empresaId], references: [id])
   puesto     Puesto?     @relation(fields: [puestoId], references: [id], onDelete: SetNull)
@@ -2034,33 +2040,41 @@ model Busqueda {
 }
 
 model Candidato {
-  id               String    @id @default(uuid())
-  busquedaId       String
-  apellido         String
-  nombre           String
-  email            String?
-  telefono         String?
-  localidad        String?
-  mensaje          String? // lo que escribió al postularse
+  id                String    @id @default(uuid())
+  busquedaId        String
+  apellido          String
+  nombre            String
+  email             String?
+  telefono          String?
+  localidad         String?
+  mensaje           String? // lo que escribió al postularse
   // De dónde llegó: 'web', 'computrabajo', 'bumeran', 'linkedin',
   // 'referido', 'interno', 'manual'… Sale del enlace que se pegó en cada
   // portal, y sirve para saber qué canal trae gente.
-  fuente           String    @default("web")
+  fuente            String    @default("web")
   // Si es un empleado que se postuló desde el portal. Va SIN relación a
   // Legajo a propósito: un candidato es de la búsqueda (de la empresa), no
   // de un sector, y no debe filtrarse por el sector del empleado.
   // (No se llama legajoId: ese nombre lo reserva el control de alcance.)
-  empleadoId       String?
-  cvNombre         String?
-  cvKey            String? // referencia en Vercel Blob (privado)
-  cvBase64         String? // solo desarrollo, cuando no hay Blob
-  etapa            String    @default("postulado") // ver ETAPAS en lib/reclutamiento-reglas.ts
-  etapaDesde       DateTime  @default(now())
-  motivoDescarte   String?
-  puntaje          Int? // 1..5, valoración de RR.HH.
-  notas            String?
-  consentimientoEn DateTime? // cuándo aceptó que se guarden sus datos
-  createdAt        DateTime  @default(now())
+  empleadoId        String?
+  cvNombre          String?
+  cvKey             String? // referencia en Vercel Blob (privado)
+  cvBase64          String? // solo desarrollo, cuando no hay Blob
+  // Resultado de los filtros de la búsqueda. Ordena y marca; NO descarta:
+  // la decisión siempre es de una persona.
+  respuestas        Json? // { "0": "si", "1": 2, "2": 5 }
+  puntajeFiltro     Int? // 0..100; null = sin evaluar (no hay filtros, o se cargó a mano)
+  cumpleExcluyentes Boolean?
+  noCumple          String[] // qué excluyentes no cumple
+  palabrasHalladas  String[]
+  cvTexto           String? // el texto del CV, para buscar palabras clave
+  etapa             String    @default("postulado") // ver ETAPAS en lib/reclutamiento-reglas.ts
+  etapaDesde        DateTime  @default(now())
+  motivoDescarte    String?
+  puntaje           Int? // 1..5, valoración de RR.HH.
+  notas             String?
+  consentimientoEn  DateTime? // cuándo aceptó que se guarden sus datos
+  createdAt         DateTime  @default(now())
 
   busqueda Busqueda @relation(fields: [busquedaId], references: [id], onDelete: Cascade)
 

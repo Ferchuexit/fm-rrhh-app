@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerSesionPortal } from "@/lib/portal";
 import { busquedasInternas } from "@/lib/reclutamiento";
 import Postularme from "./Postularme";
+import { preguntasPublicas } from "@/lib/reclutamiento-filtros";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function PortalEmpleos() {
           <div className="p-card-dato" style={{ whiteSpace: "pre-wrap", marginTop: "0.4rem" }}>{b.descripcion}</div>
           {b.requisitos && <div className="p-card-dato" style={{ whiteSpace: "pre-wrap", marginTop: "0.4rem" }}><strong>Requisitos</strong>{"\n"}{b.requisitos}</div>}
           {b.ofrecemos && <div className="p-card-dato" style={{ whiteSpace: "pre-wrap", marginTop: "0.4rem" }}><strong>Condiciones</strong>{"\n"}{b.ofrecemos}</div>}
-          <Postularme id={b.id} yaPostulado={mias.has(b.id)} />
+          <Postularme id={b.id} yaPostulado={mias.has(b.id)} preguntas={preguntasPublicas(b.preguntas)} />
         </div>
       ))}
       <p className="p-pie">Postularte no cambia nada de tu puesto actual. RR.HH. te contacta para contarte cómo sigue.</p>
