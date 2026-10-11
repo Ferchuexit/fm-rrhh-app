@@ -83,17 +83,18 @@ export const FUENTES: Record<string, string> = { web: "Página de empleos", comp
 export const FUENTES_PARA_ENLACE = ["computrabajo", "bumeran", "zonajobs", "linkedin", "indeed", "facebook", "whatsapp", "referido"];
 export const fuenteValida = (f: unknown) => (typeof f === "string" && f in FUENTES && f !== "interno" && f !== "manual" ? f : "web");
 
-export interface DatosBusqueda { titulo: string; descripcion: string; requisitos: string | null; ofrecemos: string | null; lugar: string | null; vacantes: number; publica: boolean; interna: boolean }
+export interface DatosBusqueda { titulo: string; descripcion: string; requisitos: string | null; ofrecemos: string | null; lugar: string | null; vacantes: number; publica: boolean; interna: boolean; referidos: boolean; premioReferido: string | null }
 export function validarBusqueda(entrada: any): { datos: DatosBusqueda; error: string | null } {
   const datos: DatosBusqueda = {
     titulo: String(entrada?.titulo ?? "").trim().slice(0, 100), descripcion: String(entrada?.descripcion ?? "").replace(/\r/g, "").trim().slice(0, 3000),
     requisitos: texto(entrada?.requisitos, 2000), ofrecemos: texto(entrada?.ofrecemos, 1500), lugar: texto(entrada?.lugar, 100),
     vacantes: Number(entrada?.vacantes ?? 1), publica: entrada?.publica !== false, interna: entrada?.interna === true,
+    referidos: entrada?.referidos === true, premioReferido: entrada?.referidos === true ? texto(entrada?.premioReferido, 120) : null,
   };
   if (datos.titulo.length < 3) return { datos, error: "Ponele un título a la búsqueda (es lo que lee el candidato)." };
   if (datos.descripcion.length < 20) return { datos, error: "Contá qué va a hacer la persona: es lo primero que mira quien se postula." };
   if (!Number.isInteger(datos.vacantes) || datos.vacantes < 1 || datos.vacantes > 200) return { datos, error: "Las vacantes van de 1 a 200." };
-  if (!datos.publica && !datos.interna) return { datos, error: "Elegí dónde se publica: en la página de empleos, a los empleados, o en las dos." };
+  if (!datos.publica && !datos.interna && !datos.referidos) return { datos, error: "Elegí cómo llegan los candidatos: por la página de empleos, como búsqueda interna, por referidos de los empleados, o varias." };
   return { datos, error: null };
 }
 

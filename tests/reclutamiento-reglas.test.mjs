@@ -35,8 +35,10 @@ describe("búsquedas", () => {
     expect(R.validarBusqueda({ ...ok, titulo: "" }).error).toMatch(/título/);
     expect(R.validarBusqueda({ ...ok, descripcion: "Cortar" }).error).toMatch(/qué va a hacer/);
     expect(R.validarBusqueda({ ...ok, vacantes: 0 }).error).toMatch(/vacantes/);
-    expect(R.validarBusqueda({ ...ok, publica: false }).error).toMatch(/dónde se publica/);
+    expect(R.validarBusqueda({ ...ok, publica: false }).error).toMatch(/cómo llegan los candidatos/);
     expect(R.validarBusqueda({ ...ok, publica: false, interna: true }).error).toBeNull();
+    expect(R.validarBusqueda({ ...ok, publica: false, referidos: true, premioReferido: " Un día libre " }).datos).toMatchObject({ referidos: true, premioReferido: "Un día libre" });
+    expect(R.validarBusqueda({ ...ok, premioReferido: "x" }).datos.premioReferido).toBeNull(); // sin referidos no hay premio
   });
   it("arma el aviso desde el perfil del puesto", () => {
     const a = R.avisoDesdePuesto({ nombre: "Operario de seccionadora", mision: "Cortar tableros a medida.", tareas: "- Cortar\n• Medir\n\nLimpiar el puesto", requisitos: "Secundario completo\nExperiencia en carpintería", condiciones: "Lunes a viernes de 6 a 14" }, "Taller");

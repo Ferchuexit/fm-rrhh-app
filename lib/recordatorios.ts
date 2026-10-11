@@ -16,7 +16,8 @@ import { ESTADOS_PERIODO_PUBLICADOS } from "./portal";
 import * as R from "./recordatorios-reglas";
 import { cerrarVencidas, filtroDestinatarios } from "./encuestas";
 import { personasConFechas, celebraciones, textoCelebracion } from "./cultura";
-import { avisoCumple, avisoAniversario, avisoCelebracionesEquipo } from "./avisos";
+import { avisoCumple, avisoAniversario, avisoCelebracionesEquipo, avisoEventoManiana, avisoEventoConfirmar } from "./avisos";
+import { filtroInvitados } from "./eventos";
 
 const DIA = 86400000;
 const masDias = (d: Date, n: number) => new Date(d.getTime() + n * DIA);
@@ -122,6 +123,31 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
         porJefe.set(c.jefeId, [...(porJefe.get(c.jefeId) ?? []), textoCelebracion(c)]);
       }
       for (const [jefeId, lineas] of porJefe) await avisar([jefeId], avisoCelebracionesEquipo(lineas));
+    }
+    return n;
+  });
+
+  // Eventos: el día anterior se les recuerda a los que van (o a todos los
+  // invitados, si el evento no pide confirmación). Y a quien todavía no
+  // respondió, 2 días antes de que cierre la confirmación y el último día.
+  await bloque(resumen, "eventos", async () => {
+    const eventos = await db.evento.findMany({ where: { estado: "publicado", fecha: { gt: hoy } } });
+    let n = 0;
+    for (const e of eventos) {
+      const invitados = (await db.legajo.findMany({ where: filtroInvitados(e), select: { id: true } })).map((l) => l.id);
+      const respuestas = e.pideConfirmacion ? await db.asistenciaEvento.findMany({ where: { eventoId: e.id }, select: { legajoId: true, va: true } }) : [];
+      if (e.fecha.getTime() === masDias(hoy, 1).getTime()) {
+        const van = new Set(respuestas.filter((r) => r.va).map((r) => r.legajoId));
+        n += (await avisar(e.pideConfirmacion ? invitados.filter((id) => van.has(id)) : invitados, avisoEventoManiana(e.titulo, e.hora, e.lugar))).personas;
+      }
+      if (!e.pideConfirmacion) continue;
+      const ultimo = (e.limiteConfirmar ?? e.fecha).getTime();
+      // (Si se confirma hasta el mismo día del evento, el "último día" no
+      // se avisa: ese día ya no entra en esta lista.)
+      if (ultimo === masDias(hoy, 2).getTime() || ultimo === hoy.getTime()) {
+        const respondieron = new Set(respuestas.map((r) => r.legajoId));
+        n += (await avisar(invitados.filter((id) => !respondieron.has(id)), avisoEventoConfirmar(e.titulo, ultimo === hoy.getTime()))).personas;
+      }
     }
     return n;
   });

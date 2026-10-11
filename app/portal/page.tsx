@@ -9,7 +9,8 @@ import { noticiasPendientes } from "@/lib/noticias";
 import AvisosCelular from "./AvisosCelular";
 
 import { encuestasPendientesDe } from "@/lib/encuestas";
-import { busquedasInternas } from "@/lib/reclutamiento";
+import { busquedasInternas, busquedasConReferidos } from "@/lib/reclutamiento";
+import { eventosDe } from "@/lib/eventos";
 import { festejosDeHoy, textoCelebracion } from "@/lib/cultura";
 import { hoyArgentina } from "@/lib/ausencias-reglas";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,9 @@ export default async function PortalInicio() {
 
   // Quién festeja hoy (cumpleaños o aniversario), para el saludo de arriba.
   const festejos = await festejosDeHoy(sesion.empresaId, hoyArgentina()).catch(() => []);
+  const eventosPorVenir = await eventosDe(sesion.legajoId, hoyArgentina()).catch(() => []);
+  const eventosPendientes = eventosPorVenir.filter((e) => e.estado === "publicado" && e.pideConfirmacion && !e.mia && (e.limiteConfirmar ?? e.fecha) >= hoyArgentina()).length;
+  const conReferidos = await busquedasConReferidos(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
 
@@ -57,6 +61,8 @@ export default async function PortalInicio() {
     { href: "/portal/evaluaciones", icono: "📊", label: "Evaluaciones", globo: evaluacionesPendientes },
     { href: "/portal/objetivos", icono: "🎯", label: "Objetivos", globo: 0 },
     { href: "/portal/muro", icono: "👏", label: "Muro", globo: 0 },
+    ...(eventosPorVenir.length > 0 ? [{ href: "/portal/eventos", icono: "📅", label: "Eventos", globo: eventosPendientes }] : []),
+    ...(conReferidos > 0 ? [{ href: "/portal/referidos", icono: "🤝", label: "Recomendá", globo: 0 }] : []),
     ...(empleosInternos > 0 ? [{ href: "/portal/empleos", icono: "🔎", label: "Empleos", globo: 0 }] : []),
     // Solo aparece cuando hay alguna para responder.
     ...(encuestasPendientes > 0 ? [{ href: "/portal/encuestas", icono: "📋", label: "Encuestas", globo: encuestasPendientes }] : []),

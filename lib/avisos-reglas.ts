@@ -105,6 +105,30 @@ export function avisoReconocimiento(de: string, valor: string): TextoAviso {
   return { tipo: "reconocimiento", titulo: "¡Te reconocieron! 👏", cuerpo: `${de.slice(0, 50)} te reconoció por ${valor.slice(0, 40)}. Entrá al muro para leerlo.`, url: "/portal/muro" };
 }
 
+// ── Eventos y referidos ──────────────────────────────────────────────
+export function avisoEventoNuevo(titulo: string, cuando: string, pideConfirmacion: boolean): TextoAviso {
+  return { tipo: "evento", titulo: `Evento: ${titulo.slice(0, 70)}`, cuerpo: `${cuando}.${pideConfirmacion ? " Entrá al portal y avisanos si vas." : ""}`, url: "/portal/eventos" };
+}
+export function avisoEventoCancelado(titulo: string): TextoAviso {
+  return { tipo: "evento", titulo: `Se canceló: ${titulo.slice(0, 70)}`, cuerpo: "El evento no se va a hacer. Disculpá las molestias.", url: "/portal/eventos" };
+}
+export function avisoEventoCambio(titulo: string, cuando: string): TextoAviso {
+  return { tipo: "evento", titulo: `Cambió: ${titulo.slice(0, 70)}`, cuerpo: `Ahora es el ${cuando}. Fijate el detalle en el portal.`, url: "/portal/eventos" };
+}
+export function avisoEventoManiana(titulo: string, hora: string | null, lugar: string | null): TextoAviso {
+  return { tipo: "evento", titulo: `Mañana: ${titulo.slice(0, 70)}`, cuerpo: [hora ? `A las ${hora} hs` : null, lugar ? lugar.slice(0, 80) : null].filter(Boolean).join(" · ") || "Te esperamos.", url: "/portal/eventos" };
+}
+export function avisoEventoConfirmar(titulo: string, ultimoDia: boolean): TextoAviso {
+  return { tipo: "evento", titulo: `¿Vas a ${titulo.slice(0, 60)}?`, cuerpo: `${ultimoDia ? "Hoy es el último día" : "Quedan pocos días"} para confirmar. Avisanos si vas o no: es un toque.`, url: "/portal/eventos" };
+}
+// Sin el nombre del recomendado: se lee con el celular bloqueado.
+export function avisoReferidoIngreso(premio: string | null): TextoAviso {
+  return { tipo: "referido", titulo: "¡Tu recomendado ingresó! 🙌", cuerpo: `Una persona que recomendaste entró a la empresa. Gracias por sumar.${premio ? " RR.HH. te va a contactar por el premio." : ""}`, url: "/portal/referidos" };
+}
+export function avisoBusquedaConReferidos(titulo: string): TextoAviso {
+  return { tipo: "referido", titulo: "¿Conocés a alguien para este puesto?", cuerpo: `${titulo.slice(0, 80)}. Podés recomendar a alguien desde el portal.`, url: "/portal/referidos" };
+}
+
 export function avisoBusquedaInterna(titulo: string): TextoAviso {
   return { tipo: "empleo", titulo: "Hay una búsqueda interna", cuerpo: `${titulo.slice(0, 80)}. Si te interesa, postulate desde el portal.`, url: "/portal/empleos" };
 }

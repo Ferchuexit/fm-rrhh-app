@@ -6,13 +6,14 @@
 import { useEffect, useState } from "react";
 import { PESOS, TIPOS_FILTRO, UMBRAL_FINALISTA, detalleRespuestas, type PreguntaFiltro, type RespuestasFiltro, type TipoFiltro } from "@/lib/reclutamiento-filtros";
 import { ETAPAS, ESTADOS_BUSQUEDA, FUENTES, FUENTES_PARA_ENLACE, MOTIVOS_DESCARTE, avisoDesdePuesto, textoParaPortal } from "@/lib/reclutamiento-reglas";
+import { RELACIONES } from "@/lib/referidos-reglas";
 
 type Resumen = { total: number; porEtapa: Record<string, number>; enProceso: number; sinRevisar: number; cubiertas: number; dias: number | null; fuentes: { fuente: string; nombre: string; total: number; avanzaron: number; contratados: number }[] };
-type Busqueda = { id: string; puestoId: string | null; titulo: string; descripcion: string; requisitos: string | null; ofrecemos: string | null; lugar: string | null; vacantes: number; publica: boolean; interna: boolean; estado: string; motivoCierre: string | null; preguntas: PreguntaFiltro[]; palabrasClave: string[]; puesto: { nombre: string } | null; resumen: Resumen };
+type Busqueda = { id: string; puestoId: string | null; titulo: string; descripcion: string; requisitos: string | null; ofrecemos: string | null; lugar: string | null; vacantes: number; publica: boolean; interna: boolean; referidos: boolean; premioReferido: string | null; estado: string; motivoCierre: string | null; preguntas: PreguntaFiltro[]; palabrasClave: string[]; puesto: { nombre: string } | null; resumen: Resumen };
 type Puesto = { id: string; nombre: string; mision: string | null; tareas: string | null; requisitos: string | null; condiciones: string | null; centroCosto: { nombre: string } | null };
-type Candidato = { id: string; busquedaId: string; apellido: string; nombre: string; email: string | null; telefono: string | null; localidad: string | null; mensaje: string | null; fuente: string; empleadoId: string | null; cvNombre: string | null; etapa: string; etapaDesde: string; motivoDescarte: string | null; puntaje: number | null; notas: string | null; createdAt: string; respuestas: RespuestasFiltro | null; puntajeFiltro: number | null; cumpleExcluyentes: boolean | null; noCumple: string[]; palabrasHalladas: string[]; finalista?: boolean; busqueda?: { titulo: string; estado: string } };
+type Candidato = { id: string; busquedaId: string; apellido: string; nombre: string; email: string | null; telefono: string | null; localidad: string | null; mensaje: string | null; fuente: string; empleadoId: string | null; referidoPorNombre: string | null; relacionReferido: string | null; cvNombre: string | null; etapa: string; etapaDesde: string; motivoDescarte: string | null; puntaje: number | null; notas: string | null; createdAt: string; respuestas: RespuestasFiltro | null; puntajeFiltro: number | null; cumpleExcluyentes: boolean | null; noCumple: string[]; palabrasHalladas: string[]; finalista?: boolean; busqueda?: { titulo: string; estado: string } };
 type Detalle = { busqueda: Busqueda; candidatos: Candidato[]; resumen: Resumen; enlace: string; empresa: string };
-type Form = { id: string; puestoId: string; titulo: string; descripcion: string; requisitos: string; ofrecemos: string; lugar: string; vacantes: string; publica: boolean; interna: boolean; preguntas: PreguntaFiltro[]; palabrasClave: string };
+type Form = { id: string; puestoId: string; titulo: string; descripcion: string; requisitos: string; ofrecemos: string; lugar: string; vacantes: string; publica: boolean; interna: boolean; referidos: boolean; premioReferido: string; preguntas: PreguntaFiltro[]; palabrasClave: string };
 
 const dia = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 const caja: React.CSSProperties = { background: "white", border: "1px solid #dfe4e8", padding: "1rem", marginBottom: "1rem", maxWidth: "1100px" };
@@ -20,7 +21,7 @@ const btnSec: React.CSSProperties = { background: "white", color: "#163A5C", bor
 const chico: React.CSSProperties = { padding: "0.2rem 0.6rem", fontSize: "0.8rem" };
 const rotulo: React.CSSProperties = { fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "#6b727b", margin: "1rem 0 0.4rem" };
 const COLOR_ESTADO: Record<string, string> = { borrador: "#9aa5b1", abierta: "#2F6F5E", pausada: "#B8752B", cerrada: "#6b727b" };
-const VACIA: Form = { id: "", puestoId: "", titulo: "", descripcion: "", requisitos: "", ofrecemos: "", lugar: "", vacantes: "1", publica: true, interna: false, preguntas: [], palabrasClave: "" };
+const VACIA: Form = { id: "", puestoId: "", titulo: "", descripcion: "", requisitos: "", ofrecemos: "", lugar: "", vacantes: "1", publica: true, interna: false, referidos: false, premioReferido: "", preguntas: [], palabrasClave: "" };
 
 async function enviar(url: string, cuerpo: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
@@ -140,7 +141,7 @@ export default function ReclutamientoPage() {
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center", cursor: "pointer" }} onClick={() => { setCandidato(abierto ? null : c.id); setNotas(c.notas ?? ""); setDescarte(null); }} title={fija ? "Cerrar la ficha" : undefined}>
           <div>
             <strong>{c.apellido}, {c.nombre}</strong>{c.empleadoId && <span style={{ color: "#163A5C", fontSize: "0.75rem", fontWeight: 700 }}> · EMPLEADO</span>}
-            <div style={{ fontSize: "0.78rem", color: "#6b727b" }}>{FUENTES[c.fuente] ?? c.fuente} · {dia(c.createdAt)}{c.localidad && ` · ${c.localidad}`}{c.busqueda && ` · ${c.busqueda.titulo}`}</div>
+            <div style={{ fontSize: "0.78rem", color: "#6b727b" }}>{FUENTES[c.fuente] ?? c.fuente}{c.referidoPorNombre && <strong style={{ color: "#163A5C" }}> por {c.referidoPorNombre}{c.relacionReferido && RELACIONES[c.relacionReferido] ? ` (${RELACIONES[c.relacionReferido].toLowerCase()})` : ""}</strong>} · {dia(c.createdAt)}{c.localidad && ` · ${c.localidad}`}{c.busqueda && ` · ${c.busqueda.titulo}`}</div>
           </div>
           <span style={{ color: "#B8752B", whiteSpace: "nowrap" }} aria-label={c.puntaje ? `${c.puntaje} de 5` : "sin puntuar"}>{c.puntaje ? "★".repeat(c.puntaje) : ""}</span>
         </div>
@@ -197,7 +198,7 @@ export default function ReclutamientoPage() {
           {b.estado === "pausada" && <button onClick={() => accion(b, { accion: "reanudar" }, "Reanudada.")}>Reanudar</button>}
           {(b.estado === "abierta" || b.estado === "pausada") && <button onClick={() => accion(b, { accion: "cerrar", motivo: "cubierta" }, "Búsqueda cerrada como cubierta.")} style={btnSec}>Cerrar: se cubrió</button>}
           {(b.estado === "abierta" || b.estado === "pausada") && <button onClick={() => accion(b, { accion: "cerrar", motivo: "cancelada" }, "Búsqueda cancelada.")} style={{ ...btnSec, color: "#B23A3A", borderColor: "#B23A3A" }}>Cancelar la búsqueda</button>}
-          {b.estado !== "cerrada" && <button onClick={() => { setErrorForm(""); setForm({ id: b.id, puestoId: b.puestoId ?? "", titulo: b.titulo, descripcion: b.descripcion, requisitos: b.requisitos ?? "", ofrecemos: b.ofrecemos ?? "", lugar: b.lugar ?? "", vacantes: String(b.vacantes), publica: b.publica, interna: b.interna, preguntas: b.preguntas.map((x) => ({ ...x })), palabrasClave: b.palabrasClave.join(", ") }); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={btnSec}>Editar el aviso</button>}
+          {b.estado !== "cerrada" && <button onClick={() => { setErrorForm(""); setForm({ id: b.id, puestoId: b.puestoId ?? "", titulo: b.titulo, descripcion: b.descripcion, requisitos: b.requisitos ?? "", ofrecemos: b.ofrecemos ?? "", lugar: b.lugar ?? "", vacantes: String(b.vacantes), publica: b.publica, interna: b.interna, referidos: b.referidos, premioReferido: b.premioReferido ?? "", preguntas: b.preguntas.map((x) => ({ ...x })), palabrasClave: b.palabrasClave.join(", ") }); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={btnSec}>Editar el aviso</button>}
           {b.estado === "borrador" && <button onClick={() => accion(b, { accion: "borrar" }, "Borrada.")} style={{ ...btnSec, color: "#B23A3A", borderColor: "#B23A3A" }}>Borrar</button>}
         </div>
         {aviso && <p style={{ color: aviso.ok ? "#2F6F5E" : "#B23A3A", margin: "0.5rem 0 0" }}>{aviso.texto}</p>}
@@ -213,6 +214,7 @@ export default function ReclutamientoPage() {
             </div>
           </>
         )}
+        {b.referidos && <p style={{ fontSize: "0.85rem", color: "#4A4F58", margin: "0.6rem 0 0" }}>Acepta <strong>referidos</strong>: los empleados recomiendan gente desde el portal{b.premioReferido && <> · premio: {b.premioReferido}</>}. Se siguen en <a href="/referidos">Programa de referidos</a>.</p>}
         {b.interna && <p style={{ fontSize: "0.85rem", color: "#4A4F58", margin: "0.6rem 0 0" }}>Es <strong>interna</strong>: los empleados la ven en el portal (Empleos) y se postulan con un toque.</p>}
 
         {d.resumen.fuentes.length > 0 && (
@@ -283,7 +285,7 @@ export default function ReclutamientoPage() {
           <div>
             <strong style={{ color: "#163A5C" }}>{b.titulo}</strong> <span style={{ color: COLOR_ESTADO[b.estado], fontWeight: 700, fontSize: "0.85rem" }}>· {b.estado === "cerrada" ? (b.motivoCierre === "cancelada" ? "Cancelada" : "Cubierta") : ESTADOS_BUSQUEDA[b.estado]}</span>
             <div style={{ fontSize: "0.85rem", color: "#4A4F58" }}>
-              {b.vacantes} {b.vacantes === 1 ? "vacante" : "vacantes"}{r.cubiertas > 0 && ` (${r.cubiertas} ${r.cubiertas === 1 ? "cubierta" : "cubiertas"})`}{b.lugar && ` · ${b.lugar}`} · {[b.publica && "página de empleos", b.interna && "interna"].filter(Boolean).join(" + ")}
+              {b.vacantes} {b.vacantes === 1 ? "vacante" : "vacantes"}{r.cubiertas > 0 && ` (${r.cubiertas} ${r.cubiertas === 1 ? "cubierta" : "cubiertas"})`}{b.lugar && ` · ${b.lugar}`} · {[b.publica && "página de empleos", b.interna && "interna", b.referidos && "referidos"].filter(Boolean).join(" + ")}
               {r.dias !== null && <> · {b.estado === "cerrada" ? `se cerró a los ${r.dias} días` : `${r.dias} ${r.dias === 1 ? "día" : "días"} abierta`}</>}
             </div>
           </div>
@@ -376,6 +378,10 @@ export default function ReclutamientoPage() {
                 <strong>Dónde se publica:</strong>{" "}
                 <label style={{ marginRight: 14 }}><input type="checkbox" checked={form.publica} onChange={(e) => setForm({ ...form, publica: e.target.checked })} style={{ marginRight: 4 }} />Página de empleos (gente de afuera)</label>
                 <label><input type="checkbox" checked={form.interna} onChange={(e) => setForm({ ...form, interna: e.target.checked })} style={{ marginRight: 4 }} />Búsqueda interna (la ven los empleados en el portal)</label>
+                <div style={{ marginTop: "0.4rem" }}>
+                  <label style={{ marginRight: 14 }}><input type="checkbox" checked={form.referidos} onChange={(e) => setForm({ ...form, referidos: e.target.checked })} style={{ marginRight: 4 }} />Aceptar referidos de los empleados (recomiendan gente desde el portal)</label>
+                  {form.referidos && <label>Premio si el recomendado queda <span style={{ color: "#6b727b" }}>(opcional)</span>{" "}<input value={form.premioReferido} maxLength={120} onChange={(e) => setForm({ ...form, premioReferido: e.target.value })} placeholder="Un día libre, una orden de compra…" style={{ width: 280 }} /></label>}
+                </div>
               </div>
               {errorForm && <p style={{ color: "#B23A3A", margin: "0.5rem 0 0" }}>{errorForm}</p>}
               <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>

@@ -161,6 +161,7 @@ model Empresa {
   Puesto                    Puesto[]
   Busqueda                  Busqueda[]
   ValorEmpresa              ValorEmpresa[]
+  Evento                    Evento[]
 
   @@map("empresas")
 }
@@ -954,6 +955,7 @@ model Legajo {
   ocultarCumple            Boolean                  @default(false)
   reconocimientos          Reconocimiento[]
   aplausos                 AplausoReconocimiento[]
+  asistenciasEvento        AsistenciaEvento[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2013,29 +2015,34 @@ model Puesto {
 // el perfil del puesto y se retoca): cambiar el puesto después no cambia
 // un aviso ya publicado.
 model Busqueda {
-  id            String    @id @default(uuid())
-  empresaId     String
-  puestoId      String?
-  titulo        String
-  descripcion   String // qué va a hacer
-  requisitos    String?
-  ofrecemos     String?
-  lugar         String?
+  id             String    @id @default(uuid())
+  empresaId      String
+  puestoId       String?
+  titulo         String
+  descripcion    String // qué va a hacer
+  requisitos     String?
+  ofrecemos      String?
+  lugar          String?
   // Filtros de preselección (ver lib/reclutamiento-filtros.ts):
   //   preguntas     → lo que responde el candidato al postularse; cada una
   //                   puede ser excluyente y vale puntos
   //   palabrasClave → se buscan en el CV y en el mensaje
-  preguntas     Json      @default("[]")
-  palabrasClave String[]
-  vacantes      Int       @default(1)
-  publica       Boolean   @default(true) // tiene página pública de postulación
-  interna       Boolean   @default(false) // se muestra a los empleados en el portal
-  estado        String    @default("borrador") // 'borrador' | 'abierta' | 'pausada' | 'cerrada'
-  motivoCierre  String? // 'cubierta' | 'cancelada'
-  creadaPor     String?
-  createdAt     DateTime  @default(now())
-  abiertaEn     DateTime?
-  cerradaEn     DateTime?
+  preguntas      Json      @default("[]")
+  palabrasClave  String[]
+  vacantes       Int       @default(1)
+  publica        Boolean   @default(true) // tiene página pública de postulación
+  interna        Boolean   @default(false) // se muestra a los empleados en el portal
+  // Programa de referidos: los empleados pueden recomendar gente para esta
+  // búsqueda desde el portal. `premioReferido`: qué recibe quien refirió si
+  // su recomendado queda (texto libre: "un día libre", "una orden de compra").
+  referidos      Boolean   @default(false)
+  premioReferido String?
+  estado         String    @default("borrador") // 'borrador' | 'abierta' | 'pausada' | 'cerrada'
+  motivoCierre   String? // 'cubierta' | 'cancelada'
+  creadaPor      String?
+  createdAt      DateTime  @default(now())
+  abiertaEn      DateTime?
+  cerradaEn      DateTime?
 
   empresa    Empresa     @relation(fields: [empresaId], references: [id])
   puesto     Puesto?     @relation(fields: [puestoId], references: [id], onDelete: SetNull)
@@ -2062,6 +2069,13 @@ model Candidato {
   // de un sector, y no debe filtrarse por el sector del empleado.
   // (No se llama legajoId: ese nombre lo reserva el control de alcance.)
   empleadoId        String?
+  // Programa de referidos: qué empleado lo recomendó (mismo criterio que
+  // empleadoId: sin relación), de dónde lo conoce, y cuándo se le entregó
+  // el premio a quien lo refirió.
+  referidoPorId     String?
+  referidoPorNombre String?
+  relacionReferido  String?
+  premioReferidoEn  DateTime?
   cvNombre          String?
   cvKey             String? // referencia en Vercel Blob (privado)
   cvBase64          String? // solo desarrollo, cuando no hay Blob
@@ -2085,6 +2099,50 @@ model Candidato {
 
   @@index([busquedaId, etapa])
   @@index([email])
+  @@index([referidoPorId])
+}
+
+// ── Cultura: eventos ─────────────────────────────────────────────────
+// Lo que la empresa organiza para su gente: el asado de fin de año, una
+// charla, una campaña. Se publica, la gente confirma desde el portal, y
+// RR.HH. sabe con cuántos contar.
+model Evento {
+  id               String    @id @default(uuid())
+  empresaId        String
+  titulo           String
+  descripcion      String?
+  lugar            String?
+  fecha            DateTime // el día (medianoche UTC, como el resto de las fechas)
+  hora             String? // "18:30"
+  centroCostoIds   String[] // a qué sectores va; vacío = toda la empresa
+  pideConfirmacion Boolean   @default(true)
+  limiteConfirmar  DateTime? // último día para confirmar; null = hasta el día del evento
+  cupo             Int? // lugares en total (contando acompañantes); null = sin tope
+  maxAcompanantes  Int       @default(0) // cuántos puede llevar cada uno
+  estado           String    @default("borrador") // 'borrador' | 'publicado' | 'cancelado'
+  creadoPor        String?
+  createdAt        DateTime  @default(now())
+  publicadoEn      DateTime?
+
+  empresa     Empresa            @relation(fields: [empresaId], references: [id])
+  asistencias AsistenciaEvento[]
+
+  @@index([empresaId, fecha])
+}
+
+model AsistenciaEvento {
+  eventoId     String
+  legajoId     String
+  va           Boolean
+  acompanantes Int      @default(0)
+  asistio      Boolean? // lo marca RR.HH. después: null = no se tomó asistencia
+  respondioEn  DateTime @default(now())
+
+  evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@id([eventoId, legajoId])
+  @@index([legajoId])
 }
 
 // ── Cultura: reconocimientos ──

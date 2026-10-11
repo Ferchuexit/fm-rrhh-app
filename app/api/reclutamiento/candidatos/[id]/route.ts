@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { motivoNoMover } from "@/lib/reclutamiento";
+import { avisar, avisoReferidoIngreso } from "@/lib/avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const empresa = await obtenerEmpresaActual();
     if (!empresa) return NextResponse.json({ error: "No hay una empresa seleccionada." }, { status: 400 });
     const body = await req.json().catch(() => ({}));
-    const c = await prisma.candidato.findFirst({ where: { id: params.id, busqueda: { empresaId: empresa.id } }, select: { id: true, etapa: true, busquedaId: true, busqueda: { select: { vacantes: true } } } });
+    const c = await prisma.candidato.findFirst({ where: { id: params.id, busqueda: { empresaId: empresa.id } }, select: { id: true, etapa: true, busquedaId: true, referidoPorId: true, busqueda: { select: { vacantes: true, premioReferido: true } } } });
     if (!c) return NextResponse.json({ error: "No se encontró ese candidato." }, { status: 404 });
 
     if (body.accion === "borrar") {
@@ -36,6 +37,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (body.notas !== undefined) data.notas = String(body.notas ?? "").trim().slice(0, 3000) || null;
     if (Object.keys(data).length === 0) return NextResponse.json({ error: "No hay nada para guardar." }, { status: 400 });
     await prisma.candidato.update({ where: { id: c.id }, data });
+    // Programa de referidos: a quien lo recomendó se le avisa que entró.
+    if (data.etapa === "contratado" && c.referidoPorId) await avisar([c.referidoPorId], avisoReferidoIngreso(c.busqueda.premioReferido));
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     console.error("Error en POST /api/reclutamiento/candidatos/[id]:", e);

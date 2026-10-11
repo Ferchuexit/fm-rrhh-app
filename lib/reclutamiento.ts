@@ -6,12 +6,13 @@ import { MAX_CV_BYTES, type DatosPostulacion } from "./reclutamiento-reglas";
 import { evaluar, type PreguntaFiltro, type RespuestasFiltro } from "./reclutamiento-filtros";
 export * from "./reclutamiento-reglas";
 export * from "./reclutamiento-filtros";
+export * from "./referidos-reglas";
 
 export const MAX_CANDIDATOS_POR_BUSQUEDA = 1000;
 
 // Lo que se puede mostrar de un candidato en el panel: todo menos el
 // archivo del CV (que se baja aparte).
-export const CAMPOS_CANDIDATO = { id: true, busquedaId: true, apellido: true, nombre: true, email: true, telefono: true, localidad: true, mensaje: true, fuente: true, empleadoId: true, cvNombre: true, respuestas: true, puntajeFiltro: true, cumpleExcluyentes: true, noCumple: true, palabrasHalladas: true, etapa: true, etapaDesde: true, motivoDescarte: true, puntaje: true, notas: true, createdAt: true } as const;
+export const CAMPOS_CANDIDATO = { id: true, busquedaId: true, apellido: true, nombre: true, email: true, telefono: true, localidad: true, mensaje: true, fuente: true, empleadoId: true, referidoPorId: true, referidoPorNombre: true, relacionReferido: true, premioReferidoEn: true, cvNombre: true, respuestas: true, puntajeFiltro: true, cumpleExcluyentes: true, noCumple: true, palabrasHalladas: true, etapa: true, etapaDesde: true, motivoDescarte: true, puntaje: true, notas: true, createdAt: true } as const;
 
 // El CV: solo PDF de verdad (se miran los primeros bytes, no la extensión)
 // y hasta 4 MB. Devuelve los campos a guardar, o el motivo del rechazo.
@@ -57,14 +58,14 @@ export async function recalcularFiltros(busquedaId: string, filtros: FiltrosDeBu
 // tiene sesión y usa el del sistema; el panel, el suyo.
 // Si la misma persona (mismo mail o teléfono) ya se postuló a ESA
 // búsqueda, no se duplica.
-export async function registrarPostulacion(db: typeof prisma | typeof prismaSistema, busquedaId: string, datos: DatosPostulacion, extra: { fuente: string; empleadoId?: string | null; cv?: CVGuardado; consentimiento?: boolean; filtros?: FiltrosDeBusqueda; respuestas?: RespuestasFiltro }): Promise<"creada" | "repetida" | "llena"> {
+export async function registrarPostulacion(db: typeof prisma | typeof prismaSistema, busquedaId: string, datos: DatosPostulacion, extra: { fuente: string; empleadoId?: string | null; referido?: { porId: string; porNombre: string; relacion: string }; cv?: CVGuardado; consentimiento?: boolean; filtros?: FiltrosDeBusqueda; respuestas?: RespuestasFiltro }): Promise<"creada" | "repetida" | "llena"> {
   const mismos = [...(datos.email ? [{ email: datos.email }] : []), ...(datos.telefono ? [{ telefono: datos.telefono }] : []), ...(extra.empleadoId ? [{ empleadoId: extra.empleadoId }] : [])];
   if (mismos.length > 0 && (await (db as typeof prisma).candidato.count({ where: { busquedaId, OR: mismos } })) > 0) return "repetida";
   if ((await (db as typeof prisma).candidato.count({ where: { busquedaId } })) >= MAX_CANDIDATOS_POR_BUSQUEDA) return "llena";
   // El puntaje del filtro: respuestas + palabras clave buscadas en el CV y
   // en lo que escribió.
   const resultado = extra.filtros ? evaluar(extra.filtros.preguntas, extra.filtros.palabras, extra.respuestas ?? null, [extra.cv?.cvTexto, datos.mensaje].filter(Boolean).join(" ") || null) : {};
-  await (db as typeof prisma).candidato.create({ data: { busquedaId, ...datos, fuente: extra.fuente, empleadoId: extra.empleadoId ?? null, ...(extra.cv ?? {}), respuestas: extra.respuestas ?? undefined, ...resultado, consentimientoEn: extra.consentimiento ? new Date() : null } });
+  await (db as typeof prisma).candidato.create({ data: { busquedaId, ...datos, fuente: extra.fuente, empleadoId: extra.empleadoId ?? null, ...(extra.referido ? { referidoPorId: extra.referido.porId, referidoPorNombre: extra.referido.porNombre.slice(0, 80), relacionReferido: extra.referido.relacion } : {}), ...(extra.cv ?? {}), respuestas: extra.respuestas ?? undefined, ...resultado, consentimientoEn: extra.consentimiento ? new Date() : null } });
   return "creada";
 }
 
@@ -72,4 +73,9 @@ export async function registrarPostulacion(db: typeof prisma | typeof prismaSist
 // de su empresa.
 export function busquedasInternas(empresaId: string) {
   return prisma.busqueda.findMany({ where: { empresaId, estado: "abierta", interna: true }, orderBy: { abiertaEn: "desc" } });
+}
+
+// Las búsquedas abiertas para las que un empleado puede recomendar gente.
+export function busquedasConReferidos(empresaId: string) {
+  return prisma.busqueda.findMany({ where: { empresaId, estado: "abierta", referidos: true }, orderBy: { abiertaEn: "desc" } });
 }

@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerEmpresaActual } from "@/lib/empresa-actual";
 import { hoyArgentina } from "@/lib/ausencias-reglas";
 import { CAMPOS_CANDIDATO, FUENTES, resumenBusqueda, validarPostulacion, prepararCV, registrarPostulacion, filtrosDe, ordenar, esFinalistaSugerido } from "@/lib/reclutamiento";
-import { avisar, avisoBusquedaInterna, urlBaseDelPedido } from "@/lib/avisos";
+import { avisar, avisoBusquedaInterna, avisoBusquedaConReferidos, urlBaseDelPedido } from "@/lib/avisos";
 
 export const dynamic = "force-dynamic";
 const fallo = (e: any, donde: string) => {
@@ -65,6 +65,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       if (r.status === 200 && busqueda.interna) {
         const empleados = await prisma.legajo.findMany({ where: { empresaId: empresa.id, condicion: "activo" }, select: { id: true } });
         await avisar(empleados.map((l) => l.id), avisoBusquedaInterna(busqueda.titulo));
+      } else if (r.status === 200 && busqueda.referidos) {
+        // (Si además es interna, alcanza con el aviso de arriba: no dos.)
+        const empleados = await prisma.legajo.findMany({ where: { empresaId: empresa.id, condicion: "activo" }, select: { id: true } });
+        await avisar(empleados.map((l) => l.id), avisoBusquedaConReferidos(busqueda.titulo));
       }
       return r;
     }

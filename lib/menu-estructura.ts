@@ -173,6 +173,8 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     items: [
       { href: "/reconocimientos", label: "Reconocimientos", icono: "👏", desc: "El muro donde los compañeros se reconocen por los valores de la empresa" },
       { href: "/celebraciones", label: "Cumpleaños y aniversarios", icono: "🎂", desc: "Quién cumple años y quién cumple años en la empresa" },
+      { href: "/eventos", label: "Eventos", icono: "📅", desc: "Lo que organiza la empresa: se publica, la gente confirma y se sabe con cuántos contar" },
+      { href: "/referidos", label: "Programa de referidos", icono: "🤝", desc: "Los empleados recomiendan gente para las búsquedas abiertas" },
     ],
   },
   {
