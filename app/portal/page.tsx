@@ -34,6 +34,7 @@ export default async function PortalInicio() {
   const eventosPorVenir = await eventosDe(sesion.legajoId, hoyArgentina()).catch(() => []);
   const eventosPendientes = eventosPorVenir.filter((e) => e.estado === "publicado" && e.pideConfirmacion && !e.mia && (e.limiteConfirmar ?? e.fecha) >= hoyArgentina()).length;
   const conReferidos = await busquedasConReferidos(sesion.empresaId).then((b) => b.length).catch(() => 0);
+  const hayBiblioteca = await prisma.articuloBiblioteca.count({ where: { empresaId: sesion.empresaId, estado: "publicado" } }).catch(() => 0);
   const chatPendiente = await chatSinLeer(sesion.legajoId).catch(() => 0);
   const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
@@ -65,6 +66,7 @@ export default async function PortalInicio() {
     { href: "/portal/chat", icono: "💬", label: "Chat", globo: chatPendiente },
     { href: "/portal/agenda", icono: "🗓️", label: "Agenda", globo: 0 },
     { href: "/portal/organigrama", icono: "🌳", label: "Organigrama", globo: 0 },
+    ...(hayBiblioteca > 0 ? [{ href: "/portal/biblioteca", icono: "📚", label: "Librería", globo: 0 }] : []),
     { href: "/portal/muro", icono: "👏", label: "Muro", globo: 0 },
     ...(eventosPorVenir.length > 0 ? [{ href: "/portal/eventos", icono: "📅", label: "Eventos", globo: eventosPendientes }] : []),
     ...(conReferidos > 0 ? [{ href: "/portal/referidos", icono: "🤝", label: "Recomendá", globo: 0 }] : []),

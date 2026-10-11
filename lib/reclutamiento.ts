@@ -30,7 +30,7 @@ export async function prepararCV(archivo: File | null, busquedaId: string): Prom
 // es una foto escaneada (sin texto) o no se puede leer, devuelve null y el
 // candidato simplemente no suma por palabras clave: nunca hace fallar la
 // postulación.
-async function textoDelPDF(buffer: Buffer): Promise<string | null> {
+export async function textoDelPDF(buffer: Buffer): Promise<string | null> {
   try {
     const { extractText, getDocumentProxy } = await import("unpdf");
     const { text } = await extractText(await getDocumentProxy(new Uint8Array(buffer)), { mergePages: true });

@@ -169,6 +169,7 @@ model Empresa {
   Evento                    Evento[]
   Conversacion              Conversacion[]
   Publicacion               Publicacion[]
+  ArticuloBiblioteca        ArticuloBiblioteca[]
 
   @@map("empresas")
 }
@@ -965,6 +966,7 @@ model Legajo {
   asistenciasEvento        AsistenciaEvento[]
   conversaciones           MiembroConversacion[]
   meGusta                  MeGustaPublicacion[]
+  lecturasBiblioteca       LecturaBiblioteca[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2313,4 +2315,48 @@ model ComentarioPublicacion {
   publicacion Publicacion @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
 
   @@index([publicacionId, createdAt])
+}
+
+// ── Librería de conocimiento ─────────────────────────────────────────
+// Lo que la gente tiene que poder consultar cuando lo necesita: el
+// reglamento, un procedimiento de seguridad, el instructivo de una
+// máquina, una pregunta frecuente. Un artículo es un texto, un archivo
+// (PDF o imagen), un enlace, o las tres cosas.
+model ArticuloBiblioteca {
+  id             String    @id @default(uuid())
+  empresaId      String
+  titulo         String
+  categoria      String
+  contenido      String? // el texto, si se escribe acá
+  enlace         String? // un video o una página
+  archivoNombre  String?
+  archivoKey     String? // referencia en Vercel Blob (privado)
+  archivoBase64  String? // solo desarrollo, cuando no hay Blob
+  archivoMime    String?
+  archivoTexto   String? // el texto del PDF, para que el buscador lo encuentre
+  centroCostoIds String[] // para qué sectores; vacío = toda la empresa
+  destacado      Boolean   @default(false)
+  estado         String    @default("borrador") // 'borrador' | 'publicado' | 'archivado'
+  creadoPor      String?
+  createdAt      DateTime  @default(now())
+  actualizadoEn  DateTime  @default(now()) // cuándo cambió el contenido (no cada retoque)
+  publicadoEn    DateTime?
+
+  empresa  Empresa             @relation(fields: [empresaId], references: [id])
+  lecturas LecturaBiblioteca[]
+
+  @@index([empresaId, estado, categoria])
+}
+
+// Quién abrió cada artículo y cuándo fue la última vez.
+model LecturaBiblioteca {
+  articuloId String
+  legajoId   String
+  leidoEn    DateTime @default(now())
+
+  articulo ArticuloBiblioteca @relation(fields: [articuloId], references: [id], onDelete: Cascade)
+  legajo   Legajo             @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@id([articuloId, legajoId])
+  @@index([legajoId])
 }
