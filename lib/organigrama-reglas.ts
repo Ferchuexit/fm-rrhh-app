@@ -35,3 +35,55 @@ export function arbolPersonas<T extends PersonaOrg>(personas: T[]): { arbol: Fil
   for (const p of personas) if (!vistos.has(p.id) && p.jefeId && ids.has(p.jefeId) && p.jefeId !== p.id) { vistos.add(p.id); arbol.push({ persona: p, nivel: 0, aCargo: 0 }); }
   return { arbol, sueltos: personas.filter((p) => !vistos.has(p.id)).sort((a, b) => a.nombre.localeCompare(b.nombre)) };
 }
+
+// ── El árbol para dibujar (tarjetas con líneas) ──────────────────────
+export interface NodoOrg<T> { persona: T; hijos: NodoOrg<T>[]; total: number } // total = todos los que tiene por debajo
+// Arma el árbol anidado. `raices`: quienes no reportan a nadie y tienen
+// gente a cargo. `sueltos`: quienes no tienen jefe ni gente a cargo (lo
+// que falta ubicar). Un círculo no cuelga: sus integrantes van a sueltos.
+export function armarArbol<T extends PersonaOrg>(personas: T[]): { raices: NodoOrg<T>[]; sueltos: T[] } {
+  const ids = new Set(personas.map((p) => p.id));
+  const hijosDe = new Map<string | null, T[]>();
+  for (const p of [...personas].sort((a, b) => a.nombre.localeCompare(b.nombre))) {
+    const padre = p.jefeId && ids.has(p.jefeId) && p.jefeId !== p.id ? p.jefeId : null;
+    hijosDe.set(padre, [...(hijosDe.get(padre) ?? []), p]);
+  }
+  const vistos = new Set<string>();
+  const nodo = (p: T): NodoOrg<T> => {
+    vistos.add(p.id);
+    const hijos = (hijosDe.get(p.id) ?? []).filter((h) => !vistos.has(h.id)).map(nodo);
+    // Primero los que tienen gente a cargo: así las ramas quedan juntas.
+    hijos.sort((a, b) => Number(b.hijos.length > 0) - Number(a.hijos.length > 0) || a.persona.nombre.localeCompare(b.persona.nombre));
+    return { persona: p, hijos, total: hijos.reduce((a, h) => a + 1 + h.total, 0) };
+  };
+  const raices = (hijosDe.get(null) ?? []).filter((p) => (hijosDe.get(p.id) ?? []).length > 0).map(nodo);
+  return { raices, sueltos: personas.filter((p) => !vistos.has(p.id)).sort((a, b) => a.nombre.localeCompare(b.nombre)) };
+}
+
+// Quiénes quedarían dentro de un círculo con esta estructura (A reporta a
+// B, B reporta a A). Vacío = está bien.
+export function enCirculo(jefeDe: Map<string, string | null>): Set<string> {
+  const mal = new Set<string>();
+  for (const id of jefeDe.keys()) {
+    const camino = new Set<string>([id]);
+    for (let a = jefeDe.get(id) ?? null; a; a = jefeDe.get(a) ?? null) {
+      if (a === id) { mal.add(id); break; }
+      if (camino.has(a)) break; // un círculo más arriba: no es de este
+      camino.add(a);
+    }
+  }
+  return mal;
+}
+
+// La cadena de jefes de una persona, del más cercano al más alto.
+export function cadenaDeMando(id: string, jefeDe: Map<string, string | null>): string[] {
+  const cadena: string[] = [];
+  for (let a = jefeDe.get(id) ?? null; a && !cadena.includes(a) && a !== id; a = jefeDe.get(a) ?? null) cadena.push(a);
+  return cadena;
+}
+
+// Las iniciales para el avatar: "Retamar, Julián" o "Julián Retamar" → "JR".
+export function iniciales(nombre: string, apellido: string): string {
+  const letra = (s: string) => (s.trim()[0] ?? "").toUpperCase();
+  return `${letra(nombre)}${letra(apellido)}` || "?";
+}

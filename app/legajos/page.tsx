@@ -83,6 +83,10 @@ export default async function LegajosPage({ searchParams }: { searchParams: { q?
           <a href="/legajos/nuevo">
             <button>+ Nuevo empleado</button>
           </a>
+          {" "}
+          <a href="/legajos/importar">
+            <button style={{ background: "white", color: "#163A5C", border: "1px solid #163A5C" }}>Cargar varios desde Excel</button>
+          </a>
         </p>
       )}
 

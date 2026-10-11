@@ -2,7 +2,7 @@
 // publicaciones del muro.
 import { describe, it, expect } from "vitest";
 import * as A from "../lib/agenda-reglas.ts";
-import { arbolPersonas } from "../lib/organigrama-reglas.ts";
+import { arbolPersonas, armarArbol, enCirculo, cadenaDeMando, iniciales } from "../lib/organigrama-reglas.ts";
 import * as M from "../lib/muro-reglas.ts";
 
 const d = (s) => new Date(s + "T00:00:00Z");
@@ -77,6 +77,34 @@ describe("organigrama por personas", () => {
     const { arbol, sueltos } = arbolPersonas([per("a", "b"), per("b", "a")]);
     expect([...arbol.map((f) => f.persona.id), ...sueltos.map((s) => s.id)].sort()).toEqual(["a", "b"]);
     expect(arbolPersonas([per("yo", "yo")]).sueltos.length).toBe(1);
+  });
+});
+
+describe("organigrama: el árbol para dibujar", () => {
+  const per = (id, jefeId = null) => ({ id, nombre: id, jefeId });
+  it("anida a cada uno bajo su jefe, con los que tienen gente primero", () => {
+    const { raices, sueltos } = armarArbol([per("dueño"), per("ana", "dueño"), per("jefe", "dueño"), per("op1", "jefe"), per("op2", "jefe"), per("solo")]);
+    expect(raices.length).toBe(1);
+    expect(raices[0].total).toBe(4);
+    expect(raices[0].hijos.map((h) => [h.persona.id, h.hijos.length, h.total])).toEqual([["jefe", 2, 2], ["ana", 0, 0]]);
+    expect(sueltos.map((s) => s.id)).toEqual(["solo"]);
+  });
+  it("un círculo no cuelga ni pierde gente", () => {
+    const { raices, sueltos } = armarArbol([per("a", "b"), per("b", "a"), per("jefe"), per("c", "jefe")]);
+    expect(raices.map((r) => r.persona.id)).toEqual(["jefe"]);
+    expect(sueltos.map((s) => s.id)).toEqual(["a", "b"]);
+  });
+  it("detecta a quiénes deja en un círculo un cambio", () => {
+    expect([...enCirculo(new Map([["a", "b"], ["b", "c"], ["c", null], ["d", "a"]]))]).toEqual([]);
+    expect([...enCirculo(new Map([["a", "b"], ["b", "c"], ["c", "a"], ["d", "a"]]))].sort()).toEqual(["a", "b", "c"]); // d cuelga del círculo, no es parte
+    expect([...enCirculo(new Map([["a", "a"]]))]).toEqual(["a"]);
+  });
+  it("cadena de mando e iniciales", () => {
+    expect(cadenaDeMando("op", new Map([["op", "jefe"], ["jefe", "dueño"], ["dueño", null]]))).toEqual(["jefe", "dueño"]);
+    expect(cadenaDeMando("a", new Map([["a", "b"], ["b", "a"]]))).toEqual(["b"]);
+    expect(iniciales("Julián", "Retamar")).toBe("JR");
+    expect(iniciales(" maría laura", "gómez")).toBe("MG");
+    expect(iniciales("", "")).toBe("?");
   });
 });
 
