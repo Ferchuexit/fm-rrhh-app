@@ -13,6 +13,7 @@ import { busquedasInternas, busquedasConReferidos } from "@/lib/reclutamiento";
 import { eventosDe } from "@/lib/eventos";
 import { chatSinLeer } from "@/lib/chat";
 import { eppSinFirmar } from "@/lib/epp";
+import { acuerdosSinFirmar } from "@/lib/banco-horas";
 import { festejosDeHoy, textoCelebracion } from "@/lib/cultura";
 import { hoyArgentina } from "@/lib/ausencias-reglas";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,9 @@ export default async function PortalInicio() {
   const hayBiblioteca = await prisma.articuloBiblioteca.count({ where: { empresaId: sesion.empresaId, estado: "publicado" } }).catch(() => 0);
   const eppPendiente = await eppSinFirmar(sesion.legajoId).catch(() => 0);
   const tieneEpp = eppPendiente > 0 || (await prisma.entregaEpp.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0 || (await prisma.elementoEpp.count({ where: { empresaId: sesion.empresaId, activo: true } }).catch(() => 0)) > 0;
+  // Banco de horas: aparece si tiene un acuerdo o algún movimiento.
+  const bancoSinFirmar = await acuerdosSinFirmar(sesion.legajoId).catch(() => 0);
+  const tieneBanco = bancoSinFirmar > 0 || (await prisma.acuerdoBancoHoras.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0 || (await prisma.movimientoBancoHoras.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0;
   const chatPendiente = await chatSinLeer(sesion.legajoId).catch(() => 0);
   const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
@@ -63,6 +67,7 @@ export default async function PortalInicio() {
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
     { href: "/portal/horario", icono: "🕒", label: "Mi horario", globo: 0 },
+    ...(tieneBanco ? [{ href: "/portal/horas", icono: "⏱️", label: "Banco de horas", globo: bancoSinFirmar }] : []),
     { href: "/portal/capacitaciones", icono: "🎓", label: "Capacitaciones", globo: capacitacionesSinConfirmar },
     { href: "/portal/evaluaciones", icono: "📊", label: "Evaluaciones", globo: evaluacionesPendientes },
     { href: "/portal/objetivos", icono: "🎯", label: "Objetivos", globo: 0 },

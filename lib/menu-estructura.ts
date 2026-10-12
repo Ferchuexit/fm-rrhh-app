@@ -199,6 +199,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
     items: [
       { href: "/turnos", label: "Turnos", icono: "🔁", desc: "Horarios de trabajo, rotaciones y quién trabaja cada día" },
       { href: "/asistencia", label: "Asistencia", icono: "🗓️", desc: "Calendario de presentes/ausentes, desde fichadas" },
+      { href: "/banco-horas", label: "Banco de horas", icono: "⏱️", desc: "Horas extra que se compensan con descanso: acuerdos, saldo de cada uno, francos y pagos" },
       { href: "/fichadas", label: "Fichadas", icono: "🕒", desc: "Dato crudo de reloj/terminal — auditoría y corrección" },
       { href: "/dispositivos", label: "Dispositivos", icono: "📱", desc: "Terminales de fichada en clientes (admin)" },
     ],

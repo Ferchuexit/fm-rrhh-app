@@ -128,28 +128,34 @@ export async function avisar(legajoIds: string[], aviso: TextoAviso | ((legajoId
 // sector de la persona si están limitados a sectores). Si la empresa no
 // tiene ningún usuario así, les llega a los administradores.
 export async function avisarPedidoNuevoARRHH(p: { empresaId: string; centroCostoId: string | null; empleado: string; tipo: string; desde: Date; hasta: Date; pedidoPor: string | null }) {
+  const dia = (d: Date) => d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+  const que = p.tipo === "vacaciones" ? "vacaciones" : "un permiso";
+  await avisarARRHH(p.empresaId, p.centroCostoId, "vacaciones", {
+    tipo: "solicitud",
+    titulo: `Pedido nuevo de ${que}: ${p.empleado}`,
+    cuerpo: `${p.pedidoPor ? `${p.pedidoPor} pidió ${que} para ${p.empleado}` : `${p.empleado} pidió ${que}`}, del ${dia(p.desde)} al ${dia(p.hasta)}. Está esperando tu respuesta.`,
+    url: "/solicitudes",
+  });
+}
+
+// Mail a los usuarios del panel que gestionan `modulo` en esa empresa (con
+// el sector de la persona, si están limitados a sectores). Si no hay
+// ninguno, les llega a los administradores. Nunca tira errores.
+export async function avisarARRHH(empresaId: string, centroCostoId: string | null, modulo: string, texto: TextoAviso) {
   try {
     if (!process.env.RESEND_API_KEY) return;
     const db = prismaSistema;
-    const asignados = await db.usuarioEmpresa.findMany({ where: { empresaId: p.empresaId }, select: { sectores: true, usuario: { select: { email: true, rol: true } }, rol: { select: { permisos: true } } } });
+    const asignados = await db.usuarioEmpresa.findMany({ where: { empresaId }, select: { sectores: true, usuario: { select: { email: true, rol: true } }, rol: { select: { permisos: true } } } });
     let destinatarios = asignados
       .filter((a) => a.usuario.rol !== "admin")
-      .filter((a) => (a.rol ? limpiarPermisos(a.rol.permisos) : permisosHeredados(a.usuario.rol)).vacaciones === "gestionar")
-      .filter((a) => a.sectores.length === 0 || (p.centroCostoId !== null && a.sectores.includes(p.centroCostoId)))
+      .filter((a) => (a.rol ? limpiarPermisos(a.rol.permisos) : permisosHeredados(a.usuario.rol))[modulo] === "gestionar")
+      .filter((a) => a.sectores.length === 0 || (centroCostoId !== null && a.sectores.includes(centroCostoId)))
       .map((a) => a.usuario.email);
     if (destinatarios.length === 0) destinatarios = (await db.usuario.findMany({ where: { rol: "admin" }, select: { email: true } })).map((u) => u.email);
     if (destinatarios.length === 0) return;
 
-    const empresa = await db.empresa.findUnique({ where: { id: p.empresaId }, select: { razonSocial: true, nombreFantasia: true } });
+    const empresa = await db.empresa.findUnique({ where: { id: empresaId }, select: { razonSocial: true, nombreFantasia: true } });
     const nombreEmpresa = empresa?.nombreFantasia || empresa?.razonSocial || "";
-    const dia = (d: Date) => d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
-    const que = p.tipo === "vacaciones" ? "vacaciones" : "un permiso";
-    const texto = {
-      tipo: "solicitud",
-      titulo: `Pedido nuevo de ${que}: ${p.empleado}`,
-      cuerpo: `${p.pedidoPor ? `${p.pedidoPor} pidió ${que} para ${p.empleado}` : `${p.empleado} pidió ${que}`}, del ${dia(p.desde)} al ${dia(p.hasta)}. Está esperando tu respuesta.`,
-      url: "/solicitudes",
-    };
     const urlBase = urlBaseDelPedido();
     const html = htmlDelAviso(texto, "", nombreEmpresa, urlBase)
       .replace("Hola, :", "Hola:")

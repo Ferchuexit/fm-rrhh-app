@@ -969,6 +969,8 @@ model Legajo {
   meGusta                  MeGustaPublicacion[]
   lecturasBiblioteca       LecturaBiblioteca[]
   entregasEpp              EntregaEpp[]
+  acuerdosBancoHoras       AcuerdoBancoHoras[]
+  movimientosBancoHoras    MovimientoBancoHoras[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
   avisos                   Aviso[]
@@ -2420,4 +2422,69 @@ model EntregaEpp {
 
   @@index([legajoId, fechaEntrega])
   @@index([elementoId])
+}
+
+// ── Banco de horas (art. 197 bis LCT, texto de la Ley 27.802) ──────────
+// El acuerdo ESCRITO y voluntario entre la empresa y el trabajador (o con
+// la representación sindical) que permite compensar horas extra con
+// descanso en vez de pagarlas. Sin acuerdo aceptado no se acredita nada al
+// banco: las horas se pagan como siempre. Ver docs/102-banco-de-horas.md.
+model AcuerdoBancoHoras {
+  id            String    @id @default(uuid())
+  legajoId      String
+  desde         DateTime
+  hasta         DateTime? // null = sin fecha de fin
+  origen        String    @default("individual") // 'individual' | 'sindical' (pactado con la representación sindical en la empresa)
+  topeHoras     Int? // máximo de horas acumuladas en el banco a la vez; null = sin tope propio (valen igual los legales)
+  plazoDias     Int? // días que tiene cada hora para compensarse; vencido, se paga
+  // Cuánto descanso da una hora extra: 'recargo' = 1 h al 50 % → 1,5 h
+  // libres y 1 h al 100 % → 2 h; 'simple' = hora por hora.
+  equivalencia  String    @default("recargo")
+  observaciones String?
+  aceptadoEn    DateTime? // lo aceptó el empleado desde el portal
+  aceptadoIp    String?
+  enPapel       Boolean   @default(false) // firmó el acuerdo impreso
+  finalizadoEn  DateTime? // se dejó sin efecto hacia adelante
+  creadoPor     String?
+  createdAt     DateTime  @default(now())
+
+  legajo      Legajo                 @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  movimientos MovimientoBancoHoras[]
+
+  @@index([legajoId])
+}
+
+// La "cuenta corriente" de horas de una persona: cada fila suma o resta
+// minutos de descanso. Nunca se borra: un error se anula con motivo.
+//   acreditacion → horas extra que entran al banco (minutosTrabajados al
+//                  recargo indicado; minutos = descanso que generan)
+//   compensacion → descanso que se toma (resta)
+//   pago         → horas del banco que se pagan como horas extra (resta;
+//                  genera la novedad HS_EXTRA_50/100)
+//   ajuste       → corrección a mano, con motivo (suma o resta)
+// Las compensaciones y pagos pedidos desde el portal nacen 'pendiente'.
+model MovimientoBancoHoras {
+  id                String    @id @default(uuid())
+  legajoId          String
+  acuerdoId         String?
+  tipo              String // 'acreditacion' | 'compensacion' | 'pago' | 'ajuste'
+  fecha             DateTime // día trabajado, día de descanso o día del pago
+  minutos           Int // en minutos de descanso; positivo suma, negativo resta
+  minutosTrabajados Int? // acreditación: horas extra reales que la generaron
+  recargo           Int? // acreditación: 50 | 100
+  estado            String    @default("aprobado") // 'aprobado' | 'pendiente' | 'rechazado'
+  origen            String    @default("manual") // 'manual' | 'asistencia' | 'portal'
+  motivo            String?
+  novedadId         String? // el pago que pasó a liquidación
+  cargadoPor        String?
+  resueltoPor       String?
+  resueltoEn        DateTime?
+  anulado           Boolean   @default(false)
+  motivoAnulacion   String?
+  createdAt         DateTime  @default(now())
+
+  legajo  Legajo             @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  acuerdo AcuerdoBancoHoras? @relation(fields: [acuerdoId], references: [id], onDelete: SetNull)
+
+  @@index([legajoId, fecha])
 }

@@ -18,6 +18,7 @@ import { cerrarVencidas, filtroDestinatarios } from "./encuestas";
 import { personasConFechas, celebraciones, textoCelebracion } from "./cultura";
 import { avisoCumple, avisoAniversario, avisoCelebracionesEquipo, avisoEventoManiana, avisoEventoConfirmar } from "./avisos";
 import { filtroInvitados } from "./eventos";
+import { lotes, estadoAcuerdo } from "./banco-horas-reglas";
 
 const DIA = 86400000;
 const masDias = (d: Date, n: number) => new Date(d.getTime() + n * DIA);
@@ -157,6 +158,22 @@ export async function correrRecordatorios(hoy: Date): Promise<Record<string, num
   await bloque(resumen, "epp", async () => {
     const pendientes = await db.entregaEpp.findMany({ where: { firmadoEn: null, enPapel: false, fechaEntrega: { in: [masDias(hoy, -3), masDias(hoy, -10)] }, legajo: activo }, select: { legajoId: true } });
     return (await avisar([...new Set(pendientes.map((e) => e.legajoId))], { tipo: "epp", titulo: "Falta que confirmes una entrega", cuerpo: "Te entregaron elementos de trabajo y todavía no confirmaste que los recibiste. Es un toque desde el portal.", url: "/portal/epp" })).personas;
+  });
+
+  // Banco de horas: el acuerdo que nadie aceptó todavía (a los 3 y a los 10
+  // días de propuesto), y las horas que vencen en 30 y en 7 días, para que
+  // la persona coordine su franco antes de que haya que pagarlas.
+  await bloque(resumen, "banco_horas", async () => {
+    const enDia = (n: number) => ({ gte: masDias(hoy, -n), lt: masDias(hoy, -n + 1) });
+    const sinAceptar = await db.acuerdoBancoHoras.findMany({ where: { aceptadoEn: null, enPapel: false, finalizadoEn: null, OR: [{ createdAt: enDia(3) }, { createdAt: enDia(10) }], legajo: activo }, select: { legajoId: true } });
+    let n = (await avisar([...new Set(sinAceptar.map((a) => a.legajoId))], { tipo: "banco_horas", titulo: "Tenés un acuerdo de banco de horas sin responder", cuerpo: "Leelo en el portal y, si estás de acuerdo, aceptalo. Es voluntario.", url: "/portal/horas" })).personas;
+    const acuerdos = await db.acuerdoBancoHoras.findMany({ where: { plazoDias: { not: null }, legajo: activo } });
+    const conPlazo = acuerdos.filter((a) => estadoAcuerdo(a, hoy) === "vigente");
+    const movs = await db.movimientoBancoHoras.findMany({ where: { legajoId: { in: conPlazo.map((a) => a.legajoId) } }, select: { id: true, legajoId: true, tipo: true, fecha: true, minutos: true, minutosTrabajados: true, recargo: true, estado: true, anulado: true, createdAt: true } });
+    const objetivo = [masDias(hoy, 30).getTime(), masDias(hoy, 7).getTime()];
+    const avisarA = conPlazo.filter((a) => lotes(movs.filter((m) => m.legajoId === a.legajoId), a.plazoDias, hoy).lotes.some((l) => l.restante > 0 && l.vence && objetivo.includes(l.vence.getTime()))).map((a) => a.legajoId);
+    n += (await avisar([...new Set(avisarA)], { tipo: "banco_horas", titulo: "Tenés horas por vencer en tu banco", cuerpo: "Coordiná con tu jefe o con RR.HH. cuándo usarlas. Mirá el detalle en el portal.", url: "/portal/horas" })).personas;
+    return n;
   });
 
   // 8. Encuestas abiertas: a quien todavía no respondió, 2 días antes del
