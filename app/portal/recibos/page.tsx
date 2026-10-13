@@ -29,6 +29,8 @@ export default async function PortalRecibos() {
         <div className="p-aviso ok">Estás al día: todos tus recibos están firmados.</div>
       )}
 
+      {recibos.length > 0 && <a className="p-btn sec" href="/portal/reclamos">Hacer un reclamo de haberes</a>}
+
       {recibos.map((r) => {
         const est = estadoFirma(r.reciboDigital?.firma);
         return (

@@ -80,6 +80,9 @@ export default async function ReciboPortal({ params }: { params: { id: string } 
       ) : (
         <FirmaRecibo liquidacionId={liq.id} />
       )}
+
+      <h2>¿Algo no está bien?</h2>
+      <a className="p-btn sec" href={`/portal/reclamos?recibo=${liq.id}`}>Reclamar algo de este recibo</a>
     </>
   );
 }

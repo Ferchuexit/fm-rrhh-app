@@ -99,6 +99,26 @@ body.con-menu[data-menu="colapsado"] { --ml-ancho: 62px; }
 .ml-usuario span { opacity: 0.6; }
 .ml-salir { color: #fff; white-space: nowrap; }
 
+/* Buscador de la barra de arriba (app/Buscador.tsx) */
+.bs { position: relative; display: flex; align-items: center; }
+.bs-lupa { position: absolute; left: 0.55rem; color: #9fbcd3; font-size: 1rem; pointer-events: none; }
+.bs-input { width: 250px; padding: 0.38rem 3.6rem 0.38rem 1.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff; font-size: 0.85rem; }
+.bs-input::placeholder { color: #b9cde0; }
+.bs-input:focus { outline: none; background: #fff; color: #163A5C; border-color: #fff; }
+.bs-input:focus::placeholder { color: #8a96a3; }
+.bs-atajo { position: absolute; right: 0.45rem; font-size: 0.68rem; color: #b9cde0; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 0 0.3rem; pointer-events: none; font-family: inherit; }
+.bs-input:focus ~ .bs-atajo { display: none; }
+.bs-lista { position: absolute; top: calc(100% + 6px); left: 0; width: 360px; max-height: 70vh; overflow-y: auto; background: #fff; border: 1px solid #dfe4e8; border-radius: 8px; box-shadow: 0 10px 30px rgba(22,58,92,0.18); z-index: 30; padding: 0.3rem 0; }
+.bs-grupo { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6b727b; padding: 0.45rem 0.8rem 0.2rem; }
+.bs-op { display: flex; gap: 0.6rem; align-items: center; padding: 0.42rem 0.8rem; color: #1f2937; text-decoration: none; }
+.bs-op.sel { background: #eaf2f9; }
+.bs-ico { width: 1.4rem; text-align: center; }
+.bs-tit { display: block; font-size: 0.9rem; font-weight: 600; color: #163A5C; }
+.bs-sub { display: block; font-size: 0.75rem; color: #6b727b; }
+.bs-vacio { padding: 0.6rem 0.8rem; font-size: 0.85rem; color: #6b727b; }
+@media (max-width: 900px) { .bs-input { width: 150px; padding-right: 0.5rem; } .bs-atajo { display: none; } .bs-lista { position: fixed; top: calc(var(--ml-alto) + 4px); left: 8px; right: 8px; width: auto; } }
+@media (max-width: 560px) { .ml-usuario, .ml-logo { display: none; } .bs { flex: 1; } .bs-input { width: 100%; min-width: 90px; } .ml-top-der { flex: 1; gap: 0.6rem; } }
+
 .ml-lado { position: fixed; top: var(--ml-alto); left: 0; bottom: 0; width: var(--ml-ancho); z-index: 11; background: #fff; border-right: 1px solid #dfe4e8; overflow-y: auto; overflow-x: hidden; padding: 0.6rem 0.5rem 2rem; transition: width 0.15s ease; }
 .ml-contenido { margin-left: var(--ml-ancho); padding: calc(var(--ml-alto) + 1.5rem) 2rem 2rem; transition: margin-left 0.15s ease; }
 

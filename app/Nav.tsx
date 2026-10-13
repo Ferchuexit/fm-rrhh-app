@@ -8,6 +8,7 @@
 // según el rol. Lo interactivo (colapsar, grupo abierto, ítem activo,
 // cajón en el celular) vive en MenuLateral.tsx, que recibe todo ya resuelto.
 import EmpresaSelector from "./EmpresaSelector";
+import Buscador from "./Buscador";
 import MenuLateral from "./MenuLateral";
 import { obtenerSesionActual } from "@/lib/auth";
 import { menuFiltrado } from "@/lib/menu-estructura";
@@ -33,6 +34,7 @@ export default async function Nav() {
 
   return (
     <MenuLateral categorias={menuFiltrado(acceso.esAdmin, acceso.permisos)} usuario={{ nombre: sesion.nombre, rol: acceso.esAdmin ? "admin" : sesion.rol }}>
+      <Buscador />
       <EmpresaSelector />
     </MenuLateral>
   );

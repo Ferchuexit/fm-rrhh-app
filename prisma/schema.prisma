@@ -135,6 +135,9 @@ model Empresa {
   chatEntreEmpleados Boolean  @default(true)
   // Muro: si lo que publican los empleados espera el visto bueno de RR.HH.
   muroConAprobacion  Boolean  @default(false)
+  // Motivos que el empleado puede elegir al reclamar un recibo (ver
+  // lib/reclamos-reglas.ts). null = la lista estándar.
+  motivosReclamo     Json?
   domicilio          String? // para el encabezado del recibo (Ley 27.802) y "lugar de pago"
   logoUrl            String? // logo para la terminal de fichadas (y a futuro, recibos) — sube a Vercel Blob público
   createdAt          DateTime @default(now())
@@ -970,6 +973,7 @@ model Legajo {
   lecturasBiblioteca       LecturaBiblioteca[]
   entregasEpp              EntregaEpp[]
   acuerdosBancoHoras       AcuerdoBancoHoras[]
+  reclamosHaberes          ReclamoHaberes[]
   movimientosBancoHoras    MovimientoBancoHoras[]
   puestoId                 String?
   puesto                   Puesto?                  @relation(fields: [puestoId], references: [id], onDelete: SetNull)
@@ -2487,4 +2491,33 @@ model MovimientoBancoHoras {
   acuerdo AcuerdoBancoHoras? @relation(fields: [acuerdoId], references: [id], onDelete: SetNull)
 
   @@index([legajoId, fecha])
+}
+
+// ── Reclamos de haberes ────────────────────────────────────────────────
+// El empleado reclama, desde el portal, algo de un recibo (horas extra que
+// no le pagaron, presentismo, un descuento…). Elige uno o varios motivos de
+// la lista de la empresa. RR.HH. lo revisa contra el recibo y lo aprueba
+// (todo o parte, y lo carga como novedad en un período) o lo rechaza con
+// una respuesta. Ver docs/103-reclamos-y-buscador.md.
+model ReclamoHaberes {
+  id            String    @id @default(uuid())
+  legajoId      String
+  liquidacionId String? // el recibo reclamado (null: reclamo general)
+  periodoNombre String? // el período del recibo, tal como se llamaba al reclamar
+  // [{ motivo, unidad: 'horas'|'dias'|'monto'|'texto', cantidad?, detalle?,
+  //    aprobado?, cantidadAprobada?, conceptoCodigo? }]
+  items         Json
+  comentario    String?
+  estado        String    @default("pendiente") // 'pendiente' | 'aprobado' | 'parcial' | 'rechazado'
+  respuesta     String?
+  periodoAjuste String? // nombre del período donde se ajusta
+  novedadIds    String[]  @default([])
+  resueltoPor   String?
+  resueltoEn    DateTime?
+  vistoEn       DateTime? // el empleado vio la respuesta
+  createdAt     DateTime  @default(now())
+
+  legajo Legajo @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+
+  @@index([legajoId])
 }

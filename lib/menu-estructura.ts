@@ -161,6 +161,7 @@ export const ESTRUCTURA_MENU: CategoriaMenu[] = [
       { href: "/legajo-digital", label: "Legajo digital", icono: "📁", desc: "Checklist de documentación de cada empleado y revisión" },
       { href: "/vacaciones", label: "Vacaciones", icono: "🏖️", desc: "Notificación, pendientes, Gantt" },
       { href: "/solicitudes", label: "Solicitudes", icono: "📨", desc: "Pedidos de vacaciones y permisos para aprobar" },
+      { href: "/reclamos", label: "Reclamos de haberes", icono: "🧾", desc: "Lo que reclaman los empleados de sus recibos: revisar, ajustar y responder" },
       { href: "/firmas-recibos", label: "Firmas de recibos", icono: "✍️", desc: "Quién vio y firmó su recibo, por período" },
     ],
   },

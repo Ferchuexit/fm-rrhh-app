@@ -44,6 +44,7 @@ export const MODULOS: DefModulo[] = [
     clave: "configuracion", nombre: "Configuración de sueldos", bloque: "Liquidación de sueldos", desc: "Convenios, categorías, escalas, conceptos, reglas, parámetros — lo que cambia el cálculo de todos",
     rutas: ["/convenios", "/categorias", "/escalas", "/conceptos", "/reglas", "/parametros", "/estado-implementacion", "/actualizaciones-normativas", "/api/convenios", "/api/categorias", "/api/escalas", "/api/conceptos", "/api/reglas", "/api/parametros", "/api/rangos", "/api/estado-implementacion", "/api/actualizaciones-normativas"],
   },
+  { clave: "reclamos", nombre: "Reclamos de haberes", bloque: "Gestión Humana", desc: "Lo que los empleados reclaman de sus recibos desde el portal, y su respuesta", rutas: ["/reclamos", "/api/reclamos"] },
   { clave: "banco_horas", nombre: "Banco de horas", bloque: "Gestión Humana", desc: "Acuerdos de compensación de horas extra (art. 197 bis LCT), saldo de cada uno, francos y pagos", rutas: ["/banco-horas", "/api/banco-horas"] },
   { clave: "epp", nombre: "EPP y ropa de trabajo", bloque: "Gestión Humana", desc: "Qué elementos de protección le corresponden a cada uno, entregas con firma y vencimientos", rutas: ["/epp", "/api/epp"] },
   { clave: "indicadores", nombre: "Indicadores de Gestión Humana", bloque: "Gestión Humana", desc: "Tablero con rotación, ausentismo, clima, documentación, capacitación, vacantes y más", rutas: ["/indicadores", "/api/indicadores"] },
@@ -89,7 +90,7 @@ export const PREFIJOS_PUBLICOS = ["/empleos", "/api/empleos"];
 export const esRutaPublica = (pathname: string) => RUTAS_PUBLICAS.includes(pathname) || PREFIJOS_PUBLICOS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
 // Cualquier usuario del panel con sesión, tenga el rol que tenga.
-const RUTAS_LIBRES = ["/", "/api/logout", "/api/empresa-actual", "/api/sesion"];
+const RUTAS_LIBRES = ["/", "/api/logout", "/api/empresa-actual", "/api/sesion", "/api/buscar"]; // /api/buscar filtra adentro según los permisos
 
 // CONSULTAS COMPARTIDAS — listas que usan los desplegables de casi todas
 // las pantallas (elegir período, convenio, sector, empleado). Solo GET y
