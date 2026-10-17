@@ -43,9 +43,9 @@ export default async function PortalInicio() {
   // Banco de horas: aparece si tiene un acuerdo o algún movimiento.
   const bancoSinFirmar = await acuerdosSinFirmar(sesion.legajoId).catch(() => 0);
   const tieneBanco = bancoSinFirmar > 0 || (await prisma.acuerdoBancoHoras.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0 || (await prisma.movimientoBancoHoras.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0;
-  // Reclamos de haberes: aparece cuando hizo alguno; el globo, respuestas sin leer.
+  // Reclamos de haberes: el globo, respuestas sin leer.
   const reclamosSinVer = await respuestasSinVer(sesion.legajoId).catch(() => 0);
-  const tieneReclamos = reclamosSinVer > 0 || (await prisma.reclamoHaberes.count({ where: { legajoId: sesion.legajoId } }).catch(() => 0)) > 0;
+
   const chatPendiente = await chatSinLeer(sesion.legajoId).catch(() => 0);
   const empleosInternos = await busquedasInternas(sesion.empresaId).then((b) => b.length).catch(() => 0);
   const encuestasPendientes = await encuestasPendientesDe(sesion.legajoId).then((e) => e.length).catch(() => 0);
@@ -69,7 +69,7 @@ export default async function PortalInicio() {
     ...(enIngreso ? [{ href: "/portal/ingreso", icono: "🚀", label: "Mi ingreso", globo: enIngreso.tareas.length }] : []),
     { href: "/portal/noticias", icono: "📣", label: "Noticias", globo: noticiasNuevas },
     { href: "/portal/recibos", icono: "🧾", label: "Recibos", globo: sinFirmar },
-    ...(tieneReclamos ? [{ href: "/portal/reclamos", icono: "📝", label: "Reclamos", globo: reclamosSinVer }] : []),
+    { href: "/portal/reclamos", icono: "📝", label: "Reclamos", globo: reclamosSinVer },
     { href: "/portal/vacaciones", icono: "🏖️", label: "Vacaciones y permisos", globo: 0 },
     { href: "/portal/horario", icono: "🕒", label: "Mi horario", globo: 0 },
     ...(tieneBanco ? [{ href: "/portal/horas", icono: "⏱️", label: "Banco de horas", globo: bancoSinFirmar }] : []),
